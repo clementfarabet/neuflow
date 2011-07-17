@@ -1,12 +1,12 @@
 
 ----------------------------------------------------------------------
---- Class: Interface
+--- Class: Ethernet
 --
 -- This class provides a set of methods to exchange data/info with the host.
 -- 
-local Interface = torch.class('Interface')
+local Ethernet = torch.class('neuflow.Ethernet')
 
-function Interface:__init(args)
+function Ethernet:__init(args)
    -- args:
    self.core = args.core
    self.msg_level = args.msg_level or 'none'  -- 'detailled' or 'none' or 'concise'
@@ -14,16 +14,16 @@ function Interface:__init(args)
 
    -- compulsory
    if (self.core == nil) then
-      error('# ERROR <Interface> : requires a Dataflow Core')
+      error('<neuflow.Ethernet> ERROR: requires a Dataflow Core')
    end
 end
 
-function Interface:startCom()
+function Ethernet:startCom()
    -- simple way of connecting to the host
    self:printToEthernet('start')
 end
 
-function Interface:ethernetBlockOnBusy()
+function Ethernet:ethernetBlockOnBusy()
    local start_again = self.core:processAddress()
    local goto_tag = self.core:makeGotoTag()
 
@@ -32,7 +32,7 @@ function Interface:ethernetBlockOnBusy()
    self.core:gotoAbsoluteIfNonZero(start_again, oFlower.reg_A, goto_tag)
 end
 
-function Interface:ethernetBlockOnIdle()
+function Ethernet:ethernetBlockOnIdle()
    local start_again = self.core:processAddress()
    local goto_tag = self.core:makeGotoTag()
 
@@ -41,7 +41,7 @@ function Interface:ethernetBlockOnIdle()
    self.core:gotoAbsoluteIfZero(start_again, oFlower.reg_A, goto_tag)
 end
 
-function Interface:ethernetWaitForPacket()
+function Ethernet:ethernetWaitForPacket()
    local start_again = self.core:processAddress()
    local goto_tag = self.core:makeGotoTag()
 
@@ -50,14 +50,14 @@ function Interface:ethernetWaitForPacket()
    self.core:gotoAbsoluteIfZero(start_again, oFlower.reg_A, goto_tag)
 end
 
-function Interface:ethernetStartTransfer(size)
+function Ethernet:ethernetStartTransfer(size)
    local status = bit.lshift(size, 16)
    status = bit.bor(status, 0x00000001)
    self.core:setreg(oFlower.reg_A, status)
    self.core:iowrite(oFlower.io_ethernet_status, oFlower.reg_A)
 end
 
-function Interface:printToEthernet(str)
+function Ethernet:printToEthernet(str)
    -- Printing to ethernet involves initializing a transfer with the driver, 
    -- then writing the data (frame), then triggering the transfer.
 
@@ -93,11 +93,12 @@ function Interface:printToEthernet(str)
    -- (4) make sure it's started
    self:ethernetBlockOnIdle()
 end
-function Interface:streamToHost(stream, tag, mode)
+
+function Ethernet:streamToHost(stream, tag, mode)
    -- verif data size >= 64
    local data_size = stream.w * stream.h * 2
    if (data_size < 64) then
-      error('# ERROR <Interface> : cant stream data packets smaller than 64 bytes')
+      error('<neuflow.Ethernet> ERROR: cant stream data packets smaller than 64 bytes')
    end
 
    -- estimate number of eth packets
@@ -164,7 +165,7 @@ function Interface:streamToHost(stream, tag, mode)
       packet_size = last_packet
       
       if (math.floor(packet_size/4)*4 ~= packet_size) then
-         error('# ERROR <Interface> : eth frame not fit for the DMA [this needs to be fixed]')
+         error('<neuflow.Ethernet> ERROR: eth frame not fit for the DMA [this needs to be fixed]')
       end 
       
       -- (b) 
@@ -220,16 +221,15 @@ function Interface:streamToHost(stream, tag, mode)
                                arg8_3 = oFlower.type_uint32,
                                arg32_1 = 16}
    elseif mode ~= 'no-ack' then
-      error('ERROR <Interface> : mode can be one of: with-ack | no-ack')
+      error('ERROR <Ethernet> : mode can be one of: with-ack | no-ack')
    end
 end
 
-
-function Interface:streamToHost_ack(stream, tag, mode)
+function Ethernet:streamToHost_ack(stream, tag, mode)
    -- verif data size >= 64
    local data_size = stream.w * stream.h * 2
    if (data_size < 64) then
-      error('# ERROR <Interface> : cant stream data packets smaller than 64 bytes')
+      error('<neuflow.Ethernet> ERROR: cant stream data packets smaller than 64 bytes')
    end
 
    -- estimate number of eth packets
@@ -302,7 +302,7 @@ function Interface:streamToHost_ack(stream, tag, mode)
 				  arg32_1 = 16}
 	 --self:ethernetBlockOnIdle()
       elseif mode ~= 'no-ack' then
-	 error('ERROR <Interface> : mode can be one of: with-ack | no-ack')
+	 error('ERROR <Ethernet> : mode can be one of: with-ack | no-ack')
       end 
       
       self.core:addi(oFlower.reg_B, -1, oFlower.reg_B)
@@ -314,7 +314,7 @@ function Interface:streamToHost_ack(stream, tag, mode)
       packet_size = last_packet
       
       if (math.floor(packet_size/4)*4 ~= packet_size) then
-         error('# ERROR <Interface> : eth frame not fit for the DMA [this needs to be fixed]')
+         error('<neuflow.Ethernet> ERROR: eth frame not fit for the DMA [this needs to be fixed]')
       end 
       
       -- (b) 
@@ -365,7 +365,7 @@ function Interface:streamToHost_ack(stream, tag, mode)
 				  arg32_1 = 16}
 	 --self:ethernetBlockOnIdle()
       elseif mode ~= 'no-ack' then
-	 error('ERROR <Interface> : mode can be one of: with-ack | no-ack')
+	 error('ERROR <Ethernet> : mode can be one of: with-ack | no-ack')
       end 
 
       
@@ -388,15 +388,15 @@ function Interface:streamToHost_ack(stream, tag, mode)
 --                                arg8_3 = oFlower.type_uint32,
 --                                arg32_1 = 16}
 --    elseif mode ~= 'no-ack' then
---       error('ERROR <Interface> : mode can be one of: with-ack | no-ack')
+--       error('ERROR <Ethernet> : mode can be one of: with-ack | no-ack')
 --    end
 end
 
-function Interface:streamFromHost_legacy(stream, tag)
+function Ethernet:streamFromHost_legacy(stream, tag)
    -- verif data size >= 64
    local data_size = stream.w * stream.h * 2
    if (data_size < 64) then
-      error('# ERROR <Interface> : cant stream data packets smaller than 64 bytes')
+      error('<neuflow.Ethernet> ERROR: cant stream data packets smaller than 64 bytes')
    end
    
    -- for compilation
@@ -475,11 +475,11 @@ function Interface:streamFromHost_legacy(stream, tag)
    self.core:closePort(1)
 end
 
-function Interface:streamFromHost(stream, tag)
+function Ethernet:streamFromHost(stream, tag)
    -- verif data size >= 64
    local data_size = stream.w * stream.h * 2
    if (data_size < 64) then
-      error('# ERROR <Interface> : cant stream data packets smaller than 64 bytes')
+      error('<neuflow.Ethernet> ERROR: cant stream data packets smaller than 64 bytes')
    end
    
    -- estimate number of eth packets
@@ -535,7 +535,7 @@ function Interface:streamFromHost(stream, tag)
 end
 
 
-function Interface:loopBack(size)
+function Ethernet:loopBack(size)
    -- debug
    if (self.msg_level == 'detailled') then
       self.core:message(string.format('looping back one %d-long packet', size))
@@ -556,18 +556,11 @@ function Interface:loopBack(size)
    self:ethernetStartTransfer(size)
 end
 
-
-
-
-
-
-
-
-function Interface:streamFromHost_ack(stream, tag)
+function Ethernet:streamFromHost_ack(stream, tag)
    -- verif data size >= 64
    local data_size = stream.w * stream.h * 2
    if (data_size < 64) then
-      error('# ERROR <Interface> : cant stream data packets smaller than 64 bytes')
+      error('<neuflow.Ethernet> ERROR: cant stream data packets smaller than 64 bytes')
    end
    
    -- estimate number of eth packets
@@ -653,15 +646,7 @@ function Interface:streamFromHost_ack(stream, tag)
   
 end
 
-
-
-
-
-
-
-
-
-function Interface:loadByteCode()
+function Ethernet:loadByteCode()
    -- Creating a stream
    local bytecode_stream = {x = 0, y = 0, w = 1024, y = 1024}
    

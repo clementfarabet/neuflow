@@ -50,6 +50,7 @@ build = {
          install_files(/lua/neuflow defines_pico_m503.lua)
          install_files(/lua/neuflow tools.lua)
          install_files(/lua/neuflow rom.lua)
+         install_files(/lua/neuflow Profiler.lua)
          install_files(/lua/neuflow Log.lua)
          install_files(/lua/neuflow Memory.lua)
          install_files(/lua/neuflow Compiler.lua)

@@ -36,10 +36,14 @@ require 'torch'
 require 'nnx'
 require 'bit'
 
+-- main table
+neuflow = {}
+
 -- load all submodules
 torch.include('neuflow', 'defines.lua')
 torch.include('neuflow', 'tools.lua')
 torch.include('neuflow', 'rom.lua')
+torch.include('neuflow', 'Profiler.lua')
 torch.include('neuflow', 'Log.lua')
 torch.include('neuflow', 'Memory.lua')
 torch.include('neuflow', 'Compiler.lua')
@@ -50,6 +54,9 @@ torch.include('neuflow', 'Linker.lua')
 torch.include('neuflow', 'Serial.lua')
 torch.include('neuflow', 'NeuFlow.lua')
 
+-- shortcut for user interface:
+neuflow.init = neuflow.NeuFlow
+
 -- create a path in home dir to store things
 -- like coefficients for example
 local coefpath = os.getenv('HOME')..'/.neuflow/coefs'
@@ -59,3 +66,6 @@ os.execute('chmod a+rw ' .. coefpath)
 -- migrate all the coefficients
 os.execute('cp ' ..  sys.concat(sys.fpath(), 'segments/*') .. ' ' .. coefpath)
 os.execute('chmod a+rw ' .. coefpath .. '/*')
+
+-- return table
+return neuflow

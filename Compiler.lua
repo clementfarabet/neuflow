@@ -5,10 +5,10 @@
 -- This class provides a set of methods to compile a neural network into 
 -- bytecode for the dataflow computer.
 --
-local Compiler = torch.class('Compiler')
+local Compiler = torch.class('neuflow.Compiler')
 
 local message = {
-   WARNING_IMPLEMENTED = '# WARNING: module not implemented > '
+   WARNING_IMPLEMENTED = '<neuflow.Compiler> WARNING: module not implemented > '
 }
 
 function Compiler:__init(args)
@@ -19,7 +19,7 @@ function Compiler:__init(args)
    self.msg_level = args.msg_level or 'concise' -- can be 'none' or 'detailled'
    
    if (self.core == nil or self.logfile == nil) then
-      error('# ERROR <Compiler> : please provide DataflowComputer + Log')
+      error('<neuflow.Compiler> ERROR: please provide DataflowComputer + Log')
    end
 
    -- this param holds the number of ops required to compute the given net
@@ -220,7 +220,7 @@ function Compiler:processNetwork(network, inputs)
       self.core:getTime()
       self.core:endProcess()
    end
-   print('# processing network [type = ' .. torch.typename(network) .. ']:')
+   print('<neuflow.Compiler> processing network [type = ' .. torch.typename(network) .. ']:')
    print(network.modules)
    local doneAdvance = 0
    local outputs
@@ -241,7 +241,7 @@ function Compiler:processNetwork(network, inputs)
             module_3 = network.modules[i+3].__typename
          end
          io.write(sys.COLORS.cyan)
-         io.write('# processing layer of type > '..module_0)
+         io.write('<neuflow.Compiler> processing layer of type > '..module_0)
          mapping = nil
          if self.opt_across_layers then
             if module_0 == 'nn.Tanh' and module_1 == 'nn.AbsModule' then
@@ -359,7 +359,7 @@ function Compiler:processFlow(flow, inputs)
       self.core:getTime()
       self.core:endProcess()
    end
-   print('# processing xFlow')
+   print('<neuflow.Compiler> processing xFlow')
 
    -- find all mappings
    for i=1,#flow.machine do
@@ -401,7 +401,7 @@ function Compiler:processFlow(flow, inputs)
             module_3 = flow.machine[i+3].name
             params_3 = flow.machine[i+3].params
          end
-         io.write('# processing layer of type > '..module_0)
+         io.write('<neuflow.Compiler> processing layer of type > '..module_0)
          mapping = nil
          if self.opt_across_layers then
             -- combine multiple mappings together:
@@ -501,7 +501,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
       local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
       local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
       if output_height ~= math.floor(output_height) then
-         error('# ERROR <Compiler> : inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+         error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
                conv_module.kH .. ', out_h=' .. output_height)
       end
       local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
@@ -600,7 +600,7 @@ function Compiler:SpatialConvolutionTable(conv_module, inputs, mapping)
          local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
          local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
          if output_height ~= math.floor(output_height) then
-            error('# ERROR <Compiler> : inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
                   conv_module.kH .. ', out_h=' .. output_height)
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
@@ -635,7 +635,7 @@ function Compiler:SpatialConvolutionTable(conv_module, inputs, mapping)
          local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
          local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
          if output_height ~= math.floor(output_height) then
-            error('# ERROR <Compiler> : inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
                   conv_module.kH .. ', out_h=' .. output_height)
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
@@ -691,7 +691,7 @@ function Compiler:SpatialConvolutionTable(conv_module, inputs, mapping)
                local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
                local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
                if output_height ~= math.floor(output_height) then
-                  error('# ERROR <Compiler> : inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+                  error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
                         conv_module.kH .. ', out_h=' .. output_height)
                end
                local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, 
@@ -770,7 +770,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
          local output_width = math.floor( (self.core.mem.buff[inputs[o]].orig_w-sub_module.kW)/sub_module.dW + 1)
          local output_height = (self.core.mem.buff[inputs[o]].orig_h-sub_module.kH)/sub_module.dH + 1
          if output_height ~= math.floor(output_height) then
-            error('# ERROR <Compiler> : inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
                sub_module.kH .. ', out_h=' .. output_height)
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
@@ -1054,7 +1054,7 @@ function Compiler:getCoefs(mapping)
    elseif type == 'HardTanh' then
       coefs=math.approx_HardTanh{nbSegments=grid.mapper_segs}
    else
-      error('# ERROR <Compiler> : unknown mapping')
+      error('<neuflow.Compiler> ERROR: unknown mapping')
    end
    
    return coefs
@@ -1187,6 +1187,6 @@ end
 
 function Compiler:printStats()
    str = string.format('network computed requires %f MOPs', self.ops/1000000.)
-   print('# '..str)
+   print('<neuflow.Compiler> '..str)
    return str
 end

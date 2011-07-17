@@ -12,7 +12,7 @@
 -- Offsets are in pixels!!! when writing to file need to adjust to bytes (mult by pixel value)
 -- One line has 1024 pixels = 2048 bytes = 512 integers.
 --
-local Memory = torch.class('Memory')
+local Memory = torch.class('neuflow.Memory')
 
 function Memory:__init(args)
    -- args
@@ -246,7 +246,7 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
    end
    -- check if there is space in the mem if not start overwriting first layers
    if (self.buff_offset_y + h_) > memory.size_r then
-      print("##########WARNING: Overwriting the first layers of heap!")
+      print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
       self.buff_offset_y = self.start_buff_y
       self.buff_offset_x = self.start_buff_x
    end
@@ -281,7 +281,7 @@ end
 function Memory:allocOnTheHeap(h_, w_, data_)
    -- check if there is space in the mem if not start overwriting first layers
    if (self.buff_offset_y + 1) > memory.size_r then
-      print("##########WARNING: Overwriting the first layers of heap!")
+      print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
       self.buff_offset_y = self.start_buff_y
       self.buff_offset_x = self.start_buff_x
    end
@@ -338,7 +338,7 @@ function Memory:allocOnTheHeap(h_, w_, data_)
 end
 
 function Memory:printHeap()
-   print('# allocated on the heap:')
+   print('<neuflow.Memory> allocated on the heap:')
    for i = 1,#self.buff do
       p(self.buff[i])
    end

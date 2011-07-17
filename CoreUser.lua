@@ -10,7 +10,8 @@
 -- IMPORTANT NOTE: these methods are inserted into the Core class, and
 --                 cannot be used independently
 --
-CoreUser = {}
+neuflow.CoreUser = {}
+local CoreUser = neuflow.CoreUser
 
 function CoreUser:registerKernel(args)
    -- parse args

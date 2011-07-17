@@ -7,7 +7,7 @@
 --     running on the dataflow computer
 -- (2) data is used by processes
 --
-local Linker = torch.class('Linker')
+local Linker = torch.class('neuflow.Linker')
 
 function Linker:__init(args)
    -- args

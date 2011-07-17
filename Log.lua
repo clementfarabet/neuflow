@@ -4,7 +4,7 @@
 --
 -- logs info during compilation.
 --
-local Log = torch.class('Log')
+local Log = torch.class('neuflow.Log')
 
 function Log:__init(file)
    self.logFile = assert(io.open(file, "w"))

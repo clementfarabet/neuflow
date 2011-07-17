@@ -1,3 +1,4 @@
+
 ----------------------------------------------------------------------
 --- Class: Core
 --
@@ -7,7 +8,7 @@
 -- This file only contais the low-level functions to manipulate
 -- the grid, and the bytecode
 --
-local Core = torch.class('Core')
+local Core = torch.class('neuflow.Core')
 
 function Core:__init(args)
    -- if system specified, using platform-specific header
@@ -65,15 +66,15 @@ function Core:__init(args)
    self.loop_start = 0
 
    -- linker
-   self.linker = Linker{logfile     =  self.logfile,
-                        start_text  =  self.offset_code,
-                        disassemble =  self.disassemble}
+   self.linker = neuflow.Linker{logfile     =  self.logfile,
+                                start_text  =  self.offset_code,
+                                disassemble =  self.disassemble}
 
    -- memory manager
-   self.mem = Memory{logfile       =  self.logfile,
-                     kernel_offset =  self.offset_data_1D,
-                     image_offset  =  self.offset_data_2D,
-                     heap_offset   =  self.offset_heap}
+   self.mem = neuflow.Memory{logfile       =  self.logfile,
+                             kernel_offset =  self.offset_data_1D,
+                             image_offset  =  self.offset_data_2D,
+                             heap_offset   =  self.offset_heap}
 
    -- ports state
    self.dvi_mode = 0
@@ -82,7 +83,7 @@ function Core:__init(args)
    self.nb_kernels_loaded = {} for i=1,grid.nb_convs do self.nb_kernels_loaded[i] = 0 end
 
    -- load all methods from CoreUser
-   for k,method in pairs(CoreUser) do
+   for k,method in pairs(neuflow.CoreUser) do
       self[k] = method
    end
 
@@ -282,7 +283,7 @@ function Core:defvar(name, val)
       end
    end
    if (self.vars[#self.vars].reg > oFlower.reg_F) then
-      error(string.format('# ERROR <Core> : var [%s] couldnt be allocated', name))
+      error(string.format('<neuflow.Core> ERROR: var [%s] couldnt be allocated', name))
    end
    -- set var
    self:setvar(name, val)
@@ -299,7 +300,7 @@ function Core:setvar(name, val)
       end
    end
    if (var_index == 0) then
-      error(string.format('# ERROR <Core> : trying to assign unexisting var [%s]',
+      error(string.format('<neuflow.Core> ERROR: trying to assign unexisting var [%s]',
                           name))
    end
    -- store var
@@ -316,7 +317,7 @@ function Core:var(name)
          return self.vars[var_idx].reg
       end
    end
-   error(string.format('# ERROR <Core> : trying to assign unexisting var [%s]',
+   error(string.format('<neuflow.Core> ERROR: trying to assign unexisting var [%s]',
                        name))
 end
 
@@ -630,7 +631,7 @@ function Core:activateStreamerPort(port, mode, data, sync)
    elseif mode == 'write' then
       self:send_activate() -- activate directly
    else
-      error('# ERROR <Core> : port mode must be one of: write | read')
+      error('<neuflow.Core> ERROR: port mode must be one of: write | read')
    end
 end
 
