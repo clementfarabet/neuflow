@@ -4,10 +4,9 @@
 **neuFlow** is dataflow architecture optimized for 
 large array/tensor transforms, and especially image
 processing operations.
-
-More info can be found about the architecture, 
+More info about the architecture, 
 hardware and applications can be found 
-[here](https://www.neuflow.org).
+[here](http://www.neuflow.org).
 
 ## this package
 
@@ -22,7 +21,6 @@ interface Torch7's neural-network package natively.
 The easiest route to install this package is to use
 [Luarocks](http://www.luarocks.org/), Lua's package
 manager. 
-
 The following instructions show you how to get
 Lua + Luarocks + Torch7 quickly installed:
 
