@@ -1,12 +1,12 @@
 
-toolBox = toolBox or {}
+neuflow.tools = {}
 
 ----------------------------------------------------------------------
 --- reads binary and dumps hex.
 -- This function reads binary file and produces the hexa(text) file 
 -- for mem simulation.
 --
-function toolBox.readBinWriteHex(input, output, word_width, requested_size_b)
+function neuflow.tools.readBinWriteHex(input, output, word_width, requested_size_b)
    -- Files
    local file_hex = assert(io.open(output, "w"))
    local file_bin = assert(io.open(input, "rb"))
@@ -67,11 +67,11 @@ end
 -- This function reads binary file and produces a ROM, to be directly
 -- synthesized by XST
 --
-function toolBox.readBinWriteRom(input, output, word_width, name)
+function neuflow.tools.readBinWriteRom(input, output, word_width, name)
    -- Files
    local file_rom = assert(io.open(output, "w"))
    local file_bin = assert(io.open(input, "rb"))
-   local template = toolBox.romTemplate
+   local template = neuflow.tools.romTemplate
 
    print('# Converting bin code ['..input..'] to ROM file ['
          ..output..'] using '..word_width..'bit words')
@@ -146,7 +146,7 @@ end
 -- @param [offset]    optional offset
 -- @param [length]    optional length
 --
-function toolBox.disassemble(binary, args)
+function neuflow.tools.disassemble(binary, args)
    -- process args
    args = args or {}
    local offset = args.offset or 1

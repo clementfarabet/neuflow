@@ -890,7 +890,7 @@ end
 function Linker:dump_instructions(info, out)
    -- optional disassemble
    if self.disassemble then
-      toolBox.disassemble(self.process, {length=self.processp-1})
+      neuflow.tools.disassemble(self.process, {length=self.processp-1})
    end
 
    -- dump

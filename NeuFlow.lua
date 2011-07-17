@@ -480,10 +480,10 @@ function NeuFlow:writeBytecode(args)
          os.execute('cp -v' .. self.tempfilebin .. ' ' .. filename .. '.bin')
       elseif format == 'hex' then
          local filehex = filename..'.hex'..tostring(width)
-         toolBox.readBinWriteHex(self.tempfilebin, filehex, width, length)
+         neuflow.tools.readBinWriteHex(self.tempfilebin, filehex, width, length)
       elseif format == 'rom' then
          local filev = filename..'.v'
-         toolBox.readBinWriteRom(self.tempfilebin, filev, width, 'flow_rom')
+         neuflow.tools.readBinWriteRom(self.tempfilebin, filev, width, 'flow_rom')
       else
          error('format should be one of: bin | hex')
       end
