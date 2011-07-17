@@ -2,7 +2,7 @@
 ----------------------------------------------------------------------
 --- Class: CoreUser
 --
--- This class provides a set of methods to abstract the Dataflow Computer 
+-- This class provides a set of methods to abstract the Dataflow Computer
 -- hardware.
 --
 -- This file only includes the high-level API calls of the Core module.
@@ -23,8 +23,8 @@ function CoreUser:registerKernel(args)
       -- kernels are already there, discard the previous kernels
       local nb_discards = self.nb_kernels_loaded[args.address]
       for i=1,nb_discards do
-	 self:send_control_1()
-	 self.nb_kernels_loaded[args.address] = self.nb_kernels_loaded[args.address] - 1
+         self:send_control_1()
+         self.nb_kernels_loaded[args.address] = self.nb_kernels_loaded[args.address] - 1
       end
    end
    self.nb_kernels_loaded[args.address] = self.nb_kernels_loaded[args.address] + 1
@@ -55,7 +55,7 @@ function CoreUser:convolve(input, kernel, output, opts)
       -- config tile #1 for mapper
       self:configTile{operation = 'MAPPING',
                       address = 1,
-                      config = {mode = {even=coefs.even, odd=coefs.odd}, 
+                      config = {mode = {even=coefs.even, odd=coefs.odd},
                                 segments = coefs},
                       inputs = {[1] = {source = 'north'}},
                       outputs = {[1] = {dest = 3}},
@@ -84,7 +84,7 @@ function CoreUser:convolve(input, kernel, output, opts)
    -- synchronize write port, and close all
    self:configPort{index = 3, action = 'sync+close'}
    self:configPort{index = 1, action = 'close'}
-   
+
    -- deactivate tile
    self:configTile{operation = 'CONV2D', address = 1, activate = false}
    if mapping then
@@ -169,7 +169,7 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
             -- config all conv tiles to exec convolutions
             for i = 1,sim_convs do
                -- bias is active for very first conv only
-               if i == 1 and cyc == 1 then bias = 'on' 
+               if i == 1 and cyc == 1 then bias = 'on'
                else bias = 'off' end
 
                if cyc > 1 and i == 1 then
@@ -223,8 +223,8 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
                      -- mapper is used for the last segment
                      self:configTile{operation = 'MAPPING',
                                      address = i,
-                                     config = {mode = {even=coefs.even, 
-                                                       odd=coefs.odd}, 
+                                     config = {mode = {even=coefs.even,
+                                                       odd=coefs.odd},
                                                segments = coefs},
                                      inputs = {[1] = {source = 'west'}},
                                      outputs = {[1] = {dest = 1}},
@@ -264,7 +264,7 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
                local delay = 0
                local clock_ratio = oFlower.clock_freq / grid.clock_freq
                local fifo_size = 64
-               if cyc > 1 and i == 2 then 
+               if cyc > 1 and i == 2 then
                   delay = (fifo_size/2 + 16) * clock_ratio
                elseif i > 2 then
                   delay = 4 * clock_ratio
@@ -297,7 +297,7 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
          end
       end
 
-   -- only one input > data reuse is done one that 1 input
+      -- only one input > data reuse is done one that 1 input
    elseif #inputs == 1 and (#inputs*#outputs) == #kernels then
       -- compute all convolutions, by groups of [nconvs]
       local nb_cycles = math.ceil(#outputs / nconvs)
@@ -340,13 +340,13 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
                             control = 3,
                             activate = true}
 
-            
+
             if coefs then
                -- mapper is used for the last segment
                self:configTile{operation = 'MAPPING',
                                address = o,
-                               config = {mode = {even=coefs.even, 
-                                                 odd=coefs.odd}, 
+                               config = {mode = {even=coefs.even,
+                                                 odd=coefs.odd},
                                          segments = coefs},
                                inputs = {[1] = {source = 'north'}},
                                outputs = {[1] = {dest = 1+o}},
@@ -390,8 +390,8 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
          self:endProcess()
       end
 
-   -- one kernel per input, this is a 1 to 1 layer
-   elseif #inputs == #outputs and #inputs == #kernels then 
+      -- one kernel per input, this is a 1 to 1 layer
+   elseif #inputs == #outputs and #inputs == #kernels then
       -- compute all convolutions, by groups of [nconvs]
       local nconvs = math.min(math.floor(grid.nb_ios/2),nconvs)
       local nb_cycles = math.ceil(#outputs / nconvs)
@@ -438,13 +438,13 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
                             control = 3,
                             activate = true}
 
-            
+
             if coefs then
                -- mapper is used for the last segment
                self:configTile{operation = 'MAPPING',
                                address = o,
-                               config = {mode = {even=coefs.even, 
-                                                 odd=coefs.odd}, 
+                               config = {mode = {even=coefs.even,
+                                                 odd=coefs.odd},
                                          segments = coefs},
                                inputs = {[1] = {source = 'north'}},
                                outputs = {[1] = {dest = nconvs+o}},
@@ -491,7 +491,7 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
 
       end
 
-   -- unknown combination of kernels/inputs/outputs
+      -- unknown combination of kernels/inputs/outputs
    else
       error('<CoreUser:convolveBankAndMap> the number of kernels/inputs/outputs is inconsistent')
    end
@@ -501,7 +501,7 @@ function CoreUser:convolveAndAcc(input, kernel, inputacc, output, opts)
    self:startProcess()
    if (self.msg_level ~= 'none') then
       self:message('exec.convolution.and.mapping.with.'..input.orig_h..'x'..input.orig_w..
-		   '.image.and.acc.with.'..inputacc.orig_h..'x'..inputacc.orig_w..'.image')
+                   '.image.and.acc.with.'..inputacc.orig_h..'x'..inputacc.orig_w..'.image')
    end
 
    -- args
@@ -524,8 +524,8 @@ function CoreUser:convolveAndAcc(input, kernel, inputacc, output, opts)
       -- config tile #1 for mapper
       self:configTile{operation = 'MAPPING',
                       address = 1,
-                      config = {mode = {even=mapping.even, 
-                                        odd=mapping.odd}, 
+                      config = {mode = {even=mapping.even,
+                                        odd=mapping.odd},
                                 segments = mapping},
                       inputs = {[1] = {source = 'north'}},
                       outputs = {[1] = {dest = 4}},
@@ -596,8 +596,8 @@ function CoreUser:subsample(input, kernel, output, opts)
       -- config tile #1 for mapper
       self:configTile{operation = 'MAPPING',
                       address = 1,
-                      config = {mode = {even=mapping.even, 
-                                        odd=mapping.odd}, 
+                      config = {mode = {even=mapping.even,
+                                        odd=mapping.odd},
                                 segments = mapping},
                       inputs = {[1] = {source = 'north'}},
                       outputs = {[1] = {dest = 3}},
@@ -648,11 +648,11 @@ function CoreUser:mapping(input, output, coefs)
    if (self.msg_level ~= 'none') then
       self:message('exec.mapping.with.'..input.orig_h..'x'..input.orig_w..'.image')
    end
-   
+
    -- config tile #1 for mapper
    self:configTile{operation = 'MAPPING',
                    address = 1,
-                   config = {mode = {even=coefs.even, odd=coefs.odd}, 
+                   config = {mode = {even=coefs.even, odd=coefs.odd},
                              segments = coefs},
                    inputs = {[1] = {source = 1}},
                    outputs = {[1] = {dest = 3}},
@@ -690,7 +690,7 @@ function CoreUser:copy(input, output)
    -- and close them all
    self:closePort(4)
    self:closePort(5)
-   
+
    -- unconnect IO router
    self:send_selectModule(blast_bus.area_tile, blast_bus.addr_mapp_0, blast_bus.subAddr_IO)
    self:send_route__all_dummys()
@@ -711,11 +711,11 @@ function CoreUser:localNormalizeMean(input, kernel, output)
       local meanRemover = kernel.data
       meanRemover:div(meanRemover:sum())
       meanRemover:mul(-1)
-      meanRemover:narrow(1,kernel.data:size(1)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(2,math.ceil(kernel.orig_h/2),1):add(1)
+      meanRemover:narrow(2,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(1,math.ceil(kernel.orig_h/2),1):add(1)
 
       -- (1) make sure kernel would have perfect 0 mean after quantization
       meanRemover:mul(num.one):add(0.5):floor():div(num.one)
-      meanRemover:narrow(1,kernel.data:size(1)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(2,math.ceil(kernel.orig_h/2),1):add(-meanRemover:sum())
+      meanRemover:narrow(2,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(1,math.ceil(kernel.orig_h/2),1):add(-meanRemover:sum())
 
       -- mark kernel as being zero mean
       kernel.zero_mean = true
@@ -739,7 +739,7 @@ function CoreUser:localNormalizeStd(input, kernel, output, threshold)
       local average = kernel.data
       average:div(average:sum())
       average:mul(num.one):add(0.5):floor():div(num.one)
-      average:narrow(1,kernel.data:size(1)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(2,math.ceil(kernel.orig_h/2),1):add(1-average:sum())
+      average:narrow(2,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(1,math.ceil(kernel.orig_h/2),1):add(1-average:sum())
 
       -- mark kernel as being one mean
       kernel.one_mean = true
@@ -752,18 +752,18 @@ function CoreUser:localNormalizeStd(input, kernel, output, threshold)
    if not self.sqrtCoefs then
       local mapping
       if threshold then
-	 mapping = function (x) 
-		      if x < threshold then return math.sqrt(threshold)
-		      else return math.sqrt(x) end
-		   end
+         mapping = function (x)
+                      if x < threshold then return math.sqrt(threshold)
+                      else return math.sqrt(x) end
+                   end
       else
-	 mapping = math.sqrt
+         mapping = math.sqrt
       end
       self.sqrtCoefs = math.approx{mapping=mapping, min=0, max=num.max,
-				   nbSegments=grid.mapper_segs, Q=num.frac_,
-				   epsilon = 19.7/256, error_type = 0,name='Sqrt_s_th'}
+                                   nbSegments=grid.mapper_segs, Q=num.frac_,
+                                   epsilon = 19.7/256, error_type = 0,name='Sqrt_s_th'}
    end
-   
+
    -- (3) sqrt(sum of squares) == square > convolution > mapping
    self:square(input, self.mem.buff[buffer])
    self:convolBank({self.mem.buff[buffer]}, {kernel}, {output}, self.sqrtCoefs)
@@ -810,16 +810,15 @@ function CoreUser:localNormalizeMeanBank(inputs, kernels, outputs, xN_coefs)
    -- (0) make sure kernels given are one-mean and have perfect 1 mean after quantization
    for k,kernel in ipairs(kernels) do
       if (not kernel.mean) or (kernel.mean ~= 1) then
-         local average = kernel.data:narrow(1,kernel.data:size(1)-kernel.orig_w+1,kernel.orig_w):narrow(2,1,kernel.orig_h)
+         local average = kernel.data:narrow(2,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(1,1,kernel.orig_h)
          self:normKernel(average)
          kernel.mean = 1
       end
    end
-   
-   
+
    -- (2) compute mean across inputs
    local average_id = self.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w, {}, true)
-   
+
    self:convolBank(inputs, kernels, {self.mem.buff[average_id]}, xN_coefs)
 
    -- (2) remove mean == convolution
@@ -840,7 +839,7 @@ function CoreUser:localNormalizeStdBank(inputs, kernels, outputs, sqrtCoefs)
    -- (0) make sure kernels given are one-mean and have perfect 1 mean after quantization
    for k,kernel in ipairs(kernels) do
       if (not kernel.mean) or (kernel.mean ~= 1) then
-         local average = kernel.data:narrow(1,kernel.data:size(1)-kernel.orig_w+1,kernel.orig_w):narrow(2,1,kernel.orig_h)
+         local average = kernel.data:narrow(2,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(1,1,kernel.orig_h)
          self:normKernel(average)
          kernel.mean = 1
       end
@@ -921,7 +920,7 @@ function CoreUser:stdOperator(input1, input2, input3, output, op)
       self:configPort{index = 2, action = 'close'}
    end
    self:configPort{index = 1, action = 'close'}
-   
+
    -- deactivate tile
    self:configTile{operation = op, address = 1, activate = false}
    self:endProcess()
