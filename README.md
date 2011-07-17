@@ -1,4 +1,3 @@
-
 # neuFlow
 
 **neuFlow** is dataflow architecture optimized for 
@@ -14,7 +13,7 @@ This package is a compiler toolkit for neuFlow. It is
 entirely written in [Lua](http://www.lua.org/), and
 relies on [Torch7](https://github.com/andresy/torch) to 
 represent N-dimensional arrays efficiently. It also
-interface Torch7's neural-network package natively.
+interfaces Torch7's neural-network package natively.
 
 ## how to install
 
@@ -34,6 +33,7 @@ At this stage, Luarocks should be in your path. Now
 all you have to do is:
 
 ``` sh
+$ luarocks install torch    # Torch7, an efficient numeric library for Lua
 $ luarocks install image    # an image library for Torch7
 $ luarocks install nnx      # lots of extra neural-net modules
 $ luarocks install camera   # a camera interface for Linux/MacOS
