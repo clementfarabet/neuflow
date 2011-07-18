@@ -48,9 +48,9 @@ local layers_table = {
          return net_compiler:SpatialLinear(module, inputs, mapping) 
       end,
 
-   ["nn.SpatialConvolutionTable"] = 
+   ["nn.SpatialConvolutionSparse"] = 
       function(net_compiler, module, inputs, mapping) 
-         return net_compiler:SpatialConvolutionTable(module, inputs, mapping)
+         return net_compiler:SpatialConvolutionSparse(module, inputs, mapping)
       end,
 
    ["nn.LocalNorm"] = 
@@ -277,21 +277,21 @@ function Compiler:processNetwork(network, inputs)
                io.write(' merged with next layers > '..module_1..' & '..module_2..' & '..module_3
                         ..' >>> '..module_name)
                doneAdvance = 3
-            elseif module_0 == 'nn.SpatialConvolutionTable' 
+            elseif module_0 == 'nn.SpatialConvolutionSparse' 
                and module_1 == 'nn.Tanh' and module_2 == 'nn.AbsModule' then
                mapping = 'TanhAbs'
                io.write(' merged with next layers > '..module_1..' & '..module_2
                         ..' >>> '..module_name)
                doneAdvance = 2
-            elseif module_0 == 'nn.SpatialConvolutionTable' and module_1 == 'nn.Tanh' then
+            elseif module_0 == 'nn.SpatialConvolutionSparse' and module_1 == 'nn.Tanh' then
                mapping = 'Tanh'
                io.write(' merged with next layers > '..module_1..' >>> '..module_name)
                doneAdvance = 1
-            elseif module_0 == 'nn.SpatialConvolutionTable' and module_1 == 'nn.HardTanh' then
+            elseif module_0 == 'nn.SpatialConvolutionSparse' and module_1 == 'nn.HardTanh' then
                mapping = 'HardTanh'
                io.write(' merged with next layers > '..module_1..' >>> '..module_name)
                doneAdvance = 1
-            elseif module_0 == 'nn.SpatialConvolutionTable' and module_1 == 'nn.Mult' 
+            elseif module_0 == 'nn.SpatialConvolutionSparse' and module_1 == 'nn.Mult' 
                and module_2 == 'nn.Tanh' and module_3 == 'nn.Mult' then
                mapping = 'StdSigm'
                io.write(' merged with next layers > '..module_1..' & '..module_2..' & '..module_3
@@ -336,7 +336,7 @@ local nodes_table = {
 
    ["linear-filter-bank-2d>output"] = 
       function(net_compiler, node, inputs, mapping) 
-         return net_compiler:SpatialConvolutionTable(node.params, inputs, mapping)
+         return net_compiler:SpatialConvolutionSparse(node.params, inputs, mapping)
       end,
 
    ["math>mapping-x-"] = 
@@ -514,7 +514,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
       -- store kernels
       for i = 1,conv_module.nInputPlane do
          -- allocate kernel
-         local kernel = conv_module.weight:select(3, i):select(3,o)
+         local kernel = conv_module.weight[o][i]
          local bias = conv_module.bias:narrow(1,o,1)
          local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, kernel, bias)
 
@@ -539,7 +539,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
    return outputs
 end
 
-function Compiler:SpatialConvolutionTable(conv_module, inputs, mapping)
+function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
    local outputs = {}
    local new_layer = true
    local new_output = true
@@ -607,7 +607,7 @@ function Compiler:SpatialConvolutionTable(conv_module, inputs, mapping)
          outputs[o] = id_output
 
          -- allocate kernel + bias
-         local kernel = conv_module.weight:select(3, current_op)
+         local kernel = conv_module.weight[current_op]
          local bias = conv_module.bias:narrow(1,o,1)
          local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, 
                                                      kernel, bias)
@@ -654,7 +654,7 @@ function Compiler:SpatialConvolutionTable(conv_module, inputs, mapping)
                local input_p = conv_module.connTable[i][1]
 
                -- allocate kernel + bias
-               local kernel = conv_module.weight:select(3, current_op)
+               local kernel = conv_module.weight[current_op]
                local bias = conv_module.bias:narrow(1,o,1)
                local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, 
                                                            kernel, bias)
@@ -699,7 +699,7 @@ function Compiler:SpatialConvolutionTable(conv_module, inputs, mapping)
                outputs[o] = id_output
 
                -- allocate kernel + bias
-               local kernel = conv_module.weight:select(3, current_op)
+               local kernel = conv_module.weight[current_op]
                local bias = conv_module.bias:narrow(1,o,1)
                local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, 
                                                            kernel, bias)

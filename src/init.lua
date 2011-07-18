@@ -59,13 +59,13 @@ neuflow.init = neuflow.NeuFlow
 
 -- create a path in home dir to store things
 -- like coefficients for example
-local coefpath = os.getenv('HOME')..'/.neuflow/coefs'
-os.execute('mkdir -p ' .. coefpath)
-os.execute('chmod a+rw ' .. coefpath)
+neuflow.coefpath = os.getenv('HOME')..'/.neuflow/coefs'
+os.execute('mkdir -p ' .. neuflow.coefpath)
+os.execute('chmod a+rw ' .. neuflow.coefpath)
 
 -- migrate all the coefficients
-os.execute('cp ' ..  sys.concat(sys.fpath(), 'segments/*') .. ' ' .. coefpath)
-os.execute('chmod a+rw ' .. coefpath .. '/*')
+os.execute('cp ' ..  sys.concat(sys.fpath(), 'segments/*') .. ' ' .. neuflow.coefpath)
+os.execute('chmod a+rw ' .. neuflow.coefpath .. '/*')
 
 -- return table
 return neuflow

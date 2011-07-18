@@ -11,7 +11,7 @@ function neuflow.tools.readBinWriteHex(input, output, word_width, requested_size
    local file_hex = assert(io.open(output, "w"))
    local file_bin = assert(io.open(input, "rb"))
 
-   print('# Converting bin code ['..input..'] to hex file ['
+   print('<neuflow.tools> Converting bin code ['..input..'] to hex file ['
          ..output..'] using '..word_width..'bit words')
 
    -- convert word width in bytes
@@ -73,7 +73,7 @@ function neuflow.tools.readBinWriteRom(input, output, word_width, name)
    local file_bin = assert(io.open(input, "rb"))
    local template = neuflow.tools.romTemplate
 
-   print('# Converting bin code ['..input..'] to ROM file ['
+   print('<neuflow.tools> Converting bin code ['..input..'] to ROM file ['
          ..output..'] using '..word_width..'bit words')
 
    -- read binary
@@ -555,8 +555,8 @@ function math.approx_old(args)
    
    
 
-   if not args.mapping then error('# ERROR <math> : please provide a function') end
-   if odd and even then error('# ERROR <math> : no mapping can be odd and even, com\'on!') end
+   if not args.mapping then error('<neuflow.tools> ERROR: please provide a function') end
+   if odd and even then error('<neuflow.tools> ERROR: no mapping can be odd and even, com\'on!') end
 
    -- symmetric function
    if even or odd then
@@ -631,7 +631,7 @@ function math.approx_old(args)
 
    -- verbose
    if verbose then
-      io.write('# generated '..#coefs..' linears coefs: \n  (')
+      io.write('<neuflow.tools> generated '..#coefs..' linears coefs: \n  (')
       for i,coef in ipairs(coefs) do 
 	 io.write('(a='..coef.a..',b='..coef.b..',above='..coef.min..')')
       end
@@ -1150,17 +1150,16 @@ end
 function math.approx(args)
    local filename = 'coef_'..args.name
    local coefs
-   local filepath = coefpath..'/'..filename
+   local filepath = neuflow.coefpath..'/'..filename
    local verbose = args.verbose
 
    if (file_exists(filepath)) then 
-      if verbose then print('# reading from file segments for: ', filename) end
+      if verbose then print('<neuflow.tools> reading from file segments for: ', filename) end
       coefs = read_coefs(filepath)
    else
       if verbose then 
-         print('# there are no segments for requested mapping, generating segments for: ', 
-               filename)
-         print('# caching segments to file: ', filename)
+         print('<neuflow.tools> no segments available, generating segments for: ' .. filename)
+         print('<neuflow.tools> caching segments to file: ' .. filename)
       end
       coefs = math.approx2(args)
       write_coefs(coefs, filepath)
