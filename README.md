@@ -40,3 +40,44 @@ $ luarocks install camera   # a camera interface for Linux/MacOS
 $ luarocks install ffmpeg   # a video decoder for most formats
 $ luarocks install neuflow  # the neuFlow toolkit
 ```
+
+Alternatively, you can retrieve the source code and install it
+manually:
+
+``` sh
+$ git clone https://github.com/clementfarabet/neuflow
+$ cd neuflow
+$ luarocks make
+```
+
+## how to run something
+
+Demos are located in demos/. To get started, you’ll need 
+a standard Xilinx dev board for the Virtex 6: [the ML605 Kit]
+(http://www.xilinx.com/products/devkits/EK-V6-ML605-G.htm).
+We provide a version of NeuFlow that’s pre synthesized/mapped/routed 
+for the Virtex6 VLX240T: 
+[neuFlow-ml605.bit](http://data.clement.farabet.net/share/neuFlow-ml605.bit), 
+and a little script  to program the ML605 with this bitfile: 
+[load-bitfile](http://data.clement.farabet.net/share/load-bitfile).
+
+To run any of the demos, follow these instructions:
+
+``` sh
+$ git clone https://github.com/clementfarabet/neuflow
+$ cd neuflow/demos
+
+# retrieve our pre-built bitfile and the loader script:
+$ wget http://data.neuflow.org/share/load-bitfile
+$ wget http://data.neuflow.org/share/neuFlow-ml605.bit
+
+# make Xilinx tools available (that implies you have them
+# installed somewhere...
+$ source $XILINX_INSTALL_PATH/settings**.sh
+
+# turn on the ML605, plug the JTAG cable then load the bitfile:
+$ ./load-bitfile neuFlow-ml605.bit
+
+# run the simplest demo, a loopback client:
+$ sudo qlua loopback.lua
+```
