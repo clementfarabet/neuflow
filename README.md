@@ -35,7 +35,7 @@ to install a few dependencies.
 
 On Linux (Ubuntu):
 
-```sh
+``` sh
 $ apt-get install gcc g++ git libreadline5-dev cmake wget
 $ apt-get install libqt4-core libqt4-gui libqt4-dev
 $ apt-get install ffmpeg gnuplot
@@ -44,7 +44,7 @@ $ apt-get install ffmpeg gnuplot
 On Mac OS X (> 10.5): get [Homebrew](http://mxcl.github.com/homebrew/)
 and then:
 
-```sh
+``` sh
 $ brew install git readline cmake wget
 $ brew install qt
 $ brew install ffmpeg gnuplot
