@@ -53,19 +53,19 @@ local layers_table = {
          return net_compiler:SpatialConvolutionSparse(module, inputs, mapping)
       end,
 
-   ["nn.LocalNorm"] = 
+   ["nn.SpatialNormalization"] = 
       function(net_compiler, module, inputs) 
-         return net_compiler:LocalNorm(module, inputs)
+         return net_compiler:SpatialNormalization(module, inputs)
       end,
 
-   ["nn.LocalNorm_hardware"] = 
+   ["nn.SpatialNormalization_hardware"] = 
       function(net_compiler, module, inputs) 
-         return net_compiler:LocalNorm(module, inputs)
+         return net_compiler:SpatialNormalization(module, inputs)
       end,
    
-   ["nn.LocalNorm_hardware_back"] = 
+   ["nn.SpatialNormalization_hardware_back"] = 
       function(net_compiler, module, inputs) 
-         return net_compiler:LocalNorm(module, inputs)
+         return net_compiler:SpatialNormalization(module, inputs)
       end,
 
 
@@ -114,7 +114,7 @@ local layers_table = {
       end,
 
    -- Non Linear mappings (add software)
-   ["nn.AbsModule"] = 
+   ["nn.Abs"] = 
       function(net_compiler, module, inputs) 
          return net_compiler:Mapping(module,inputs,'Abs')
       end,
@@ -244,7 +244,7 @@ function Compiler:processNetwork(network, inputs)
          io.write('<neuflow.Compiler> processing layer of type > '..module_0)
          mapping = nil
          if self.opt_across_layers then
-            if module_0 == 'nn.Tanh' and module_1 == 'nn.AbsModule' then
+            if module_0 == 'nn.Tanh' and module_1 == 'nn.Abs' then
                module_name = 'nn.TanhAbs'
                io.write(' merged with next layer > '..module_1..' >>> '..module_name)
                doneAdvance = 1
@@ -254,7 +254,7 @@ function Compiler:processNetwork(network, inputs)
                         ' >>> '..module_name)
                doneAdvance = 2
             elseif module_0 == 'nn.SpatialConvolution' 
-               and module_1 == 'nn.Tanh' and module_2 == 'nn.AbsModule' then
+               and module_1 == 'nn.Tanh' and module_2 == 'nn.Abs' then
                mapping = 'TanhAbs'
                io.write(' merged with next layers > '..module_1..' & '..module_2..
                         ' >>> '..module_name)
@@ -278,7 +278,7 @@ function Compiler:processNetwork(network, inputs)
                         ..' >>> '..module_name)
                doneAdvance = 3
             elseif module_0 == 'nn.SpatialConvolutionSparse' 
-               and module_1 == 'nn.Tanh' and module_2 == 'nn.AbsModule' then
+               and module_1 == 'nn.Tanh' and module_2 == 'nn.Abs' then
                mapping = 'TanhAbs'
                io.write(' merged with next layers > '..module_1..' & '..module_2
                         ..' >>> '..module_name)
@@ -331,7 +331,7 @@ local nodes_table = {
 
    ["std-normalization-2d>output"] =
       function(net_compiler, node, inputs)
-         return net_compiler:LocalNorm(node.params, inputs)
+         return net_compiler:SpatialNormalization(node.params, inputs)
       end,
 
    ["linear-filter-bank-2d>output"] = 
@@ -808,7 +808,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
    return outputs
 end
 
-function Compiler:LocalNorm(sub_module, inputs)      
+function Compiler:SpatialNormalization(sub_module, inputs)      
    -- verbose
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
@@ -869,7 +869,7 @@ function Compiler:LocalNorm(sub_module, inputs)
    -- get coefs for mapping
    local xN_coefs = {}
    local sqrtCoefs = {}
-   if (sub_module.__typename == "nn.LocalNorm_hardware") then
+   if (sub_module.__typename == "nn.SpatialNormalization_hardware") then
       xN_coefs = sub_module.xN_coefs
       sqrtCoefs = sub_module.sqrtCoefs_no_pad
    else
@@ -936,7 +936,7 @@ function Compiler:Parallel(par_module, inputs)
    local LN_input = {}
    LN_input[1] = inputs[1]
 
-   local LN_output = self:LocalNorm(par_module.modules[1], LN_input)
+   local LN_output = self:SpatialNormalization(par_module.modules[1], LN_input)
 
    local outputs = {}
    
@@ -980,7 +980,7 @@ function Compiler:SpatialLinear(linear_module, inputs)
 
       for i = 1,linear_module.fanin do
          -- allocate kernel
-         local kernel = torch.Tensor(1, 1):fill(linear_module.weight[i][o])
+         local kernel = torch.Tensor(1, 1):fill(linear_module.weight[o][i])
          self.logfile:write(string.format("ker #(%d,%d):\n", i,o))
          self.logfile:write(tostring(kernel))
          local id_kernel = self.core.mem:allocRawData(1, 1, kernel)
