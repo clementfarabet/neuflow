@@ -145,7 +145,7 @@ function process()
 
    -- (6) parse distributions to extract blob centroids
    p:start('parse-distributions')
-   threshold = 0.3
+   threshold = 0.9
    rawresults = {}
    for i,distribution in ipairs(distributions) do
       local smoothed = image.convolve(distribution[1]:add(1):mul(0.5), gaussian)

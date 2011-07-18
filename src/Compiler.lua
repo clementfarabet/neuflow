@@ -501,7 +501,8 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
       local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
       local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
       if output_height ~= math.floor(output_height) then
-         error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+         error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' 
+               .. item.orig_h .. ', sub_h=' .. 
                conv_module.kH .. ', out_h=' .. output_height)
       end
       local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)

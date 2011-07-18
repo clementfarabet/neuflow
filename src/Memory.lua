@@ -71,19 +71,16 @@ function Memory:__init(args)
 end
 
 function Memory:allocKernel(h_, w_, data_, bias_)
-   orig_h_ = data_:size(2)
-   orig_w_ = data_:size(1)
+   orig_h_ = data_:size(1)
+   orig_w_ = data_:size(2)
    -- transpose kernel to go to inner dim last
-   data_ = data_:t()
    if((data_:size(2) < grid.kernel_width) or (data_:size(1) < grid.kernel_height)) then
       data_ker_size = lab.zeros(grid.kernel_height, grid.kernel_width)
       -- now need to save to bottom left corner!!!!!
       big_i = grid.kernel_width - h_ + 1 -- bottom
       for i=1,h_ do
          big_j = 1 -- bottom left corner
-         --big_j = grid.kernel_width - w_ + 1 -- bottom right corner
          for j=1,w_ do 
-            --print("i = ", i, "j = ", j, "big_i = ", big_i, "big_j = ", big_j)
             data_ker_size[big_i][big_j] = data_[i][j]
             big_j = big_j + 1
          end
@@ -137,10 +134,9 @@ function Memory:allocKernel(h_, w_, data_, bias_)
 end
 
 function Memory:allocRawData(h_, w_, data_)
-   orig_h_ = data_:size(2)
-   orig_w_ = data_:size(1)
+   orig_h_ = data_:size(1)
+   orig_w_ = data_:size(2)
    -- transpose kernel to go to inner dim last
-   data_ = data_:t()
    if((data_:size(2) < grid.kernel_width) or (data_:size(1) < grid.kernel_height)) then
       data_ker_size = lab.zeros(grid.kernel_height, grid.kernel_width)
       -- now need to save to bottom left corner!!!!!
