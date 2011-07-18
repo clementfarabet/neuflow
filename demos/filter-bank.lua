@@ -1,12 +1,11 @@
 ----------------------------------------------------------------------
--- A simple loopback program for neuFlow: send images and receive
--- them back from neuFlow, in a loop.
+-- This program demonstrates the computation of a bank of filters
+-- over a grayscale image. The image is grabbed from a webcam,
+-- if available (and if the package 'camera' is installed as well),
+-- otherwise, a fixed image (lena) is used as an input.
 --
--- If this script works, it validates:
---  (1) the ethernet interface
---  (2) the embedded openFlow CPU
---  (3) the streamer
---  (4) the DDR2/3 interface
+-- This script demonstrates how to describe a simple algorithm
+-- using Torch7's 'nn' package, and how to compile it for neuFlow.
 --
 
 require 'image'
