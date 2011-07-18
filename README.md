@@ -41,7 +41,7 @@ $ apt-get install libqt4-core libqt4-gui libqt4-dev
 $ apt-get install ffmpeg gnuplot
 ```
 
-On Mac OS X (> 10.5): get [Homebre](http://mxcl.github.com/homebrew/)
+On Mac OS X (> 10.5): get [Homebrew](http://mxcl.github.com/homebrew/)
 and then:
 
 ```sh
@@ -73,10 +73,10 @@ $ luarocks make
 
 ## how to run something
 
-Demos are located in demos/. To get started, you’ll need 
+Demos are located in demos/. To get started, you'll need 
 a standard Xilinx dev board for the Virtex 6: [the ML605 Kit]
 (http://www.xilinx.com/products/devkits/EK-V6-ML605-G.htm).
-We provide a version of NeuFlow that’s pre synthesized/mapped/routed 
+We provide a version of NeuFlow that's pre synthesized/mapped/routed 
 for the Virtex6 VLX240T: 
 [neuFlow-ml605.bit](http://data.clement.farabet.net/share/neuFlow-ml605.bit), 
 and a little script  to program the ML605 with this bitfile: 
