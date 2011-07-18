@@ -29,8 +29,29 @@ $ cd lua4torch
 $ make install PREFIX=/usr/local
 ```
 
-At this stage, Luarocks should be in your path. Now
-all you have to do is:
+At this stage, Luarocks should be in your path. Before
+installing Torch7 and the neuFlow package, you will need
+to install a few dependencies.
+
+On Linux (Ubuntu):
+
+```sh
+$ apt-get install gcc g++ git libreadline5-dev cmake wget
+$ apt-get install libqt4-core libqt4-gui libqt4-dev
+$ apt-get install ffmpeg gnuplot
+```
+
+On Mac OS X (> 10.5): get [Homebre](http://mxcl.github.com/homebrew/)
+and then:
+
+```sh
+$ brew install git readline cmake wget
+$ brew install qt
+$ brew install ffmpeg gnuplot
+```
+
+Now you're ready to install Torch7, and our other packages if
+wanted:
 
 ``` sh
 $ luarocks install torch    # Torch7, an efficient numeric library for Lua
