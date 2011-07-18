@@ -1,79 +1,148 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset='utf-8'>
+  <head>
+    <meta charset='utf-8'>
 
-  <title>clementfarabet/neuflow @ GitHub</title>
+    <title>clementfarabet/neuflow @ GitHub</title>
 
-  <style type="text/css">
-    body {
+    <style type="text/css">
+      body {
       margin-top: 1.0em;
       background-color: #abc1d3;
       font-family: Helvetica, Arial, FreeSans, san-serif;
       color: #000000;
-    }
-    #container {
+      }
+      #container {
       margin: 0 auto;
       width: 700px;
-    }
-    h1 { font-size: 3.8em; color: #543e2c; margin-bottom: 3px; }
-    h1 .small { font-size: 0.4em; }
-    h1 a { text-decoration: none }
-    h2 { font-size: 1.5em; color: #543e2c; }
-    h3 { text-align: center; color: #543e2c; }
-    a { color: #543e2c; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-    pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
-  </style>
-</head>
+      }
+      h1 { font-size: 3.8em; color: #543e2c; margin-bottom: 3px; }
+      h1 .small { font-size: 0.4em; }
+      h1 a { text-decoration: none }
+      h2 { font-size: 1.5em; color: #543e2c; }
+      h3 { text-align: center; color: #543e2c; }
+      a { color: #543e2c; }
+      .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
+      .download { float: right; }
+      pre { background: #000; color: #fff; padding: 15px;}
+      hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
+      .footer { text-align:center; padding-top:30px; font-style: italic; }
+    </style>
+  </head>
 
-<body>
-  <a href="http://github.com/clementfarabet/neuflow"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+  <body>
+    <a href="http://github.com/clementfarabet/neuflow"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
 
-  <div id="container">
+    <div id="container">
 
-    <div class="download">
-      <a href="http://github.com/clementfarabet/neuflow/zipball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
-      <a href="http://github.com/clementfarabet/neuflow/tarball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
+      <div class="download">
+        <a href="http://github.com/clementfarabet/neuflow/zipball/master">
+          <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
+        <a href="http://github.com/clementfarabet/neuflow/tarball/master">
+          <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
+      </div>
+
+      <h1><a href="http://github.com/clementfarabet/neuflow">neuflow</a></h1>
+
+      <div class="description">
+        Compiler toolkit for neuFlow.
+      </div>
+
+      <h2>License</h2>
+      <p>MIT/X11</p>
+
+      <h2>Introduction</h2>
+      <p>neuFlow is a dataflow architecture optimized for
+        large array/tensor transforms, and especially image
+        processing operations.
+        More info about the architecture,
+        hardware and applications can be found
+        <a href="http://www.neuflow.org">here</a>.</p>
+
+      <p>This package is a compiler toolkit for neuFlow. It is
+        entirely written in <a href="http://www.lua.org/">Lua</a>, and
+        relies on <a href="https://github.com/andresy/torch">Torch7</a> to
+        represent N-dimensional arrays efficiently. It also
+        interfaces Torch7's neural-network package natively.</p>
+
+      <h2>Install</h2>
+      <p>The easiest route to install this package is to use
+        <a href="http://www.luarocks.org/">Luarocks</a>, Lua's package
+        manager.
+        The following instructions show you how to get
+        Lua + Luarocks + Torch7 quickly installed: </p>
+
+      <pre>$ git clone git://github.com/clementfarabet/lua4torch
+$ cd lua4torch
+$ make install PREFIX=/usr/local </pre>
+
+      <p>At this stage, Luarocks should be in your path. Now
+        all you have to do is: </p>
+
+      <pre>$ luarocks install torch    # Torch7, an efficient numeric library for Lua
+$ luarocks install image    # an image library for Torch7
+$ luarocks install nnx      # lots of extra neural-net modules
+$ luarocks install camera   # a camera interface for Linux/MacOS
+$ luarocks install ffmpeg   # a video decoder for most formats
+$ luarocks install neuflow  # the neuFlow toolkit </pre>
+
+      <p>Alternatively, you can retrieve the source code and install it
+        manually:</p>
+
+      <pre>$ git clone git://github.com/clementfarabet/neuflow
+$ cd neuflow
+$ luarocks make </pre>
+
+      <h2>Example Code</h2>
+      <p>Demos are located in demos/. To get started, you’ll need 
+        a standard Xilinx dev board for the Virtex 6:
+        <a href="http://www.xilinx.com/products/devkits/EK-V6-ML605-G.htm">the ML605 Kit</a>.
+        We provide a version of NeuFlow that’s pre synthesized/mapped/routed 
+        for the Virtex6 VLX240T: 
+        <a href="http://data.clement.farabet.net/share/neuFlow-ml605.bit">neuFlow-ml605.bit</a>,
+        and a little script to program the ML605 with this bitfile: 
+        <a href="http://data.clement.farabet.net/share/load-bitfile">load-bitfile</a>. </p>
+
+      <p>To run any of the demos, follow these instructions: </p>
+
+      <pre>$ git clone https://github.com/clementfarabet/neuflow
+$ cd neuflow/demos
+
+# retrieve our pre-built bitfile and the loader script:
+$ wget http://data.neuflow.org/share/load-bitfile
+$ wget http://data.neuflow.org/share/neuFlow-ml605.bit
+
+# make Xilinx tools available (that implies you have them
+# installed somewhere...
+$ source $XILINX_INSTALL_PATH/settings**.sh
+
+# turn on the ML605, plug the JTAG cable then load the bitfile:
+$ ./load-bitfile neuFlow-ml605.bit
+
+# run the simplest demo, a loopback client:
+$ sudo qlua loopback.lua </pre>
+
+      <h2>Authors</h2>
+      <p>Clement Farabet, Berin Martini, Polina Akselrod<br/></p>
+
+      <h2>Contact</h2>
+      <p>Clement Farabet (clement.farabet@gmail.com)<br/></p>
+
+      <h2>Download</h2>
+      <p>
+        You can download this project in either
+        <a href="http://github.com/clementfarabet/neuflow/zipball/master">zip</a> or
+        <a href="http://github.com/clementfarabet/neuflow/tarball/master">tar</a> formats.
+      </p>
+      <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
+        by running:
+        <pre>$ git clone git://github.com/clementfarabet/neuflow</pre>
+      </p>
+
+      <div class="footer">
+        get the source code on GitHub : <a href="http://github.com/clementfarabet/neuflow">clementfarabet/neuflow</a>
+      </div>
+
     </div>
-
-    <h1><a href="http://github.com/clementfarabet/neuflow">neuflow</a>
-      <span class="small">by <a href="http://github.com/clementfarabet">clementfarabet</a></span></h1>
-
-    <div class="description">
-      Compiler toolkit for neuFlow. 
-    </div>
-
-    <h2>License</h2>
-<p>MIT/X11</p>
-<h2>Authors</h2>
-<p>Clement Farabet (clement.farabet@gmail.com)<br/><br/>      </p>
-<h2>Contact</h2>
-<p>Clement Farabet (clement.farabet@gmail.com)<br/>      </p>
-
-
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="http://github.com/clementfarabet/neuflow/zipball/master">zip</a> or
-      <a href="http://github.com/clementfarabet/neuflow/tarball/master">tar</a> formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/clementfarabet/neuflow</pre>
-    </p>
-
-    <div class="footer">
-      get the source code on GitHub : <a href="http://github.com/clementfarabet/neuflow">clementfarabet/neuflow</a>
-    </div>
-
-  </div>
-
-  
-</body>
+  </body>
 </html>
