@@ -11,6 +11,9 @@ if (PCAP_FOUND)
 
         if (DNET_FOUND)
 
+            set (CMAKE_C_COMPILER "gcc-4.0")
+            set (CMAKE_C_FLAGS "-arch x86_64")
+
             include_directories (${PROJECT_SOURCE_DIR}/etherflow ${PCAP_INCLUDE_DIRS} ${DNET_INCLUDE_DIRS} ${TORCH_INCLUDE_DIR})
             link_directories (${TORCH_LIBRARY_DIR})
             add_library (etherflow SHARED init.c)

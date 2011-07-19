@@ -6,10 +6,39 @@
 #define _ETHERFLOW_COMMON_
 
 /***********************************************************
+ * Ethernet Headers
+ **********************************************************/
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <pcap.h>
+
+#ifdef _LINUX_
+#include <linux/if_packet.h>
+#include <linux/if_ether.h>
+#include <linux/if_arp.h>
+#include <linux/filter.h>
+#include <asm/types.h>
+#else
+#include <net/ethernet.h>
+#include <net/route.h>
+#include <net/if.h>
+#include <ifaddrs.h>
+#include <dnet.h>
+#define ETH_ALEN        6        /* Octets in one ethernet addr     */
+#define ETH_HLEN        14       /* Total octets in header.         */
+#define ETH_ZLEN        60       /* Min. octets in frame sans FCS   */
+#define ETH_DATA_LEN    1500     /* Max. octets in payload          */
+#define ETH_FRAME_LEN   1514     /* Max. octets in frame sans FCS   */
+#define ETH_FCS_LEN     4        /* Octets in the FCS               */
+#endif
+
+/***********************************************************
  * Global Parameters
  **********************************************************/
 static const unsigned char neuflow_mac[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
-static unsigned char host_mac[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
+static unsigned char host_mac[6] = {0x06,0x05,0x04,0x03,0x02,0x01};
 static const int neuflow_one_encoding = 1<<8;
 static int neuflow_first_call = 1;
 
@@ -21,9 +50,10 @@ static struct sockaddr_ll socket_address;
 static int ifindex;
 static socklen_t socklen;
 #else
-static eth_t * socketw;
+static int socketw;
+static eth_t * socketw_dnet;
 #endif
-static pcap_t *socketr;
+static pcap_t *socketr_pcap;
 
 /***********************************************************
  * open_socket()
@@ -80,10 +110,18 @@ int open_socket_C(const char *dev) {
   // size of socket
   socklen = sizeof(socket_address);
 #else
+  // open raw socket to configure it
+  socketw = socket(AF_NDRV, SOCK_RAW, 0);
+  if (socketw == -1) {
+    perror("socket():");
+    exit(1);
+  }
+
+  // open dnet socket for WR
   dev = "en0";
-  socketw = eth_open(dev);
-  if (socketw == NULL){
-    perror("socketw():");
+  socketw_dnet = eth_open(dev);
+  if (socketw_dnet == NULL){
+    perror("socketw_dnet():");
     printf("Couldn't open device: %s\n", dev);
     exit(1);
   }
@@ -91,40 +129,47 @@ int open_socket_C(const char *dev) {
 
   // open socket for RD (pcap), with a filter
   char errbuf[20];
-
-  int wait_time = 0;
-#ifdef _LINUX_
-  wait_time = -1;
-#else
-  wait_time = 1000;
-#endif
-
-  socketr = pcap_open_live(dev, 3000, 1, wait_time, errbuf);
-  if (socketr == NULL) {
+  socketr_pcap = pcap_open_live(dev, 3000, 1, 0, errbuf);
+  if (socketr_pcap == NULL) {
     fprintf(stderr, "Couldn't open device %s: %s\n", dev, errbuf);
     exit(2);
   }
 
+  // set non-blocking mode
+  int blocked = pcap_getnonblock(socketr_pcap, errbuf);
+  pcap_setnonblock(socketr_pcap, 1, errbuf);
+  blocked = pcap_getnonblock(socketr_pcap, errbuf);
+
   // set up a filter
   char filter_exp[] = "ether src 01:02:03:04:05:06";
   struct bpf_program fp;
-  if (pcap_compile(socketr, &fp, filter_exp, 0, 0) == -1) {
-    fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(socketr));
+  if (pcap_compile(socketr_pcap, &fp, filter_exp, 0, 0) == -1) {
+    fprintf(stderr, "Couldn't parse filter %s: %s\n", filter_exp, pcap_geterr(socketr_pcap));
     exit(2);
   }
-  if (pcap_setfilter(socketr, &fp) == -1) {
-    fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(socketr));
+  if (pcap_setfilter(socketr_pcap, &fp) == -1) {
+    fprintf(stderr, "Couldn't install filter %s: %s\n", filter_exp, pcap_geterr(socketr_pcap));
     exit(2);
   }
 
   // Message
   printf("<etherflow> using dev %s\n", dev);
-#ifdef _LINUX_
+
   // set buffer sizes
-  int sockbufsize = 64*1024*1024;
+  int sockbufsize = 4*1024*1024;
   unsigned int size = sizeof(int);
   int realbufsize = 0;
+
+  getsockopt(socketw, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
+  printf("<etherflow> original rx buffer size: %dkB\n", realbufsize/1024);
+  getsockopt(socketw, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
+  printf("<etherflow> original tx buffer size: %dkB\n", realbufsize/1024);
+
+#ifdef _LINUX_
   int set_res = setsockopt(socketw, SOL_SOCKET, SO_RCVBUFFORCE, (int *)&sockbufsize, sizeof(int));
+#else
+  int set_res = setsockopt(socketw, SOL_SOCKET, SO_RCVBUF, (int *)&sockbufsize, sizeof(int));
+#endif
   int get_res = getsockopt(socketw, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
   if ((set_res < 0)||(get_res < 0)) {
     perror("set/get sockopt");
@@ -132,7 +177,11 @@ int open_socket_C(const char *dev) {
     exit(1);
   }
   printf("<etherflow> set rx buffer size to %dMB\n", realbufsize/(1024*1024));
+#ifdef _LINUX_
   set_res = setsockopt(socketw, SOL_SOCKET, SO_SNDBUFFORCE, (int *)&sockbufsize, sizeof(int));
+#else
+  set_res = setsockopt(socketw, SOL_SOCKET, SO_SNDBUF, (int *)&sockbufsize, sizeof(int));
+#endif
   get_res = getsockopt(socketw, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
   if ((set_res < 0)||(get_res < 0)) {
     perror("set/get sockopt");
@@ -140,7 +189,7 @@ int open_socket_C(const char *dev) {
     exit(1);
   }
   printf("<etherflow> set tx buffer size to %dMB\n", realbufsize/(1024*1024));
-#endif
+
   return 0;
 }
 
@@ -153,12 +202,11 @@ int open_socket_C(const char *dev) {
  *    none
  **********************************************************/
 int close_socket_C() {
-#ifdef _LINUX_
   close(socketw);
-#else
-  eth_close(socketw);
+  pcap_close(socketr_pcap);
+#ifndef _LINUX_
+  eth_close(socketw_dnet);
 #endif
-  pcap_close(socketr);
   return 0;
 }
 
@@ -177,7 +225,7 @@ unsigned char * receive_frame_C(int *lengthp) {
   unsigned char *buffer;
 
   while (1) {
-    buffer = (unsigned char *)pcap_next(socketr, &header);
+    buffer = (unsigned char *)pcap_next(socketr_pcap, &header);
     if (buffer != NULL) break;
   }
 
@@ -226,9 +274,9 @@ int send_frame_C(short int length, const unsigned char * data_p) {
     exit(1);
   }
 #else
-  eth_send(socketw, send_buffer, length+ETH_HLEN);
+  eth_send(socketw_dnet, send_buffer, length+ETH_HLEN);
+  usleep(10);
 #endif
-
   return 0;
 }
 
@@ -280,16 +328,6 @@ int send_tensor_byte_C(unsigned char * data, int size) {
 
     // this print is here to give time to the OS to flush the ETH buffers...
     printf("........................................\r");
-
-#ifndef _LINUX_
-    usleep(100);
-    printf("..........\r");
-    printf("..........\r");
-    printf("..........\r");
-    printf("..........\r");
-    printf("..........\r");
-    printf("..........\r");
-#endif
 
     // send
     send_frame_C(packet_size, packet);
@@ -351,16 +389,6 @@ int etherflow_(send_tensor_C)(real * data, int size) {
       for(i = packet_size; i < ETH_ZLEN+4; i++) {packet[i] = 0;}
       packet_size = ETH_ZLEN+4;
     }
-
-#ifndef _LINUX_
-    usleep(5);
-    printf("..........\r");
-    printf("..........\r");
-    printf("..........\r");
-    printf("..........\r");
-    printf("..........\r");
-    printf("..........\r");
-#endif
 
     // send
     send_frame_C(packet_size, packet);

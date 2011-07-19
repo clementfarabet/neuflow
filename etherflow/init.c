@@ -5,32 +5,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-
-#include <pcap.h>
-
-#ifdef _LINUX_
-#include <linux/if_packet.h>
-#include <linux/if_ether.h>
-#include <linux/if_arp.h>
-#include <linux/filter.h>
-#include <asm/types.h>
-#endif
-
-#ifndef _LINUX_
-#define ETH_ALEN        6        /* Octets in one ethernet addr     */
-#define ETH_HLEN        14       /* Total octets in header.         */
-#define ETH_ZLEN        60       /* Min. octets in frame sans FCS   */
-#define ETH_DATA_LEN    1500     /* Max. octets in payload          */
-#define ETH_FRAME_LEN   1514     /* Max. octets in frame sans FCS   */
-#define ETH_FCS_LEN     4        /* Octets in the FCS               */
-#include <dnet.h>
-#endif
-
-#include <netinet/in.h>
-
 #include <luaT.h>
 #include <TH/TH.h>
 
