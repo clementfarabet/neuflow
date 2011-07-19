@@ -51,7 +51,7 @@ IF(EXISTS $ENV{PCAPDIR})
     pcap/pcap.h
     pcap.h
     PATHS
-    $ENV{PCAPDIR}
+    $ENV{PCAPDIR}/include
     NO_DEFAULT_PATH
     )
   
@@ -59,7 +59,7 @@ IF(EXISTS $ENV{PCAPDIR})
     NAMES
     pcap
     PATHS
-    $ENV{PCAPDIR}
+    $ENV{PCAPDIR}/lib
     NO_DEFAULT_PATH
     )
   
