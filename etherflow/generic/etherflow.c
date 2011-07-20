@@ -102,10 +102,6 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
     perror("GET_HWADDR");
     exit(1);
   }
-  if (strcmp(dev,"lo") != 0) {
-    int i;
-    for (i=0; i<ETH_ALEN; i++) host_mac[i] = ifr.ifr_hwaddr.sa_data[i];
-  }
 
   // prepare sockaddr_ll
   sock_address.sll_family   = AF_PACKET;
@@ -245,17 +241,15 @@ unsigned char * receive_frame_C(int *lengthp) {
     int accept = 1;
     int k; int i = 0;
     for (k=0; k<ETH_ALEN; k++) {
-      if (dest_mac[k] != recbuffer[i++]) accept = 0;
-    }
-    if (!accept) break;
-    for (k=0; k<ETH_ALEN; k++) {
       if (host_mac[k] != recbuffer[i++]) accept = 0;
     }
-    if (!accept) break;
-    for (k=0; k<2; k++) {
-      if (eth_type[k] != recbuffer[i++]) accept = 0;
+    for (k=0; k<ETH_ALEN; k++) {
+      if (dest_mac[k] != recbuffer[i++]) accept = 0;
     }
-    if (!accept) break;
+    /* for (k=0; k<2; k++) { */
+    /*   if (eth_type[k] != recbuffer[i++]) accept = 0; */
+    /* } */
+    if (accept) break;
   }
   if (lengthp != NULL) (*lengthp) = len;
   return recbuffer;
@@ -282,8 +276,8 @@ int send_frame_C(short int length, const unsigned char * data_p) {
 
   // copy length to send_buffer
   unsigned char* length_str_reversed = (unsigned char*)&length;
-  send_buffer[ETH_ALEN*2] = 0x10; //length_str_reversed[1];
-  send_buffer[ETH_ALEN*2+1] = 0x00; //length_str_reversed[0];
+  send_buffer[ETH_ALEN*2] = length_str_reversed[1];
+  send_buffer[ETH_ALEN*2+1] = length_str_reversed[0];
 
   // copy user data to send_buffer
   memcpy((void*)(send_buffer+ETH_HLEN), (void*)data_p, length);
@@ -343,11 +337,8 @@ int send_tensor_byte_C(unsigned char * data, int size) {
     // send
     send_frame_C(packet_size, packet);
 
-    // add pause for MacOS, because of small buffers
-    // this needs to be fixed
-#ifdef _APPLE_
+    // why do we have to do that? buffer size?
     usleep(100);
-#endif
   }
 
   // return the number of results
