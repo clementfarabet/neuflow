@@ -262,8 +262,8 @@ int send_frame_C(short int length, const unsigned char * data_p) {
 
   // copy length to send_buffer
   unsigned char* length_str_reversed = (unsigned char*)&length;
-  send_buffer[ETH_ALEN*2] = length_str_reversed[1];
-  send_buffer[ETH_ALEN*2+1] = length_str_reversed[0];
+  send_buffer[ETH_ALEN*2] = 0x10; //length_str_reversed[1];
+  send_buffer[ETH_ALEN*2+1] = 0x00; //length_str_reversed[0];
 
   // copy user data to send_buffer
   memcpy((void*)(send_buffer+ETH_HLEN), (void*)data_p, length);
