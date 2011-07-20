@@ -581,22 +581,6 @@ function NeuFlow:copyToDev(tensor)
    self.profiler:lap('copy-to-dev')
 end
 
-
-function NeuFlow:copyToDev_ack(tensor)
-   self.profiler:start('copy-to-dev')
-   local dims = tensor:nDimension()
-   if dims == 3 then
-      for i = 1,tensor:size(1) do
-         etherflow.sendtensor_ack(tensor[i])
-      end
-   else
-      etherflow.sendtensor_ack(tensor)
-   end
-   self:getFrame('copy-done')
-   self.profiler:lap('copy-to-dev')
-end
-
-
 ----------------------------------------------------------------------
 -- receive tensor
 --
@@ -616,28 +600,6 @@ function NeuFlow:copyFromDev(tensor)
    end
    self.profiler:lap('copy-from-dev')
 end
-
-function NeuFlow:copyFromDev_ack(tensor)
-   etherflow.setfirstcall(1)
-   profiler_neuflow = self.profiler:start('on-board-processing')
-   self.profiler:setColor('on-board-processing', 'blue')
-   self:getFrame('copy-starting')
-   self.profiler:lap('on-board-processing')
-   self.profiler:start('copy-from-dev')
-   local dims = tensor:nDimension()
-   if dims == 3 then
-      for i = 1,tensor:size(1) do
-         etherflow.receivetensor_ack(tensor[i])
-         etherflow.setfirstcall(0)
-      end
-   else
-      etherflow.receivetensor_ack(tensor)
-   end
-   etherflow.setfirstcall(1)
-   self.profiler:lap('copy-from-dev')
-end
-
-
 
 ----------------------------------------------------------------------
 -- helper functions:

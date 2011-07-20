@@ -1,0 +1,13 @@
+
+require 'etherflow'
+require 'image'
+
+etherflow.open(nil, {0xff,0xff,0xff,0xff,0xff,0xff}, {0x01,0x02,0x03,0x04,0x05,0x06})
+
+l = image.lena()[1]
+
+for i = 1,1000 do
+   sys.tic()
+   etherflow.sendtensor(l)
+   sys.toc(true)
+end
