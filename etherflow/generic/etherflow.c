@@ -43,6 +43,7 @@
  **********************************************************/
 static unsigned char dest_mac[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
 static unsigned char host_mac[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+static unsigned char eth_type[2] = {0x10, 0x00};
 static const int neuflow_one_encoding = 1<<8;
 static int neuflow_first_call = 1;
 
@@ -236,7 +237,26 @@ int close_socket_C() {
 unsigned char recbuffer[ETH_FRAME_LEN];
 unsigned char * receive_frame_C(int *lengthp) {
   int len;
-  len = recv(sock, recbuffer, ETH_FRAME_LEN, 0);
+  while (1) {
+    // receive a frame
+    len = recv(sock, recbuffer, ETH_FRAME_LEN, 0);
+
+    // check its destination/source/protocol
+    int accept = 1;
+    int k; int i = 0;
+    for (k=0; k<ETH_ALEN; k++) {
+      if (dest_mac[k] != recbuffer[i++]) accept = 0;
+    }
+    if (!accept) break;
+    for (k=0; k<ETH_ALEN; k++) {
+      if (host_mac[k] != recbuffer[i++]) accept = 0;
+    }
+    if (!accept) break;
+    for (k=0; k<2; k++) {
+      if (eth_type[k] != recbuffer[i++]) accept = 0;
+    }
+    if (!accept) break;
+  }
   if (lengthp != NULL) (*lengthp) = len;
   return recbuffer;
 }
