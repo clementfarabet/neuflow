@@ -33,8 +33,8 @@
 require 'torch'
 require 'libetherflow'
 
-function etherflow.open(dev)
-   etherflow.double.open_socket(dev)
+function etherflow.open(dev, destmac, srcmac)
+   etherflow.double.open_socket(dev, destmac, srcmac)
 end
 
 function etherflow.close(dev)

@@ -61,6 +61,7 @@ function process()
 
    nf:copyToDev(input)
    nf:copyFromDev(outputs)
+   os.exit()
 
    p:start('compute-error')
    error = outputs:clone():add(-1,input):abs()
