@@ -3,7 +3,7 @@ neuflow.tools = {}
 
 ----------------------------------------------------------------------
 --- reads binary and dumps hex.
--- This function reads binary file and produces the hexa(text) file 
+-- This function reads binary file and produces the hexa(text) file
 -- for mem simulation.
 --
 function neuflow.tools.readBinWriteHex(input, output, word_width, requested_size_b)
@@ -24,9 +24,9 @@ function neuflow.tools.readBinWriteHex(input, output, word_width, requested_size
    local lines = 0
    while true do
       local bytes = file_bin:read(word_width)
-      if not bytes then 
-	      file_bin:close()
-	      break
+      if not bytes then
+         file_bin:close()
+         break
       end
       local mem_word = {}
       local i = 0
@@ -185,13 +185,13 @@ function neuflow.tools.disassemble(binary, args)
                          'control_0',
                          'control_1',
                          'control_2',
-                         'control_3', 
-                         'control_4', 
+                         'control_3',
+                         'control_4',
                          'control_5',
-                         'control_6', 
-                         'control_7', 
-                         'cacheStart', 
-                         'cacheFinish', 
+                         'control_6',
+                         'control_7',
+                         'cacheStart',
+                         'cacheFinish',
                          'nop',
                          'term'}
 
@@ -229,7 +229,7 @@ function neuflow.tools.disassemble(binary, args)
                         for _,t in ipairs(tile) do
                            io.write(' ')
                            local state
-                           if t.active then 
+                           if t.active then
                               state = C.Red .. 'A' .. C.none
                            else
                               state = C.yellow .. '.' .. C.none
@@ -244,19 +244,19 @@ function neuflow.tools.disassemble(binary, args)
                      for i,port in ipairs(ports) do
                         io.write(' ')
                         local state
-                        if port.active then 
+                        if port.active then
                            if port.mode == 'read' then
                               if port.cache == 'unset' then
                                  state = C.Green .. 'R' .. C.none
                               else
                                  state = C.Green .. C._white .. 'R' .. C.none
-			      end
+                              end
                            else
                               if port.cache == 'unset' then
                                  state = C.Red .. 'W' .. C.none
                               else
                                  state = C.Red .. C._white .. 'W' .. C.none
-			      end
+                              end
                            end
                         else
                            if port.cache == 'unset' then
@@ -343,9 +343,9 @@ function neuflow.tools.disassemble(binary, args)
       local arg8_5 = binary[off+2]
       local arg8_6 = binary[off+1]
       local arg8_7 = binary[off+0]
-      local arg32_1 = binary[off] + 256*binary[off+1] 
-                                  + 256*256*binary[off+2] 
-                                  + 256*256*256*binary[off+3]
+      local arg32_1 = binary[off] + 256*binary[off+1]
+         + 256*256*binary[off+2]
+         + 256*256*256*binary[off+3]
 
       -- get args, depending on type of instruction:
       if opcode == 'writeStream' then
@@ -400,7 +400,7 @@ function neuflow.tools.disassemble(binary, args)
 
             -- keep track of pushed packets
             if selected.submod then
-               selected.nthconfig = selected.nthconfig + 1 
+               selected.nthconfig = selected.nthconfig + 1
 
                -- some config packets are relevant
                if selected.submod == 'locals' then
@@ -418,7 +418,7 @@ function neuflow.tools.disassemble(binary, args)
             io.write(' command: ')
             local instr = instructions[arg8_7+1]
             io.write(C.yellow .. instr .. C.none)
-            
+
             -- update port/tile status
             if instr == 'activate' then
                selected.active = true
@@ -552,8 +552,8 @@ function math.approx_old(args)
    local verbose = args.verbose or false
    local testStep = args.testStep or 0.01
    local Q = args.Q or nil
-   
-   
+
+
 
    if not args.mapping then error('<neuflow.tools> ERROR: please provide a function') end
    if odd and even then error('<neuflow.tools> ERROR: no mapping can be odd and even, com\'on!') end
@@ -586,7 +586,7 @@ function math.approx_old(args)
    -- and append type
    coefs.even = even
    coefs.odd = odd
-   
+
    -- test on range
    local maxError = 0
    for x = min,max,testStep do
@@ -595,58 +595,58 @@ function math.approx_old(args)
       local neg
       -- sym functions
       if (odd or even) and (x<0) then
-	 xx = -x
-	 neg = true
+         xx = -x
+         neg = true
       else
-	 xx = x
-	 neg = false
+         xx = x
+         neg = false
       end
       -- generate approximation
       for i,coef in ipairs(coefs) do
-	 if xx > coef.min then
-	    approxed = coef.a * xx + coef.b
-	    match = true
-	    break
-	 end
+         if xx > coef.min then
+            approxed = coef.a * xx + coef.b
+            match = true
+            break
+         end
       end
       if not match then
-	 approxed = coefs[#coefs].a * xx + coefs[#coefs].b
+         approxed = coefs[#coefs].a * xx + coefs[#coefs].b
       end
       -- sym functions
       if odd and neg then approxed = -approxed end
       -- compare approx with true function
       if math.abs(mapping(x) - approxed) > maxError then
-	 maxError = math.abs(mapping(x) - approxed)
+         maxError = math.abs(mapping(x) - approxed)
       end
    end
-   
+
    -- Quantize
    if Q then
       for i,coef in ipairs(coefs) do
-	 coef.a = math.floor(coef.a*2^Q)
-	 coef.b = math.floor(coef.b*2^Q)
-	 coef.min = math.floor(coef.min*2^Q)
+         coef.a = math.floor(coef.a*2^Q)
+         coef.b = math.floor(coef.b*2^Q)
+         coef.min = math.floor(coef.min*2^Q)
       end
    end
 
    -- verbose
    if verbose then
       io.write('<neuflow.tools> generated '..#coefs..' linears coefs: \n  (')
-      for i,coef in ipairs(coefs) do 
-	 io.write('(a='..coef.a..',b='..coef.b..',above='..coef.min..')')
+      for i,coef in ipairs(coefs) do
+         io.write('(a='..coef.a..',b='..coef.b..',above='..coef.min..')')
       end
       print(')\n  max error is '..maxError)
    end
 
-   -- return coefs 
+   -- return coefs
    return coefs, maxError
 end
 
 
 
 -- This function returns true
--- if file with the name 'filename' exists, 
--- otherwise the function returns false 
+-- if file with the name 'filename' exists,
+-- otherwise the function returns false
 function file_exists(filename)
    local file = io.open(filename)
    if file then
@@ -663,8 +663,8 @@ function math.round(num)
    return math.floor(num)
 end
 
--- Functions that writes segments for linear 
--- approximations to file 
+-- Functions that writes segments for linear
+-- approximations to file
 function write_coefs(coefs, filename)
    file = torch.DiskFile(filename, 'w')
    local odd
@@ -680,22 +680,22 @@ function write_coefs(coefs, filename)
    file:writeInt(odd)
    file:writeInt(even)
    file:writeInt(coefs.num_of_segs)
-   
+
    for i,seg in ipairs(coefs) do
-      
-      file:writeInt(seg.a) 
-      file:writeInt(seg.b) 
-      file:writeInt(seg.min) 
-    
+
+      file:writeInt(seg.a)
+      file:writeInt(seg.b)
+      file:writeInt(seg.min)
+
    end
    file:close()
 end
 
--- Functions that reads segments for linear 
--- approximations from file 
+-- Functions that reads segments for linear
+-- approximations from file
 function read_coefs(filename)
    local coefs = {}
-   
+
    file = torch.DiskFile(filename, 'r')
    local odd = file:readInt()
    local even = file:readInt()
@@ -709,14 +709,14 @@ function read_coefs(filename)
    end
 
    coefs.num_of_segs = file:readInt()
-   
+
    for i = 1,coefs.num_of_segs  do
       local a = file:readInt()
       local b = file:readInt()
       local min = file:readInt()
 
       table.insert(coefs, {min=min,a=a,b=b})
-          
+
    end
    file:close()
 
@@ -724,9 +724,9 @@ function read_coefs(filename)
 end
 
 
--- The current function to find segments for 
+-- The current function to find segments for
 -- linear approximation.
-function math.approx2(args)   
+function math.approx2(args)
    -- generating points
    local step = 1/256
    local start_range = args.min or 0
@@ -735,26 +735,26 @@ function math.approx2(args)
    -- 0 - for relative error
    -- 1 - for absolute error
    local error_type = args.error_type or 0
-   
+
    -- even -> f(-x) = f(x)
    -- odd  -> f(-x) = -f(x)
-   -- so if the function is even or odd 
+   -- so if the function is even or odd
    -- generate segments for 0 to args.max
    -- and the hardware will take care of the negative values
-   if (args.even or args.odd) then 
+   if (args.even or args.odd) then
       start_range = 0
    end
    local num_of_points = (end_range-start_range)/step + 1
-   local points = torch.Tensor(num_of_points) 
-  
+   local points = torch.Tensor(num_of_points)
+
    print("num of points = ", num_of_points)
-   points[1] = start_range 
+   points[1] = start_range
    for i = 2,num_of_points do
       points[i] = points[i-1] + step
       -- DEBUG
       --if (points[i] < 3) then
---	 print('point #'..i..' is '..points[i])
-  --    end
+      --         print('point #'..i..' is '..points[i])
+      --    end
    end
 
    -- generate mapping
@@ -763,28 +763,28 @@ function math.approx2(args)
    for i = 1,num_of_points do
       mapping[i] = mapping_func(points[i])
       -- DEBUG
-       --if (points[i] < 3) then
- 	-- print('point '..points[i]..' mapping is '..mapping[i])
-       --end
+      --if (points[i] < 3) then
+      -- print('point '..points[i]..' mapping is '..mapping[i])
+      --end
    end
 
    -- set num of segments
    local num_of_segs = args.nbSegments or 8;
 
    -- in this table we store the segments,
-   -- the information we need for each segment is: 
+   -- the information we need for each segment is:
    -- a, b (to approx by a*x+b)
-   -- and the starting point of the segment 
+   -- and the starting point of the segment
    local seg_table = {}
 
-   -- set precision 
+   -- set precision
    local epsilon = args.epsilon or 1/256
    --25/256  -- sqrt(x/3)
-   --19.7/256  --sqrt 
-   --32.21/256 -- stdsigm[0,5.5]  
-   --11.7/256  -- tanh[0,5], tanhabs [0,5] 
-  
-   
+   --19.7/256  --sqrt
+   --32.21/256 -- stdsigm[0,5.5]
+   --11.7/256  -- tanh[0,5], tanhabs [0,5]
+
+
 
    local lo = epsilon/2 -- use this value "epsilon-1/256" if you approximatly know the value for epsilon and want it to finish faster
    local hi = 2*epsilon
@@ -797,12 +797,12 @@ function math.approx2(args)
    -- inrease the precision
    -- We use bisection algorithm to find good precision for given number of segments
    while (true) do
-   
+
       real_num_of_segs = 1
       local curr_start_idx = 1
       local curr_a = 0
       local curr_b = 0
-      
+
       local curr_mapping = torch.Tensor(num_of_points)
       local curr_mapping_fixed = torch.Tensor(num_of_points)
       local curr_approx = torch.Tensor(num_of_points)
@@ -814,216 +814,172 @@ function math.approx2(args)
 
       -- This for loop is to perform the seach of segments
       for i = 2,num_of_points do
-	 curr_a = (mapping[i] - mapping[curr_start_idx])/(points[i] - points[curr_start_idx])
-	 curr_b = mapping[curr_start_idx] - curr_a*points[curr_start_idx]
-	 
-	 
-	 local new_segment = false
-	 
-	 -- This code is to calculate the approximation
-	 -- for all the points we covered so far in current segment 
-	 -- and to fill up the error array
-	 -- If at some point max error is greater than epsilon 
-	 -- it means we need to save segment
-	 local curr_idx = curr_start_idx
-      
-	 -- curr_mapping = mapping [curr_start_idx : i]
-	 curr_mapping:resize(i - curr_start_idx+1)
-	 curr_mapping:copy(mapping:narrow(1,curr_idx,i - curr_start_idx+1))
-	 
-	 -- for linear approx we do:
-	 --       linear = a*t + b
-	 -- now we want to use fixed point linear approx:
-	 --
-	 -- a_fixed = round(a*256)
-	 -- t_fixed = round(t*256)
-	 -- at_fixed = floor(a_fixed*t_fixed/256)
-	 -- b_fixed = round(b*256)
-	 -- linear_fixed = at_fixed + b_fixed
-	 -- 
-	 -- and go back:
-	 --
-	 -- linear = linear_fixed/256
-	 --
-	 -- note: we use floor for at_fixed because hardware 
-	 -- does floor instead of round (which should be fixed really)
- 
-	 local curr_a_fixed = math.round(curr_a*256)
-	 local curr_b_fixed = math.round(curr_b*256)
-
-	 points_fixed:resize(i - curr_start_idx+1)
-	 points_fixed:copy(points:narrow(1,curr_idx,i - curr_start_idx+1))
-	 points_fixed:mul(256)
-	 	 
-	 ax_fixed:resize(i - curr_start_idx+1)
-	 ax_fixed:copy(points_fixed)
-	 ax_fixed:mul(curr_a_fixed)
-	 ax_fixed:div(256)
-	 ax_fixed:floor()
-
-	 curr_approx_fixed:resize(i - curr_start_idx+1)
-	 curr_approx_fixed:copy(ax_fixed)
-	 curr_approx_fixed:add(curr_b_fixed)
+         curr_a = (mapping[i] - mapping[curr_start_idx])/(points[i] - points[curr_start_idx])
+         curr_b = mapping[curr_start_idx] - curr_a*points[curr_start_idx]
 
 
-	 curr_approx:resize(i - curr_start_idx+1)
-	 curr_approx:copy(curr_approx_fixed)
-	 curr_approx:div(256)
-	 
-	 curr_mapping_fixed:resize(i - curr_start_idx+1) 
- 	 curr_mapping_fixed:copy(mapping:narrow(1,curr_idx,i - curr_start_idx+1))
- 	 curr_mapping_fixed:mul(256)
-	 curr_mapping_fixed:add(0.5) -- two step round, step 1 
-	 curr_mapping_fixed:floor()  -- two step round, step 2
-	 curr_mapping_fixed:div(256)
+         local new_segment = false
 
-	 
+         -- This code is to calculate the approximation
+         -- for all the points we covered so far in current segment
+         -- and to fill up the error array
+         -- If at some point max error is greater than epsilon
+         -- it means we need to save segment
+         local curr_idx = curr_start_idx
+
+         -- curr_mapping = mapping [curr_start_idx : i]
+         curr_mapping:resize(i - curr_start_idx+1)
+         curr_mapping:copy(mapping:narrow(1,curr_idx,i - curr_start_idx+1))
+
+         -- for linear approx we do:
+         --       linear = a*t + b
+         -- now we want to use fixed point linear approx:
+         --
+         -- a_fixed = round(a*256)
+         -- t_fixed = round(t*256)
+         -- at_fixed = floor(a_fixed*t_fixed/256)
+         -- b_fixed = round(b*256)
+         -- linear_fixed = at_fixed + b_fixed
+         --
+         -- and go back:
+         --
+         -- linear = linear_fixed/256
+         --
+         -- note: we use floor for at_fixed because hardware
+         -- does floor instead of round (which should be fixed really)
+
+         local curr_a_fixed = math.round(curr_a*256)
+         local curr_b_fixed = math.round(curr_b*256)
+
+         points_fixed:resize(i - curr_start_idx+1)
+         points_fixed:copy(points:narrow(1,curr_idx,i - curr_start_idx+1))
+         points_fixed:mul(256)
+
+         ax_fixed:resize(i - curr_start_idx+1)
+         ax_fixed:copy(points_fixed)
+         ax_fixed:mul(curr_a_fixed)
+         ax_fixed:div(256)
+         ax_fixed:floor()
+
+         curr_approx_fixed:resize(i - curr_start_idx+1)
+         curr_approx_fixed:copy(ax_fixed)
+         curr_approx_fixed:add(curr_b_fixed)
 
 
-	 -- curr_err = abs( curr_mapping - curr_approx)/ curr_mapping
-	 curr_err:resize(i - curr_start_idx+1)
-	 curr_err:copy(curr_approx)
-	 curr_err:mul(-1)
-	 curr_err:add(curr_mapping_fixed)
-	 curr_err:abs()
+         curr_approx:resize(i - curr_start_idx+1)
+         curr_approx:copy(curr_approx_fixed)
+         curr_approx:div(256)
 
-	 if (error_type == 0) then -- we need relative error
-	    curr_err:cdiv(curr_mapping_fixed:abs())
-	    -- we might divide by 0
-	    -- so we check the first 100 points of mapping
-	    -- we assume that there are no zeros after 100 points...
-	    --
-	    -- note: the right thing here is to check evrything 
-	    -- but it's too slow on lua...
-	    
-	    for idx_1 = 1, math.min(100,curr_err:size(1)) do
-	       -- dividing by zero case
-	       if(curr_mapping_fixed[idx_1] < 1/1024) then
-		  if(curr_approx[idx_1] > 1/1024) then
-		     curr_err[idx_1] = 1
-		  else  curr_err[idx_1] = 0
-		  end
-	       end
-	    end
-	 end
-	 
-	 
--- DEBUG:
-	--  if(i == num_of_points) then
--- 	    print('points_fixed:\n',points_fixed)
-	    
--- 	    print('a_fixed = ', curr_a_fixed)
--- 	    print('ax_fixed:\n',ax_fixed)
--- 	    print('b_fixed = ', curr_b_fixed)
--- 	    print('curr_approx_fixed:\n',curr_approx_fixed)
--- 	    print('curr_approx_rec:\n',curr_approx_rec)
--- 	    print('curr_err:\n', curr_err)
--- 	    print('curr_err_fixed:\n', curr_err_fixed)
-	 
--- 	    os.exit()
--- 	 end
-	 -- DEBUG:
-	 -- for j = 1, i - curr_start_idx do
--- 	  	local approx = curr_a*points[curr_idx] + curr_b
--- 	  	local err = math.abs(approx - mapping[curr_idx])
--- 	 	print('------------------------')
--- 	 	print('curr_idx = ', curr_idx, 'point = ', points[curr_idx],
--- 	    	       'curr_a = ', curr_a, 'curr_b = ', curr_b,
--- 	    	       'approx = ', approx, 'mapping = ',mapping[curr_idx],'error = ',err)
--- 	 	print('>>>>>>>>>>>>>>')
--- 	 	print('curr_idx = ', curr_idx, 'point = ', points[curr_idx],
--- 	 	      'curr_a = ', curr_a, 'curr_b = ', curr_b,
--- 	 	      'curr_approx = ', curr_approx[j], 'curr_mapping = ', curr_mapping[j],'curr_error = ',curr_err[j])
--- 		print('curr_idx = ', curr_idx, 'point_fixed = ', points_fixed[curr_idx],
--- 	 	      'curr_a_fixed = ', curr_a_fixed, 'curr_b_fixed = ', curr_b_fixed,
--- 	 	      'curr_approx_fixed = ', curr_approx_fixed[j], 'curr_mapping = ', curr_mapping[j],'curr_error = ',curr_err[j])
--- 	  	 curr_idx = curr_idx + 1
--- 	  	 -- if(err[j] > epsilon) then
--- 	 --  	    new_segment = true
--- 	 --  	    break
--- 	 --  	 end
--- 	 end
+         curr_mapping_fixed:resize(i - curr_start_idx+1)
+         curr_mapping_fixed:copy(mapping:narrow(1,curr_idx,i - curr_start_idx+1))
+         curr_mapping_fixed:mul(256)
+         curr_mapping_fixed:add(0.5) -- two step round, step 1
+         curr_mapping_fixed:floor()  -- two step round, step 2
+         curr_mapping_fixed:div(256)
 
-	 if (curr_err:max() > epsilon) then
-	    new_segment = true
-	 end
-	 
-	 if (new_segment) then
-	    local a = (mapping[i-1] - mapping[curr_start_idx])/(points[i-1] - points[curr_start_idx])
-	    local b = mapping[curr_start_idx] - a*points[curr_start_idx]
-	    local strat_point = points[curr_start_idx]
-	    table.insert(seg_table, {min=strat_point,a=a,b=b})
-	    real_num_of_segs = real_num_of_segs + 1
-	    curr_start_idx = i-1
-	 end
-	 
+
+
+
+         -- curr_err = abs( curr_mapping - curr_approx)/ curr_mapping
+         curr_err:resize(i - curr_start_idx+1)
+         curr_err:copy(curr_approx)
+         curr_err:mul(-1)
+         curr_err:add(curr_mapping_fixed)
+         curr_err:abs()
+
+         if (error_type == 0) then -- we need relative error
+            curr_err:cdiv(curr_mapping_fixed:abs())
+            -- we might divide by 0
+            -- so we check the first 100 points of mapping
+            -- we assume that there are no zeros after 100 points...
+            --
+            -- note: the right thing here is to check evrything
+            -- but it's too slow on lua...
+
+            for idx_1 = 1, math.min(100,curr_err:size(1)) do
+               -- dividing by zero case
+               if(curr_mapping_fixed[idx_1] < 1/1024) then
+                  if(curr_approx[idx_1] > 1/1024) then
+                     curr_err[idx_1] = 1
+                  else  curr_err[idx_1] = 0
+                  end
+               end
+            end
+         end
+
+         if (curr_err:max() > epsilon) then
+            new_segment = true
+         end
+
+         if (new_segment) then
+            local a = (mapping[i-1] - mapping[curr_start_idx])/(points[i-1] - points[curr_start_idx])
+            local b = mapping[curr_start_idx] - a*points[curr_start_idx]
+            local strat_point = points[curr_start_idx]
+            table.insert(seg_table, {min=strat_point,a=a,b=b})
+            real_num_of_segs = real_num_of_segs + 1
+            curr_start_idx = i-1
+         end
+
       end
       table.insert(seg_table, {min=points[curr_start_idx],a=curr_a,b=curr_b})
       print('real num of segments = ', real_num_of_segs)
---      print('segments:')
---      for i = 1, real_num_of_segs do
---  	 print('a(',i,') = ', seg_table[i].a)
---   	 print('b(',i,') = ', seg_table[i].b)
---   	 print('min(',i,') = ', seg_table[i].min)
---       end
 
-     if (hi - lo > 1/2048) then
-      --os.exit()
-     -- if ( real_num_of_segs ~= num_of_segs) then
-	 print('WARNING: did not reach the needed number of segments for precision: ', epsilon)
-	 
-	 if ( real_num_of_segs > num_of_segs) then
-	    if (got_less) then
-	       lo = epsilon
-	       --hi = epsilon
-	       epsilon = lo + (hi-lo)/2
-	    else
-	       epsilon = epsilon * 2
-	       hi = epsilon
-	       lo = epsilon/2
-	    end
-	 else
-	    got_less = true
-	    hi = epsilon
-	    epsilon = hi - (hi-lo)/2
-	 end
-	 -- DEBUG
-	 print('hi = ', hi*256, 'lo = ', lo*256, 'epsilon = ', epsilon*256)
-	 
-	 print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> setting precision to: ', epsilon)
-	 
-      else 
-	 print('WARNING: got to hi - lo < 1/2048.... ')
-	 print('number of segments reached = ', real_num_of_segs)
-	 print('precision reached = ', epsilon)
-	 print('exiting...')
-	 break
+      if (hi - lo > 1/2048) then
+
+         print('WARNING: did not reach the needed number of segments for precision: ', epsilon)
+
+         if ( real_num_of_segs > num_of_segs) then
+            if (got_less) then
+               lo = epsilon
+               --hi = epsilon
+               epsilon = lo + (hi-lo)/2
+            else
+               epsilon = epsilon * 2
+               hi = epsilon
+               lo = epsilon/2
+            end
+         else
+            got_less = true
+            hi = epsilon
+            epsilon = hi - (hi-lo)/2
+         end
+         -- DEBUG
+         print('hi = ', hi*256, 'lo = ', lo*256, 'epsilon = ', epsilon*256)
+
+         print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> setting precision to: ', epsilon)
+
+      else
+         print('WARNING: got to hi - lo < 1/2048.... ')
+         print('number of segments reached = ', real_num_of_segs)
+         print('precision reached = ', epsilon)
+         print('exiting...')
+         break
       end
-            
+
    end
-   
+
    -- if for the current epsilon we got less than 8 segments
    -- we need to add more segments because hardware expects 8!
    if(real_num_of_segs < num_of_segs) then
       for i = 1, num_of_segs-real_num_of_segs do
-	  table.insert(seg_table, {min=num.max,a=1,b=0})
+         table.insert(seg_table, {min=num.max,a=1,b=0})
       end
    end
 
    -- Prepare segments to return in the needed format:
    -- fixed point and order reversed
-   local Q = args.Q or 8 
-   
+   local Q = args.Q or 8
+
    seg_table = table.reverse(seg_table)
    seg_table.num_of_segs = 0
    for i,seg in ipairs(seg_table) do
-      
+
       seg.a = math.round(seg.a*2^Q)
       seg.b = math.round(seg.b*2^Q)
       seg.min = math.round(seg.min*2^Q)
-      
+
       seg_table.num_of_segs = seg_table.num_of_segs + 1
-      
+
       print('a = ', seg.a)
       print('b = ', seg.b)
       print('min = ', seg.min)
@@ -1032,13 +988,13 @@ function math.approx2(args)
    -- and append type
    seg_table.even = args.even or false
    seg_table.odd = args.odd or false
-   
+
    return seg_table
 
 end
 
 
--- This function is used if we want segments to 
+-- This function is used if we want segments to
 -- use linear approximation - mapping, on a linear function already
 function math.approx_line(args)
    local num_of_segs = args.nbSegments or 8
@@ -1051,7 +1007,7 @@ function math.approx_line(args)
    local a = args.a
    local b = args.b
 
-   if (args.even or args.odd) then 
+   if (args.even or args.odd) then
       min = 0
    end
 
@@ -1059,38 +1015,38 @@ function math.approx_line(args)
 
    table.insert(seg_table, {min=min,a=a,b=b})
    local real_num_of_segs = 1
-   
+
    -- if for the set epsilon we got less than 8 segments
    -- we need to add more segments because hardware expects 8!
    if(real_num_of_segs < num_of_segs) then
       for i = 1, num_of_segs-real_num_of_segs do
-	  table.insert(seg_table, {min=num.max,a=1,b=0})
+         table.insert(seg_table, {min=num.max,a=1,b=0})
       end
    end
 
    -- Prepare segments to return in the needed format:
    -- fixed point and order reversed
-   local Q = args.Q or 8 
-   
+   local Q = args.Q or 8
+
    seg_table = table.reverse(seg_table)
    seg_table.num_of_segs = 0
    for i,seg in ipairs(seg_table) do
-      
+
       seg.a = math.round(seg.a*2^Q)
       seg.b = math.round(seg.b*2^Q)
       seg.min = math.round(seg.min*2^Q)
-      
+
       seg_table.num_of_segs = seg_table.num_of_segs + 1
-      
+
       -- print('a = ', seg.a)
---       print('b = ', seg.b)
---       print('min = ', seg.min)
+      --       print('b = ', seg.b)
+      --       print('min = ', seg.min)
    end
 
    -- and append type we put segments on the whole range now
    seg_table.even = args.even or false
    seg_table.odd = args.odd or false
-   
+
    return seg_table
 end
 
@@ -1100,36 +1056,36 @@ end
 --
 --    * f(x) = 1, if x > 1,
 --    * f(x) = -1, if x < -1,
---    * f(x) = x, otherwise. 
+--    * f(x) = x, otherwise.
 function math.approx_HardTanh(args)
    local num_of_segs = args.nbSegments or 8
-   
+
    local seg_table = {}
 
    table.insert(seg_table, {min = 0, a = 1,b = 0})
    local real_num_of_segs = 1
-   
+
    -- we need to add more segments because hardware expects 8!
    if(real_num_of_segs < num_of_segs) then
       for i = 1, num_of_segs-real_num_of_segs do
-	  table.insert(seg_table, {min = 1,a = 0,b = 1})
+         table.insert(seg_table, {min = 1,a = 0,b = 1})
       end
    end
 
    -- Prepare segments to return in the needed format:
    -- fixed point and order reversed
-   local Q = args.Q or 8 
-   
+   local Q = args.Q or 8
+
    seg_table = table.reverse(seg_table)
    seg_table.num_of_segs = 0
    for i,seg in ipairs(seg_table) do
-      
+
       seg.a = math.round(seg.a*2^Q)
       seg.b = math.round(seg.b*2^Q)
       seg.min = math.round(seg.min*2^Q)
-      
+
       seg_table.num_of_segs = seg_table.num_of_segs + 1
-      
+
       --DEBUG
       --print('a = ', seg.a)
       --print('b = ', seg.b)
@@ -1139,7 +1095,7 @@ function math.approx_HardTanh(args)
    -- and append type we put segments on the whole range now
    seg_table.even = false
    seg_table.odd = true
-   
+
    return seg_table
 end
 
@@ -1153,11 +1109,11 @@ function math.approx(args)
    local filepath = neuflow.coefpath..'/'..filename
    local verbose = args.verbose
 
-   if (file_exists(filepath)) then 
+   if (file_exists(filepath)) then
       if verbose then print('<neuflow.tools> reading from file segments for: ', filename) end
       coefs = read_coefs(filepath)
    else
-      if verbose then 
+      if verbose then
          print('<neuflow.tools> no segments available, generating segments for: ' .. filename)
          print('<neuflow.tools> caching segments to file: ' .. filename)
       end
@@ -1165,4 +1121,10 @@ function math.approx(args)
       write_coefs(coefs, filepath)
    end
    return coefs
+end
+
+
+-- useful log2
+function math.log2(n)
+   return math.log(n)/math.log(2)
 end
