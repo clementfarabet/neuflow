@@ -271,11 +271,6 @@ int send_frame_C(short int length, const unsigned char * data_p) {
   // send packet
   sendto(sock, send_buffer, length+ETH_HLEN, 0, (struct sockaddr*)&sock_address, socklen);
 
-  // add pause for MacOS, because of small buffers
-  // this needs to be fixed
-#ifdef _APPLE_
-  usleep(100);
-#endif
   return 0;
 }
 
@@ -327,6 +322,12 @@ int send_tensor_byte_C(unsigned char * data, int size) {
 
     // send
     send_frame_C(packet_size, packet);
+
+    // add pause for MacOS, because of small buffers
+    // this needs to be fixed
+#ifdef _APPLE_
+    usleep(100);
+#endif
   }
 
   // return the number of results
@@ -413,12 +414,9 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
   int i;
   int num_of_frames = 0;
 
-  printf("receiving tensor\n");
-
   // this is the tensor descriptor header
   if (!neuflow_first_call) receive_frame_C(NULL);
-
-  printf("got ack\n");
+  neuflow_first_call = 0;
 
   // if not a multiple of 4 the streamToHost function
   // will add an extra line to the stream
@@ -443,8 +441,6 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
       tensor_pointer++;
     }
   }
-
-  printf("done receiving tensor\n");
 
   // send ack after each tensor
   send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
