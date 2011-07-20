@@ -148,20 +148,18 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
   socklen = sizeof(sock_address);
 
   // authorize receiving raw ethernet frames, with ETHTYPE == 0x1000
+  struct ndrv_demux_desc demux_desc[1];
+  bzero(demux_desc, sizeof(demux_desc)*1);
+  demux_desc[0].type = NDRV_DEMUXTYPE_ETHERTYPE;
+  demux_desc[0].length = 2;
+  demux_desc[0].data.ether_type = htons(0x1000);
+
   struct ndrv_protocol_desc desc;
-  struct ndrv_demux_desc demux_desc;
-
   bzero(&desc, sizeof(desc));
-  bzero(&demux_desc, sizeof(demux_desc));
-
   desc.version = NDRV_PROTOCOL_DESC_VERS;
   desc.protocol_family = 1;
   desc.demux_count = 1;
-  desc.demux_list = &demux_desc;
-
-  demux_desc.type = NDRV_DEMUXTYPE_ETHERTYPE;
-  demux_desc.length = sizeof(unsigned short);
-  demux_desc.data.ether_type = htons(0x1000);
+  desc.demux_list = demux_desc;
 
   int result = setsockopt(sock, SOL_NDRVPROTO, NDRV_SETDMXSPEC, (caddr_t)&desc, sizeof(desc));
   if (result != 0) {
