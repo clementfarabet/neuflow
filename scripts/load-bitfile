@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# need an arg
+if [ $# == 0 ]
+then
+    echo "syntax:"
+    echo "  load-bitfile bitfile   [loads a bitfile]"
+    echo "  load-bitfile unlock    [unlocks the cable, if not responsive]"
+    exit
+fi
+
+# require impact in path
+if [ ! `which impact` ]
+then
+    echo "impact could not be found..."
+    echo " > impact is part of Xilinx's ISE toolchain"
+    echo " > it is used to load a bitfile into any Xilinx's FPGA, via JTAG"
+    echo " > it comes for free with ISE webpack edition"
+    echo " > if you already installed it, then simply add the tools to your path:"
+    echo "   $ source /opt/Xilinx/VERSION/.../settings**.sh"
+    echo "   and then re-run this script !"
+    exit
+fi
+
+# parse arg
+if [ $1 == "unlock" ]
+then
+    echo "--> unlocking cable"
+    tmp=/tmp/impact_batch_`date`
+    echo $tmp
+    echo "cleancablelock" > "$tmp"
+    echo "quit" >> "$tmp"
+else
+    echo "--> loading bitfile"
+    tmp=/tmp/impact_batch_`date`
+    echo $tmp
+    echo "setmode -bs" > "$tmp"
+    echo "setcable -p auto" >> "$tmp"
+    echo "identify" >> "$tmp"
+    echo "assignFile -p 2 -file" $1 >> "$tmp"
+    echo "program -p 2" >> "$tmp"
+    echo "quit" >> "$tmp"
+fi
+
+# run commands in batch mode
+impact -batch "$tmp"
