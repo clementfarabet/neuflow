@@ -1,4 +1,4 @@
 #/bin/bash
 
 wget http://data.neuflow.org/share/neuFlow-ml605.bit
-
+wget http://data.neuflow.org/share/neuFlow-ml605-ethernetII.bit
