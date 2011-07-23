@@ -63,9 +63,6 @@ require 'face-detector/PyramidUnPacker'
 packer = nn.PyramidPacker(network, scales)
 unpacker = nn.PyramidUnPacker(network)
 
--- camera
-camera = image.Camera{}
-
 -- blob parser
 parse = require 'face-detector/blobParser'
 
@@ -73,7 +70,7 @@ parse = require 'face-detector/blobParser'
 gaussian = image.gaussian(3,0.15)
 
 -- generate input data for compiler
-frameRGB = camera:forward()
+frameRGB = torch.Tensor(3,480,640)
 frameY = image.rgb2y(frameRGB)
 input = packer:forward(frameY)
 
@@ -107,6 +104,9 @@ nf:loadBytecode()
 ----------------------------------------------------------------------
 -- EXEC: this part executes the host code, and interacts with the dev
 --
+
+-- camera
+camera = image.Camera{}
 
 -- profiler
 p = nf.profiler
