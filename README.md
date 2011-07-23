@@ -71,34 +71,45 @@ $ cd neuflow
 $ luarocks make
 ```
 
-## how to run something
+## how to run code on neuFlow
 
 Demos are located in demos/. To get started, you'll need 
 a standard Xilinx dev board for the Virtex 6: [the ML605 Kit]
 (http://www.xilinx.com/products/devkits/EK-V6-ML605-G.htm).
-We provide a version of NeuFlow that's pre synthesized/mapped/routed 
-for the Virtex6 VLX240T: 
-[neuFlow-ml605.bit](http://data.clement.farabet.net/share/neuFlow-ml605.bit), 
-and a little script  to program the ML605 with this bitfile: 
-[load-bitfile](http://data.clement.farabet.net/share/load-bitfile).
+We provide a version ofnNeuFlow that's pre synthesized/mapped/routed 
+for the Virtex6 VLX240T on this platform.
 
-To run any of the demos, follow these instructions:
+To run any of the demos, follow these instructions (tested on 
+Ubuntu 9.04, 10.04 and Mac OS X 10.5, 10.6 and 10.7):
 
 ``` sh
 $ git clone https://github.com/clementfarabet/neuflow
-$ cd neuflow/demos
+$ cd neuflow
 
-# retrieve our pre-built bitfile and the loader script:
-$ wget http://data.neuflow.org/share/load-bitfile
-$ wget http://data.neuflow.org/share/neuFlow-ml605.bit
-
-# make Xilinx tools available (that implies you have them
-# installed somewhere...
+# make Xilinx tools available (it implies you have them
+# installed somewhere...)
 $ source $XILINX_INSTALL_PATH/settings**.sh
 
-# turn on the ML605, plug the JTAG cable then load the bitfile:
-$ ./load-bitfile neuFlow-ml605.bit
+# turn on the ML605, plug the JTAG cable then load one of
+# our pre-built bitfiles:
+$ cd scripts
+$ ./get-latest-neuflow-image
+$ ./load-bitfile neuFlow-ml605-ethernetII.bit
 
-# run the simplest demo, a loopback client:
+# at this points, you just have wait 2 seconds that the ethernet
+# LEDs are back on (out of reset)
+
+# run the simplest demo, a loopback client, to verify your setup:
+$ cd ../demos
 $ sudo qlua loopback.lua
+
+# before loading a new demo, you have to reset neuFlow: for
+# now it is done by pressing the SW10 button (cpu rst)
+
+# then you can run a typical convnet-based program, a face detector:
+$ sudo qlua face-detector.lua
 ```
+
+Note: you need to have admin privileges on your machine (sudo)
+to be able to interact with neuFlow, as we're using a custom
+low-level ethernet framing protocol.
