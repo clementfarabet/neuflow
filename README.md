@@ -76,7 +76,7 @@ $ luarocks make
 Demos are located in demos/. To get started, you'll need 
 a standard Xilinx dev board for the Virtex 6: [the ML605 Kit]
 (http://www.xilinx.com/products/devkits/EK-V6-ML605-G.htm).
-We provide a version ofnNeuFlow that's pre synthesized/mapped/routed 
+We provide an image of neuFlow that's pre synthesized/mapped/routed 
 for the Virtex6 VLX240T on this platform.
 
 To run any of the demos, follow these instructions (tested on 
@@ -110,11 +110,14 @@ $ sudo qlua loopback.lua
 $ sudo qlua face-detector.lua
 ```
 
-* the load-bitfile script assumes that you have properly installed
+(*) the load-bitfile script assumes that you have properly installed
 Xilinx's USB cable driver. On RedHat and derivates it works out of 
 the box when installing Xilinx ISE, but on Ubuntu you'll have to 
-follow these instructions: http://rmdir.de/~michael/xilinx/
+follow these instructions: http://rmdir.de/~michael/xilinx/. 
+This is not doable on Mac OS X unfortunately. I usually flash the 
+ML605 board using Ubuntu (even a virtual box version works), and then
+run all the demos under Mac OS X.
 
-** you need to have admin privileges on your machine (sudo)
+(**) you need to have admin privileges on your machine (sudo)
 to be able to interact with neuFlow, as we're using a custom
 low-level ethernet framing protocol.
