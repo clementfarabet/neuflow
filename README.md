@@ -80,7 +80,7 @@ We provide a version ofnNeuFlow that's pre synthesized/mapped/routed
 for the Virtex6 VLX240T on this platform.
 
 To run any of the demos, follow these instructions (tested on 
-Ubuntu 9.04, 10.04 and Mac OS X 10.5, 10.6 and 10.7):
+Ubuntu 9.04, 10.04 and Mac OS X 10.5, 10.6 and 10.7).
 
 ``` sh
 $ git clone https://github.com/clementfarabet/neuflow
@@ -91,7 +91,7 @@ $ cd neuflow
 $ source $XILINX_INSTALL_PATH/settings**.sh
 
 # turn on the ML605, plug the JTAG cable then load one of
-# our pre-built bitfiles:
+# our pre-built bitfiles *:
 $ cd scripts
 $ ./get-latest-neuflow-image
 $ ./load-bitfile neuFlow-ml605-ethernetII.bit
@@ -99,7 +99,7 @@ $ ./load-bitfile neuFlow-ml605-ethernetII.bit
 # at this points, you just have wait 2 seconds that the ethernet
 # LEDs are back on (out of reset)
 
-# run the simplest demo, a loopback client, to verify your setup:
+# run the simplest demo, a loopback client, to verify your setup **:
 $ cd ../demos
 $ sudo qlua loopback.lua
 
@@ -110,6 +110,11 @@ $ sudo qlua loopback.lua
 $ sudo qlua face-detector.lua
 ```
 
-Note: you need to have admin privileges on your machine (sudo)
+* the load-bitfile script assumes that you have properly installed
+Xilinx's USB cable driver. On RedHat and derivates it works out of 
+the box when installing Xilinx ISE, but on Ubuntu you'll have to 
+follow these instructions: http://rmdir.de/~michael/xilinx/
+
+** you need to have admin privileges on your machine (sudo)
 to be able to interact with neuFlow, as we're using a custom
 low-level ethernet framing protocol.
