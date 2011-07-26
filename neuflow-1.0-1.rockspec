@@ -21,6 +21,8 @@ dependencies = {
    "luabitop",
    "nnx",
    "xlua",
+   "ffmpeg",
+   "inline",
    "image"
 }
 
