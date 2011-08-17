@@ -46,7 +46,7 @@ build = {
 
          add_subdirectory (src)
 
-         install_files(/lua/neuflow segments/coef*)
+         install_files(/lua/neuflow segments/*)
    ]],
 
    variables = {
