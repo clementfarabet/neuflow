@@ -2,7 +2,7 @@
 ----------------------------------------------------------------------
 --- Class: Compiler
 --
--- This class provides a set of methods to compile a neural network into 
+-- This class provides a set of methods to compile a neural network into
 -- bytecode for the dataflow computer.
 --
 local Compiler = torch.class('neuflow.Compiler')
@@ -17,7 +17,7 @@ function Compiler:__init(args)
    self.logfile = args.logfile or nil
    self.core = args.core
    self.msg_level = args.msg_level or 'concise' -- can be 'none' or 'detailled'
-   
+
    if (self.core == nil or self.logfile == nil) then
       error('<neuflow.Compiler> ERROR: please provide DataflowComputer + Log')
    end
@@ -28,138 +28,138 @@ end
 
 -- This is a list of layers in the NN package
 local layers_table = {
-   -- Local operators 
-   ["nn.SpatialSubSampling"] = 
-      function(net_compiler, module, inputs, mapping) 
-         return net_compiler:SpatialSubSampling(module, inputs, mapping) 
+   -- Local operators
+   ["nn.SpatialSubSampling"] =
+      function(net_compiler, module, inputs, mapping)
+         return net_compiler:SpatialSubSampling(module, inputs, mapping)
       end,
 
-   ["nn.SpatialMaxPooling"] = 
+   ["nn.SpatialMaxPooling"] =
       function(net_compiler, module, inputs, mapping)
+         print(message.WARNING_IMPLEMENTED, module)
+         return inputs
       end,
 
    ["nn.SpatialConvolution"] =
-      function(net_compiler, module, inputs, mapping) 
-         return net_compiler:SpatialConvolution(module, inputs, mapping) 
+      function(net_compiler, module, inputs, mapping)
+         return net_compiler:SpatialConvolution(module, inputs, mapping)
       end,
 
-   ["nn.SpatialLinear"] = 
-      function(net_compiler, module, inputs, mapping) 
-         return net_compiler:SpatialLinear(module, inputs, mapping) 
+   ["nn.SpatialLinear"] =
+      function(net_compiler, module, inputs, mapping)
+         return net_compiler:SpatialLinear(module, inputs, mapping)
       end,
 
-   ["nn.SpatialConvolutionSparse"] = 
-      function(net_compiler, module, inputs, mapping) 
-         return net_compiler:SpatialConvolutionSparse(module, inputs, mapping)
+   ["nn.SpatialConvolutionMap"] =
+      function(net_compiler, module, inputs, mapping)
+         return net_compiler:SpatialConvolutionMap(module, inputs, mapping)
       end,
 
-   ["nn.SpatialNormalization"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.SpatialNormalization"] =
+      function(net_compiler, module, inputs)
          return net_compiler:SpatialNormalization(module, inputs)
       end,
 
-   ["nn.SpatialNormalization_hardware"] = 
-      function(net_compiler, module, inputs) 
-         return net_compiler:SpatialNormalization(module, inputs)
-      end,
-   
-   ["nn.SpatialNormalization_hardware_back"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.SpatialNormalization_hardware"] =
+      function(net_compiler, module, inputs)
          return net_compiler:SpatialNormalization(module, inputs)
       end,
 
+   ["nn.SpatialNormalization_hardware_back"] =
+      function(net_compiler, module, inputs)
+         return net_compiler:SpatialNormalization(module, inputs)
+      end,
 
-   ["nn.Parallel"] = 
-      function(net_compiler, module, inputs) 
-	 print("NOTE: at this point, Parallel is only implemented for street scenes network")
+   ["nn.Parallel"] =
+      function(net_compiler, module, inputs)
+         print("NOTE: at this point, Parallel is only implemented for street scenes network")
          return net_compiler:Parallel(module, inputs)
       end,
-   
 
    ["nn.SpatialPadding"] =
-      function(net_compiler, module, inputs) 
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
    -- Global operators (add hardware)
-   ["nn.Max"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Max"] =
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
-   ["nn.Min"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Min"] =
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
-   ["nn.Sum"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Sum"] =
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
-   ["nn.Mean"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Mean"] =
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
    ["nn.Euclidean"] =
-      function(net_compiler, module, inputs) 
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
    -- Non Linear mappings (add software)
-   ["nn.Abs"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Abs"] =
+      function(net_compiler, module, inputs)
          return net_compiler:Mapping(module,inputs,'Abs')
       end,
 
-   ["nn.Sqrt"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Sqrt"] =
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
-   ["nn.SoftMax"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.SoftMax"] =
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
-   ["nn.Sigmoid"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Sigmoid"] =
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
    ["nn.HardTanh"] =
-      function(net_compiler, module, inputs) 
+      function(net_compiler, module, inputs)
          return net_compiler:Mapping(module,inputs,'HardTanh')
       end,
 
    ["nn.StdSigm"] =
-      function(net_compiler, module, inputs) 
+      function(net_compiler, module, inputs)
          return net_compiler:Mapping(module,inputs,'StdSigm')
       end,
 
-   ["nn.Tanh"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Tanh"] =
+      function(net_compiler, module, inputs)
          return net_compiler:Mapping(module,inputs,'Tanh')
       end,
 
-   ["nn.TanhAbs"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.TanhAbs"] =
+      function(net_compiler, module, inputs)
          return net_compiler:Mapping(module,inputs,'TanhAbs')
       end,
 
-   -- component-wise operators 
+   -- component-wise operators
    ["nn.CCSub"] =
-      function(net_compiler, module, inputs) 
+      function(net_compiler, module, inputs)
          return net_compiler:CCSub(module, inputs)
       end,
 
@@ -170,33 +170,33 @@ local layers_table = {
 
    -- Piece wise operations (add software)
    ["nn.Add"] =
-      function(net_compiler, module, inputs) 
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
    ["nn.Mult"] =
-      function(net_compiler, module, inputs) 
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
    ["nn.Linear"] =
-      function(net_compiler, module, inputs) 
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
-   ["nn.Square"] = 
-      function(net_compiler, module, inputs) 
+   ["nn.Square"] =
+      function(net_compiler, module, inputs)
          print(message.WARNING_IMPLEMENTED, module)
          return inputs
       end,
 
    -- Handled by high level software
    ["nn.Reshape"]  =
-      function(net_compiler, module, inputs) 
-         return net_compiler:Reshape(module, inputs) 
+      function(net_compiler, module, inputs)
+         return net_compiler:Reshape(module, inputs)
       end,
 
    ["nn.Threshold"] =
@@ -206,10 +206,10 @@ local layers_table = {
 }
 
 
---
+----------------------------------------------------------------------
 -- This function receives a network and
 -- goes through all its layers
--- and calls the appropriate functions of the 
+-- and calls the appropriate functions of the
 -- ByteCode, DataflowComputer classes to dump the bytecode
 --
 function Compiler:processNetwork(network, inputs)
@@ -230,6 +230,9 @@ function Compiler:processNetwork(network, inputs)
       else
          local module_0, module_1, module_2, module_3, module_name
          module_0 = network.modules[i+0].__typename
+         if module_0 == 'nn.SpatialConvolutionSparse' then
+            module_0 = 'nn.SpatialConvolutionMap'
+         end
          module_name = module_0
          if i+1 <= #network.modules then
             module_1 = network.modules[i+1].__typename
@@ -253,7 +256,7 @@ function Compiler:processNetwork(network, inputs)
                io.write(' merged with next layers > '..module_1..' & '..module_2..
                         ' >>> '..module_name)
                doneAdvance = 2
-            elseif module_0 == 'nn.SpatialConvolution' 
+            elseif module_0 == 'nn.SpatialConvolution'
                and module_1 == 'nn.Tanh' and module_2 == 'nn.Abs' then
                mapping = 'TanhAbs'
                io.write(' merged with next layers > '..module_1..' & '..module_2..
@@ -277,21 +280,21 @@ function Compiler:processNetwork(network, inputs)
                io.write(' merged with next layers > '..module_1..' & '..module_2..' & '..module_3
                         ..' >>> '..module_name)
                doneAdvance = 3
-            elseif module_0 == 'nn.SpatialConvolutionSparse' 
+            elseif module_0 == 'nn.SpatialConvolutionMap'
                and module_1 == 'nn.Tanh' and module_2 == 'nn.Abs' then
                mapping = 'TanhAbs'
                io.write(' merged with next layers > '..module_1..' & '..module_2
                         ..' >>> '..module_name)
                doneAdvance = 2
-            elseif module_0 == 'nn.SpatialConvolutionSparse' and module_1 == 'nn.Tanh' then
+            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.Tanh' then
                mapping = 'Tanh'
                io.write(' merged with next layers > '..module_1..' >>> '..module_name)
                doneAdvance = 1
-            elseif module_0 == 'nn.SpatialConvolutionSparse' and module_1 == 'nn.HardTanh' then
+            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.HardTanh' then
                mapping = 'HardTanh'
                io.write(' merged with next layers > '..module_1..' >>> '..module_name)
                doneAdvance = 1
-            elseif module_0 == 'nn.SpatialConvolutionSparse' and module_1 == 'nn.Mult' 
+            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.Mult'
                and module_2 == 'nn.Tanh' and module_3 == 'nn.Mult' then
                mapping = 'StdSigm'
                io.write(' merged with next layers > '..module_1..' & '..module_2..' & '..module_3
@@ -314,149 +317,6 @@ function Compiler:processNetwork(network, inputs)
    return inputs
 end
 
--- This is a list of nodes from the xfLow libs
-local nodes_table = {
-   -- math operators
-   ["math>x+y"] =
-      function(net_compiler, node, inputs, mapping) 
-         print(message.WARNING_IMPLEMENTED .. node.name)
-         return inputs
-      end,
-
-   ["math>x*y"] =
-      function(net_compiler, node, inputs, mapping) 
-         print(message.WARNING_IMPLEMENTED .. node.name)
-         return inputs
-      end,
-
-   ["std-normalization-2d>output"] =
-      function(net_compiler, node, inputs)
-         return net_compiler:SpatialNormalization(node.params, inputs)
-      end,
-
-   ["linear-filter-bank-2d>output"] = 
-      function(net_compiler, node, inputs, mapping) 
-         return net_compiler:SpatialConvolutionSparse(node.params, inputs, mapping)
-      end,
-
-   ["math>mapping-x-"] = 
-      function(net_compiler, node, inputs) 
-         return net_compiler:Mapping(nil,inputs,node.params.mapping)
-      end
-}
-
---
--- This function receives a flow (compiled xFlow program),
--- goes through all its nodes,
--- and calls the appropriate functions of the 
--- ByteCode, DataflowComputer classes to dump the bytecode
---
-function Compiler:processFlow(flow, inputs)
-   if (self.print_times == 'detailled') then
-      self.core:startProcess()
-      self.core:message('unrolling convnet...')
-      self.core:resetTime()
-      self.core:getTime()
-      self.core:endProcess()
-   end
-   print('<neuflow.Compiler> processing xFlow')
-
-   -- find all mappings
-   for i=1,#flow.machine do
-      local m = flow.machine[i]
-      if m.name == 'math>tanh-x-' then 
-         m.name = 'math>mapping-x-' 
-         m.params.mapping = 'Tanh'
-      end
-      if m.name == 'math>abs-x-' then 
-         m.name = 'math>mapping-x-' 
-         m.params.mapping = 'Abs'
-      end
-      if m.name == 'math>nn-sigmoid-x-' then 
-         m.name = 'math>mapping-x-' 
-         m.params.mapping = 'StdSigm'
-      end
-   end
-
-   -- process each level
-   local doneAdvance = 0
-   local outputs
-   for i=1,#flow.machine do
-      if doneAdvance > 0 then
-         doneAdvance = doneAdvance - 1
-      else
-         local module_0, module_1, module_2, module_3, module_name
-         local params_0, params_1, params_2, params_3
-         module_0 = flow.machine[i+0].name
-         params_0 = flow.machine[i+0].params
-         if i+1 <= #flow.machine then
-            module_1 = flow.machine[i+1].name
-            params_1 = flow.machine[i+1].params
-         end
-         if i+2 <= #flow.machine then
-            module_2 = flow.machine[i+2].name
-            params_2 = flow.machine[i+2].params
-         end
-         if i+3 <= #flow.machine then
-            module_3 = flow.machine[i+3].name
-            params_3 = flow.machine[i+3].params
-         end
-         io.write('<neuflow.Compiler> processing layer of type > '..module_0)
-         mapping = nil
-         if self.opt_across_layers then
-            -- combine multiple mappings together:
-            if module_0 == 'math>mapping-x-' and module_1 == 'math>mapping-x-' then
-               params_0.mapping = params_0.mapping .. params_1.mapping
-               io.write(' merged with next layer > '..module_1..' >>> '..module_0
-                        ..' ['.. params_0.mapping ..']')
-               doneAdvance = 1
-            elseif module_0 == 'math>mapping-x-' 
-               and module_1 == 'math>x*y' and params_1.mode == 'array-wise'
-               and module_2 == 'math>mapping-x-' then
-               params_0.mapping = params_0.mapping .. params_2.mapping
-               io.write(' merged with next layers > '..module_1..' & '..module_2..
-                        ' >>> '..module_0 ..' ['.. params_0.mapping ..']')
-               doneAdvance = 2
-
-            -- combine a filter bank plus mappings:
-            elseif module_0 == 'linear-filter-bank-2d>output' 
-               and module_1 == 'math>mapping-x-' and module_2 == 'math>mapping-x-' then
-               mapping = params_1.mapping .. params_2.mapping
-               io.write(' merged with next layers > '..module_1..' & '..module_2..
-                        ' >>> '..module_0)
-               doneAdvance = 2
-            elseif module_0 == 'linear-filter-bank-2d>output' 
-               and module_1 == 'math>mapping-x-' then
-               mapping = params_1.mapping
-               io.write(' merged with next layers > '..module_1..' >>> '..module_0)
-               doneAdvance = 1
-
-            -- combiner a filter bank plus bias layer
-            elseif module_0 == 'linear-filter-bank-2d>output' 
-               and module_1 == 'math>x+y' and params_1.mode == 'array-wise' then
-               -- array-wise adder can be merged into the convolver's bias
-               flow.machine[i].params.bias:add(params_1.y)
-               io.write(' merged with next layers > '..module_1..' >>> '..module_0)
-               doneAdvance = 1
-            end
-         end
-         print('')
-         outputs = nodes_table[module_0](self, flow.machine[i], inputs, mapping)
-         inputs = outputs
-         if (self.msg_level == 'detailled') then
-            self.core:startProcess()
-            self.core:getTime()
-            self.core:resetTime()
-            self.core:endProcess()
-         end
-      end
-   end
-   self:printStats()
-   return inputs
-end
-
--- One function per type of layer:
-
 function Compiler:SpatialConvolution(conv_module, inputs, mapping)
    local outputs = {}
    local new_layer = true
@@ -477,7 +337,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
       self.core:resetTime()
       self.core:endProcess()
    end
-   
+
    local coefs
    if mapping then
       -- generate coefs for this non-linear mapping
@@ -501,8 +361,8 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
       local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
       local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
       if output_height ~= math.floor(output_height) then
-         error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' 
-               .. item.orig_h .. ', sub_h=' .. 
+         error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h='
+               .. item.orig_h .. ', sub_h=' ..
                conv_module.kH .. ', out_h=' .. output_height)
       end
       local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
@@ -540,7 +400,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
    return outputs
 end
 
-function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
+function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
    local outputs = {}
    local new_layer = true
    local new_output = true
@@ -555,7 +415,7 @@ function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
       end
       self.core:endProcess()
    end
-   
+
    -- timing info
    if (self.msg_level == 'timing') then
       self.core:startProcess()
@@ -601,7 +461,7 @@ function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
          local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
          local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
          if output_height ~= math.floor(output_height) then
-            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                   conv_module.kH .. ', out_h=' .. output_height)
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
@@ -610,7 +470,7 @@ function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = conv_module.weight[current_op]
          local bias = conv_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, 
+         local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
                                                      kernel, bias)
 
          -- collect connections
@@ -636,7 +496,7 @@ function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
          local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
          local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
          if output_height ~= math.floor(output_height) then
-            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                   conv_module.kH .. ', out_h=' .. output_height)
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
@@ -657,7 +517,7 @@ function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
                -- allocate kernel + bias
                local kernel = conv_module.weight[current_op]
                local bias = conv_module.bias:narrow(1,o,1)
-               local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, 
+               local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
                                                            kernel, bias)
 
                -- collect connections
@@ -692,17 +552,17 @@ function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
                local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
                local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
                if output_height ~= math.floor(output_height) then
-                  error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
+                  error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                         conv_module.kH .. ', out_h=' .. output_height)
                end
-               local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, 
+               local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {},
                                                               new_layer)
                outputs[o] = id_output
 
                -- allocate kernel + bias
                local kernel = conv_module.weight[current_op]
                local bias = conv_module.bias:narrow(1,o,1)
-               local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, 
+               local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
                                                            kernel, bias)
 
                -- collect connections
@@ -719,7 +579,7 @@ function Compiler:SpatialConvolutionSparse(conv_module, inputs, mapping)
          end
 
          -- compute all outputs for given input
-         self.core:convolBank(input_list, kernel_list, output_list, coefs)         
+         self.core:convolBank(input_list, kernel_list, output_list, coefs)
       end
    end
 
@@ -742,7 +602,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
       if mapping then
          self.core:message(string.format('SS+M'))
       else
-         self.core:message(string.format('SS')) 
+         self.core:message(string.format('SS'))
       end
       self.core:endProcess()
    end
@@ -771,8 +631,8 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
          local output_width = math.floor( (self.core.mem.buff[inputs[o]].orig_w-sub_module.kW)/sub_module.dW + 1)
          local output_height = (self.core.mem.buff[inputs[o]].orig_h-sub_module.kH)/sub_module.dH + 1
          if output_height ~= math.floor(output_height) then
-            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' .. 
-               sub_module.kH .. ', out_h=' .. output_height)
+            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
+                  sub_module.kH .. ', out_h=' .. output_height)
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
          outputs[o] = id_output
@@ -780,7 +640,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = torch.Tensor(sub_module.kW, sub_module.kH):fill(sub_module.weight[o])
          local bias = sub_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(sub_module.kH, sub_module.kW, 
+         local id_kernel = self.core.mem:allocKernel(sub_module.kH, sub_module.kW,
                                                      kernel, bias)
 
          -- collect connections
@@ -809,11 +669,11 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
    return outputs
 end
 
-function Compiler:SpatialNormalization(sub_module, inputs)      
+function Compiler:SpatialNormalization(sub_module, inputs)
    -- verbose
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
-      self.core:message(string.format('NZ')) 
+      self.core:message(string.format('NZ'))
       self.core:endProcess()
    end
 
@@ -866,7 +726,7 @@ function Compiler:SpatialNormalization(sub_module, inputs)
 
    -- get threshold
    local threshold = sub_module.fixedThres
-   
+
    -- get coefs for mapping
    local xN_coefs = {}
    local sqrtCoefs = {}
@@ -875,35 +735,35 @@ function Compiler:SpatialNormalization(sub_module, inputs)
       sqrtCoefs = sub_module.sqrtCoefs_no_pad
    else
       -- coefs for div by num of features
-      local xN = function (x) 
-                 return x / #mean_kernels
-              end
+      local xN = function (x)
+                    return x / #mean_kernels
+                 end
       xN_coefs = math.approx_line{mapping=xN, min=num.min, max=num.max, odd = true,
-                                nbSegments=grid.mapper_segs, Q=num.frac_,
-                                verbose=true, a = 1/#mean_kernels, b = 0}
+                                  nbSegments=grid.mapper_segs, Q=num.frac_,
+                                  verbose=true, a = 1/#mean_kernels, b = 0}
 
-   -- generate coefs for sqrt
-   local mapping
+      -- generate coefs for sqrt
+      local mapping
       threshold = threshold or 1/256
       if (threshold == 0) then threshold = 1/256 end
-      mapping = function (x) 
-		   x = x / #std_kernels
-		   if x < threshold then return math.sqrt(threshold)
-		   else return math.sqrt(x) end
-		end
+      mapping = function (x)
+                   x = x / #std_kernels
+                   if x < threshold then return math.sqrt(threshold)
+                   else return math.sqrt(x) end
+                end
       sqrtCoefs = math.approx{mapping=mapping, min=0, max=num.max,
-			      nbSegments=grid.mapper_segs, Q=num.frac_,
-			      verbose=true, epsilon=25/256,error_type = 0,
-			      name = 'Sqrt_th_div_'..#std_kernels..'_s_'..threshold}
-      
+                              nbSegments=grid.mapper_segs, Q=num.frac_,
+                              verbose=true, epsilon=25/256,error_type = 0,
+                              name = 'Sqrt_th_div_'..#std_kernels..'_s_'..threshold}
+
    end
-   
+
    -- local norm mean
    self.core:localNormalizeMeanBank(input_maps, mean_kernels, zero_maps, xN_coefs)
-   
+
    -- local norm std
    self.core:localNormalizeStdBank(zero_maps, std_kernels, output_maps, sqrtCoefs)
-   
+
    -- for info, update the number of ops
    self.ops = self.ops + (output_w*output_h*kernel_w*kernel_h*2
                           + zerom_w*zerom_h*(kernel_w*kernel_h*2 + 16)) * sub_module.nfeatures
@@ -919,11 +779,11 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    return outputs
 end
 
-function Compiler:Parallel(par_module, inputs)      
+function Compiler:Parallel(par_module, inputs)
    -- verbose
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
-      self.core:message(string.format('PA')) 
+      self.core:message(string.format('PA'))
       self.core:endProcess()
    end
 
@@ -940,12 +800,11 @@ function Compiler:Parallel(par_module, inputs)
    local LN_output = self:SpatialNormalization(par_module.modules[1], LN_input)
 
    local outputs = {}
-   
+
    outputs[1] = LN_output[1]
    outputs[2] = inputs[2]
    outputs[3] = inputs[3]
 
-  
    -- timing info
    if (self.msg_level == 'timing') then
       self.core:startProcess()
@@ -956,9 +815,6 @@ function Compiler:Parallel(par_module, inputs)
    -- return output maps
    return outputs
 end
-
-
-
 
 function Compiler:SpatialLinear(linear_module, inputs)
    local outputs = {}
@@ -988,16 +844,16 @@ function Compiler:SpatialLinear(linear_module, inputs)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*3
-         
+
          -- generate code for convolution
          if (i == 1) then
-            self.core:convolve(self.core.mem.buff[inputs[i]], 
-                               self.core.mem.raw_data[id_kernel], 
+            self.core:convolve(self.core.mem.buff[inputs[i]],
+                               self.core.mem.raw_data[id_kernel],
                                self.core.mem.buff[id_output])
          else
-            self.core:convolveAndAcc(self.core.mem.buff[inputs[i]], 
-                                     self.core.mem.raw_data[id_kernel], 
-                                     self.core.mem.buff[outputs[o]], 
+            self.core:convolveAndAcc(self.core.mem.buff[inputs[i]],
+                                     self.core.mem.raw_data[id_kernel],
+                                     self.core.mem.buff[outputs[o]],
                                      self.core.mem.buff[outputs[o]])
             -- nb of ops
             self.ops = self.ops + output_width*output_height
@@ -1016,48 +872,48 @@ end
 
 function Compiler:getCoefs(mapping)
    local type = mapping
-      
+
    -- generate coefs for this non-linear mapping
    if type == 'Tanh' then
       coefs=math.approx{mapping=math.tanh, min=-5, max=5, odd=true,
-			nbSegments=grid.mapper_segs, Q=num.frac_,
-			verbose=true, epsilon = 11.7/256, error_type = 0,
-			name = type}
-      
+                        nbSegments=grid.mapper_segs, Q=num.frac_,
+                        verbose=true, epsilon = 11.7/256, error_type = 0,
+                        name = type}
+
    elseif type == 'Abs' then
       coefs=math.approx{mapping=math.abs, min=num.min, max=num.max, even=true,
-			nbSegments=grid.mapper_segs, Q=num.frac_,
-			verbose=true, error_type = 0,
-			name = type}
+                        nbSegments=grid.mapper_segs, Q=num.frac_,
+                        verbose=true, error_type = 0,
+                        name = type}
    elseif type == 'TanhAbs' then
-      function tanhabs (x) return math.abs(math.tanh(x)) end 
+      function tanhabs (x) return math.abs(math.tanh(x)) end
       coefs=math.approx{mapping=tanhabs, min=-5, max=5, even=true,
-			nbSegments=grid.mapper_segs, Q=num.frac_,
-			verbose=true, epsilon = 11.7/256, error_type = 0,
-			name = type}
+                        nbSegments=grid.mapper_segs, Q=num.frac_,
+                        verbose=true, epsilon = 11.7/256, error_type = 0,
+                        name = type}
    elseif type == 'StdSigm' then
-      function stdsigm (x) return 1.71593428 * math.tanh(0.66666666*x) end 
+      function stdsigm (x) return 1.71593428 * math.tanh(0.66666666*x) end
       coefs=math.approx{mapping=stdsigm, min=num.min, max=num.max, odd=true,
-			nbSegments=grid.mapper_segs, Q=num.frac_,
-			verbose=true,epsilon = 4/256, error_type = 1,
-			name = 'StdSigm_abs_err_all_range'}--type}
+                        nbSegments=grid.mapper_segs, Q=num.frac_,
+                        verbose=true,epsilon = 4/256, error_type = 1,
+                        name = 'StdSigm_abs_err_all_range'}--type}
    elseif type == 'StdSigmAbs' then
-      function stdsigm (x) return 1.71593428 * math.tanh(0.66666666*x) end 
+      function stdsigm (x) return 1.71593428 * math.tanh(0.66666666*x) end
       coefs=math.approx{mapping=stdsigm, min=-5.5, max=5.5, even=true,
-			nbSegments=grid.mapper_segs, Q=num.frac_,
-			verbose=true, epsilon = 32.21/256, error_type = 0,
-			name = type}
+                        nbSegments=grid.mapper_segs, Q=num.frac_,
+                        verbose=true, epsilon = 32.21/256, error_type = 0,
+                        name = type}
    elseif type == 'Sqrt' then
       coefs=math.approx{mapping=math.sqrt, min=0, max=num.max,
-			nbSegments=grid.mapper_segs, Q=num.frac_,
-			verbose=true, epsilon = 19.7/256, error_type = 0,
-			name = type}
+                        nbSegments=grid.mapper_segs, Q=num.frac_,
+                        verbose=true, epsilon = 19.7/256, error_type = 0,
+                        name = type}
    elseif type == 'HardTanh' then
       coefs=math.approx_HardTanh{nbSegments=grid.mapper_segs}
    else
       error('<neuflow.Compiler> ERROR: unknown mapping')
    end
-   
+
    return coefs
 end
 
@@ -1069,7 +925,7 @@ function Compiler:Mapping(module, inputs, type)
       self.core:message(string.format('doing Tanh [%0d maps]', #inputs))
       self.core:endProcess()
    end
-   
+
    -- generate coefs for this non-linear mapping
    coefs = self:getCoefs(type)
 
@@ -1101,7 +957,7 @@ function Compiler:CCSub(module, inputs)
       self.core:message(string.format('doing CCSub [%0d maps]', #inputs))
       self.core:endProcess()
    end
-   
+
    -- 2 inputs required
    if #inputs ~= 2 then
       error('<Compiler:CCSub> 2 inputs required')
@@ -1136,7 +992,7 @@ function Compiler:CCAdd(module, inputs)
       self.core:message(string.format('doing CCSub [%0d maps]', #inputs))
       self.core:endProcess()
    end
-   
+
    -- 2 inputs required
    if #inputs ~= 2 then
       error('<Compiler:CCSub> 2 inputs required')
@@ -1148,8 +1004,8 @@ function Compiler:CCAdd(module, inputs)
 
    -- generate code
    self.core:add(self.core.mem.buff[inputs[1]],
-                      self.core.mem.buff[inputs[2]],
-                      self.core.mem.buff[outputs[1]])
+                 self.core.mem.buff[inputs[2]],
+                 self.core.mem.buff[outputs[1]])
 
    -- optional time
    if (self.msg_level == 'detailled') then
@@ -1163,20 +1019,19 @@ function Compiler:CCAdd(module, inputs)
    return outputs
 end
 
-
 function Compiler:Reshape(reshape_module, inputs)
-   -- just do nothing here??? because the output is going to be 
+   -- just do nothing here??? because the output is going to be
    -- the next input and that is defined in self.core.mem.
    -- or maybe we need to extract output and pass it to the next layer???????
    local outputs = {}
-   outputs[1] = self.core.mem:allocOnTheHeap(reshape_module.output:size(1), 
-                                             reshape_module.output:size(2), 
+   outputs[1] = self.core.mem:allocOnTheHeap(reshape_module.output:size(1),
+                                             reshape_module.output:size(2),
                                              reshape_module.output, true)
    return outputs
 end
 
 function Compiler:Threshold(threshold_module, inputs)
-   -- just do nothing here??? because the output is going to 
+   -- just do nothing here??? because the output is going to
    -- be the next input and that is defined in self.core.mem.
    -- or maybe we need to extract output and pass it to the next layer???????
    local outputs = {}
