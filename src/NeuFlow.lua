@@ -418,13 +418,7 @@ function NeuFlow:compile(network, inputs)
       input_ids[i] = inputs[i].id
    end
    local output_ids
-   if network.machine then
-      -- it's an xFlow network
-      output_ids, self.gops = self.compiler:processFlow(network, input_ids)
-   else
-      -- it's a torch network
-      output_ids, self.gops = self.compiler:processNetwork(network, input_ids)
-   end
+   output_ids, self.gops = self.compiler:processNetwork(network, input_ids)
    -- return actual list of outputs
    local outputs = {}
    for i = 1,#output_ids do

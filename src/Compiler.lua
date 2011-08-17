@@ -34,12 +34,6 @@ local layers_table = {
          return net_compiler:SpatialSubSampling(module, inputs, mapping)
       end,
 
-   ["nn.SpatialMaxPooling"] =
-      function(net_compiler, module, inputs, mapping)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
    ["nn.SpatialConvolution"] =
       function(net_compiler, module, inputs, mapping)
          return net_compiler:SpatialConvolution(module, inputs, mapping)
@@ -76,43 +70,6 @@ local layers_table = {
          return net_compiler:Parallel(module, inputs)
       end,
 
-   ["nn.SpatialPadding"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   -- Global operators (add hardware)
-   ["nn.Max"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.Min"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.Sum"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.Mean"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.Euclidean"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
    -- Non Linear mappings (add software)
    ["nn.Abs"] =
       function(net_compiler, module, inputs)
@@ -121,20 +78,7 @@ local layers_table = {
 
    ["nn.Sqrt"] =
       function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.SoftMax"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.Sigmoid"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
+         return net_compiler:Mapping(module,inputs,'Sqrt')
       end,
 
    ["nn.HardTanh"] =
@@ -168,31 +112,6 @@ local layers_table = {
          return net_compiler:CCAdd(module, inputs)
       end,
 
-   -- Piece wise operations (add software)
-   ["nn.Add"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.Mult"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.Linear"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
-   ["nn.Square"] =
-      function(net_compiler, module, inputs)
-         print(message.WARNING_IMPLEMENTED, module)
-         return inputs
-      end,
-
    -- Handled by high level software
    ["nn.Reshape"]  =
       function(net_compiler, module, inputs)
@@ -220,8 +139,7 @@ function Compiler:processNetwork(network, inputs)
       self.core:getTime()
       self.core:endProcess()
    end
-   print('<neuflow.Compiler> processing network [type = ' .. torch.typename(network) .. ']:')
-   print(network.modules)
+   print('<neuflow.Compiler> processing network [type = ' .. torch.typename(network) .. ']')
    local doneAdvance = 0
    local outputs
    for i=1,#network.modules do
@@ -303,7 +221,12 @@ function Compiler:processNetwork(network, inputs)
             end
          end
          print(sys.COLORS.none)
-         outputs = layers_table[module_name](self, network.modules[i], inputs, mapping)
+         if layers_table[module_name] then
+            outputs = layers_table[module_name](self, network.modules[i], inputs, mapping)
+         else
+            print(message.WARNING_IMPLEMENTED .. module_name)
+            outputs = inputs
+         end
          inputs = outputs
          if (self.msg_level == 'detailled') then
             self.core:startProcess()
@@ -838,9 +761,8 @@ function Compiler:SpatialLinear(linear_module, inputs)
       for i = 1,linear_module.fanin do
          -- allocate kernel
          local kernel = torch.Tensor(1, 1):fill(linear_module.weight[o][i])
-         self.logfile:write(string.format("ker #(%d,%d):\n", i,o))
-         self.logfile:write(tostring(kernel))
-         local id_kernel = self.core.mem:allocRawData(1, 1, kernel)
+         local bias = linear_module.bias:narrow(1,o,1)
+         local id_kernel = self.core.mem:allocKernel(1, 1, kernel, bias)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*3
