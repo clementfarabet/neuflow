@@ -8,7 +8,8 @@
 local Compiler = torch.class('neuflow.Compiler')
 
 local message = {
-   WARNING_IMPLEMENTED = '<neuflow.Compiler> WARNING: module not implemented > '
+   WARNING_IMPLEMENTED = '<neuflow.Compiler> WARNING: module not implemented > ',
+   ERROR_IMPLEMENTED = '<neuflow.Compiler> ERROR: module not implemented > '
 }
 
 function Compiler:__init(args)
@@ -26,8 +27,8 @@ function Compiler:__init(args)
    self.ops = 0
 end
 
--- This is a list of layers in the NN package
-local layers_table = {
+-- a table of all supported (compilable) modules
+local layer = {
    -- Local operators
    ["nn.SpatialSubSampling"] =
       function(net_compiler, module, inputs, mapping)
@@ -54,23 +55,7 @@ local layers_table = {
          return net_compiler:SpatialNormalization(module, inputs)
       end,
 
-   ["nn.SpatialNormalization_hardware"] =
-      function(net_compiler, module, inputs)
-         return net_compiler:SpatialNormalization(module, inputs)
-      end,
-
-   ["nn.SpatialNormalization_hardware_back"] =
-      function(net_compiler, module, inputs)
-         return net_compiler:SpatialNormalization(module, inputs)
-      end,
-
-   ["nn.Parallel"] =
-      function(net_compiler, module, inputs)
-         print("NOTE: at this point, Parallel is only implemented for street scenes network")
-         return net_compiler:Parallel(module, inputs)
-      end,
-
-   -- Non Linear mappings (add software)
+   -- Non Linear mappings
    ["nn.Abs"] =
       function(net_compiler, module, inputs)
          return net_compiler:Mapping(module,inputs,'Abs')
@@ -101,7 +86,7 @@ local layers_table = {
          return net_compiler:Mapping(module,inputs,'TanhAbs')
       end,
 
-   -- component-wise operators
+   -- Component-wise operators
    ["nn.CCSub"] =
       function(net_compiler, module, inputs)
          return net_compiler:CCSub(module, inputs)
@@ -112,25 +97,25 @@ local layers_table = {
          return net_compiler:CCAdd(module, inputs)
       end,
 
-   -- Handled by high level software
+   -- containers
    ["nn.Reshape"]  =
       function(net_compiler, module, inputs)
          return net_compiler:Reshape(module, inputs)
       end,
 
-   ["nn.Threshold"] =
+   ["nn.Sequential"] =
       function(net_compiler, module, inputs)
-         return net_compiler:Threshold(module, inputs)
-      end
+         return net_compiler:Sequential(module, inputs)
+      end,
+
+   ["nn.Parallel"] =
+      function(net_compiler, module, inputs)
+         return net_compiler:Parallel(module, inputs)
+      end,
 }
 
 
-----------------------------------------------------------------------
--- This function receives a network and
--- goes through all its layers
--- and calls the appropriate functions of the
--- ByteCode, DataflowComputer classes to dump the bytecode
---
+-- top level compiler function
 function Compiler:processNetwork(network, inputs)
    if (self.print_times == 'detailled') then
       self.core:startProcess()
@@ -139,105 +124,11 @@ function Compiler:processNetwork(network, inputs)
       self.core:getTime()
       self.core:endProcess()
    end
-   print('<neuflow.Compiler> processing network [type = ' .. torch.typename(network) .. ']')
-   local doneAdvance = 0
-   local outputs
-   for i=1,#network.modules do
-      if doneAdvance > 0 then
-         doneAdvance = doneAdvance - 1
-      else
-         local module_0, module_1, module_2, module_3, module_name
-         module_0 = network.modules[i+0].__typename
-         if module_0 == 'nn.SpatialConvolutionSparse' then
-            module_0 = 'nn.SpatialConvolutionMap'
-         end
-         module_name = module_0
-         if i+1 <= #network.modules then
-            module_1 = network.modules[i+1].__typename
-         end
-         if i+2 <= #network.modules then
-            module_2 = network.modules[i+2].__typename
-         end
-         if i+3 <= #network.modules then
-            module_3 = network.modules[i+3].__typename
-         end
-         io.write(sys.COLORS.cyan)
-         io.write('<neuflow.Compiler> processing layer of type > '..module_0)
-         mapping = nil
-         if self.opt_across_layers then
-            if module_0 == 'nn.Tanh' and module_1 == 'nn.Abs' then
-               module_name = 'nn.TanhAbs'
-               io.write(' merged with next layer > '..module_1..' >>> '..module_name)
-               doneAdvance = 1
-            elseif module_0 == 'nn.Mult' and module_1 == 'nn.Tanh' and module_2 == 'nn.Mult' then
-               module_name = 'nn.StdSigm'
-               io.write(' merged with next layers > '..module_1..' & '..module_2..
-                        ' >>> '..module_name)
-               doneAdvance = 2
-            elseif module_0 == 'nn.SpatialConvolution'
-               and module_1 == 'nn.Tanh' and module_2 == 'nn.Abs' then
-               mapping = 'TanhAbs'
-               io.write(' merged with next layers > '..module_1..' & '..module_2..
-                        ' >>> '..module_name)
-               doneAdvance = 2
-            elseif module_0 == 'nn.SpatialConvolution' and module_1 == 'nn.Tanh' then
-               mapping = 'Tanh'
-               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
-               doneAdvance = 1
-            elseif module_0 == 'nn.SpatialConvolution' and module_1 == 'nn.HardTanh' then
-               mapping = 'HardTanh'
-               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
-               doneAdvance = 1
-            elseif module_0 == 'nn.SpatialSubSampling' and module_1 == 'nn.Tanh' then
-               mapping = 'Tanh'
-               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
-               doneAdvance = 1
-            elseif module_0 == 'nn.SpatialSubSampling' and module_1 == 'nn.Mult'
-               and module_2 == 'nn.Tanh' and module_3 == 'nn.Mult' then
-               mapping = 'StdSigm'
-               io.write(' merged with next layers > '..module_1..' & '..module_2..' & '..module_3
-                        ..' >>> '..module_name)
-               doneAdvance = 3
-            elseif module_0 == 'nn.SpatialConvolutionMap'
-               and module_1 == 'nn.Tanh' and module_2 == 'nn.Abs' then
-               mapping = 'TanhAbs'
-               io.write(' merged with next layers > '..module_1..' & '..module_2
-                        ..' >>> '..module_name)
-               doneAdvance = 2
-            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.Tanh' then
-               mapping = 'Tanh'
-               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
-               doneAdvance = 1
-            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.HardTanh' then
-               mapping = 'HardTanh'
-               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
-               doneAdvance = 1
-            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.Mult'
-               and module_2 == 'nn.Tanh' and module_3 == 'nn.Mult' then
-               mapping = 'StdSigm'
-               io.write(' merged with next layers > '..module_1..' & '..module_2..' & '..module_3
-                        ..' >>> '..module_name)
-               doneAdvance = 3
-            end
-         end
-         print(sys.COLORS.none)
-         if layers_table[module_name] then
-            outputs = layers_table[module_name](self, network.modules[i], inputs, mapping)
-         else
-            print(message.WARNING_IMPLEMENTED .. module_name)
-            outputs = inputs
-         end
-         inputs = outputs
-         if (self.msg_level == 'detailled') then
-            self.core:startProcess()
-            self.core:getTime()
-            self.core:resetTime()
-            self.core:endProcess()
-         end
-      end
-   end
+   local module_name = torch.typename(network)
+   print('<neuflow.Compiler> processing network [type = ' .. module_name .. ']')
+   local outputs = layer[module_name](self, network, inputs)
    self:printStats()
-   return inputs
+   return outputs
 end
 
 function Compiler:SpatialConvolution(conv_module, inputs, mapping)
@@ -717,22 +608,124 @@ function Compiler:Parallel(par_module, inputs)
       self.core:endProcess()
    end
 
-   local LN_input = {}
-   LN_input[1] = inputs[1]
-
-   local LN_output = self:SpatialNormalization(par_module.modules[1], LN_input)
-
-   local outputs = {}
-
-   outputs[1] = LN_output[1]
-   outputs[2] = inputs[2]
-   outputs[3] = inputs[3]
+   -- not done yet
+   xlua.error('Parallel not implemented yet', 'neuflow.Compiler')
 
    -- timing info
    if (self.msg_level == 'timing') then
       self.core:startProcess()
       self.core:getTime()
       self.core:endProcess()
+   end
+
+   -- return output maps
+   return outputs
+end
+
+function Compiler:Sequential(network, inputs)
+   -- verbose
+   if (self.msg_level ~= 'none') then
+      self.core:startProcess()
+      self.core:message(string.format('SEQ'))
+      self.core:endProcess()
+   end
+
+   -- process Sequential
+   local doneAdvance = 0
+   local outputs
+   for i=1,#network.modules do
+      if doneAdvance > 0 then
+         doneAdvance = doneAdvance - 1
+      else
+         local module_0, module_1, module_2, module_3, module_name
+         module_0 = network.modules[i+0].__typename
+         if module_0 == 'nn.SpatialConvolutionSparse' then
+            module_0 = 'nn.SpatialConvolutionMap'
+         end
+         module_name = module_0
+         if i+1 <= #network.modules then
+            module_1 = network.modules[i+1].__typename
+         end
+         if i+2 <= #network.modules then
+            module_2 = network.modules[i+2].__typename
+         end
+         if i+3 <= #network.modules then
+            module_3 = network.modules[i+3].__typename
+         end
+         io.write(sys.COLORS.cyan)
+         io.write('<neuflow.Compiler> processing layer of type > '..module_0)
+         mapping = nil
+         if self.opt_across_layers then
+            if module_0 == 'nn.Tanh' and module_1 == 'nn.Abs' then
+               module_name = 'nn.TanhAbs'
+               io.write(' merged with next layer > '..module_1..' >>> '..module_name)
+               doneAdvance = 1
+            elseif module_0 == 'nn.Mult' and module_1 == 'nn.Tanh' and module_2 == 'nn.Mult' then
+               module_name = 'nn.StdSigm'
+               io.write(' merged with next layers > '..module_1..' & '..module_2..
+                        ' >>> '..module_name)
+               doneAdvance = 2
+            elseif module_0 == 'nn.SpatialConvolution'
+               and module_1 == 'nn.Tanh' and module_2 == 'nn.Abs' then
+               mapping = 'TanhAbs'
+               io.write(' merged with next layers > '..module_1..' & '..module_2..
+                        ' >>> '..module_name)
+               doneAdvance = 2
+            elseif module_0 == 'nn.SpatialConvolution' and module_1 == 'nn.Tanh' then
+               mapping = 'Tanh'
+               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
+               doneAdvance = 1
+            elseif module_0 == 'nn.SpatialConvolution' and module_1 == 'nn.HardTanh' then
+               mapping = 'HardTanh'
+               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
+               doneAdvance = 1
+            elseif module_0 == 'nn.SpatialSubSampling' and module_1 == 'nn.Tanh' then
+               mapping = 'Tanh'
+               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
+               doneAdvance = 1
+            elseif module_0 == 'nn.SpatialSubSampling' and module_1 == 'nn.Mult'
+               and module_2 == 'nn.Tanh' and module_3 == 'nn.Mult' then
+               mapping = 'StdSigm'
+               io.write(' merged with next layers > '..module_1..' & '..module_2..' & '..module_3
+                        ..' >>> '..module_name)
+               doneAdvance = 3
+            elseif module_0 == 'nn.SpatialConvolutionMap'
+               and module_1 == 'nn.Tanh' and module_2 == 'nn.Abs' then
+               mapping = 'TanhAbs'
+               io.write(' merged with next layers > '..module_1..' & '..module_2
+                        ..' >>> '..module_name)
+               doneAdvance = 2
+            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.Tanh' then
+               mapping = 'Tanh'
+               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
+               doneAdvance = 1
+            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.HardTanh' then
+               mapping = 'HardTanh'
+               io.write(' merged with next layers > '..module_1..' >>> '..module_name)
+               doneAdvance = 1
+            elseif module_0 == 'nn.SpatialConvolutionMap' and module_1 == 'nn.Mult'
+               and module_2 == 'nn.Tanh' and module_3 == 'nn.Mult' then
+               mapping = 'StdSigm'
+               io.write(' merged with next layers > '..module_1..' & '..module_2..' & '..module_3
+                        ..' >>> '..module_name)
+               doneAdvance = 3
+            end
+         end
+         print(sys.COLORS.none)
+         if layer[module_name] then
+            outputs = layer[module_name](self, network.modules[i], inputs, mapping)
+         else
+            xlua.error(message.ERROR_IMPLEMENTED .. module_name)
+            outputs = inputs
+         end
+         inputs = outputs
+         if (self.msg_level == 'detailled') then
+            self.core:startProcess()
+            self.core:getTime()
+            self.core:resetTime()
+            self.core:endProcess()
+         end
+      end
    end
 
    -- return output maps
@@ -942,24 +935,11 @@ function Compiler:CCAdd(module, inputs)
 end
 
 function Compiler:Reshape(reshape_module, inputs)
-   -- just do nothing here??? because the output is going to be
-   -- the next input and that is defined in self.core.mem.
-   -- or maybe we need to extract output and pass it to the next layer???????
+   -- warning: only handle dim reshape
    local outputs = {}
    outputs[1] = self.core.mem:allocOnTheHeap(reshape_module.output:size(1),
                                              reshape_module.output:size(2),
                                              reshape_module.output, true)
-   return outputs
-end
-
-function Compiler:Threshold(threshold_module, inputs)
-   -- just do nothing here??? because the output is going to
-   -- be the next input and that is defined in self.core.mem.
-   -- or maybe we need to extract output and pass it to the next layer???????
-   local outputs = {}
-   outputs[1] = self.core.mem:allocOnTheHeap(threshold_module.output:size(1),
-                                             threshold_module.output:size(2),
-                                             threshold_module.output, true)
    return outputs
 end
 
