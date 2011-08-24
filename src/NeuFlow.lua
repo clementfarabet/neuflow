@@ -21,9 +21,9 @@ function NeuFlow:__init(args)
 
    -- default offsets, for conveniency
    args.offset_code = args.offset_code or bootloader.entry_point_b
-   args.offset_data_1D = args.offset_data_1D or bootloader.entry_point_b + 8*MB
-   args.offset_data_2D = args.offset_data_2D or bootloader.entry_point_b + 10*MB
-   args.offset_heap = args.offset_heap or bootloader.entry_point_b + 12*MB
+   args.offset_data_1D = args.offset_data_1D or bootloader.entry_point_b + 16*MB
+   args.offset_data_2D = args.offset_data_2D or bootloader.entry_point_b + 18*MB
+   args.offset_heap = args.offset_heap or bootloader.entry_point_b + 20*MB
 
    -- use a log file
    self.logfile = neuflow.Log('/tmp/' .. self.prog_name .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.log')
