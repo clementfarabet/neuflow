@@ -12,17 +12,10 @@ local Core = torch.class('neuflow.Core')
 
 function Core:__init(args)
    -- if system specified, using platform-specific header
-   self.platform = args.platform
-   if self.platform == 'system_ibm' then 
-      self.platform = 'ibm_asic'
-   elseif self.platform == 'system_virtex6_kit' then 
-      self.platform = 'xilinx_ml605'
-      grid.nb_grids = args.nb_grids or 1
-   elseif self.platform == 'system_ml503' then 
-      self.platform = 'pico_m503'
-      grid.nb_grids = args.nb_grids or 2
-   else
+   self.platform = args.platform -- can be: ibm_asic | xilinx_ml605 | pico_m503
+   if not self.platform then
       self.platform = 'generic'
+      print('<neuflow.Core> WARNING: no platform set, using generic settings')
    end
    if self.platform ~= 'generic' then
       torch.include('NeuFlow', 'defines_' .. self.platform .. '.lua')

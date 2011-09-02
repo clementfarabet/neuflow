@@ -40,8 +40,13 @@ function NeuFlow:__init(args)
                                     msg_level = args.compiler_msg_level or self.global_msg_level}
 
    -- instantiate the interface
-   self.ethernet = neuflow.Ethernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
-                                     core = self.core}
+   if self.core.platform == 'pico_m503' then
+      self.ethernet = neuflow.DmaEthernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
+                                          core = self.core}
+   else
+      self.ethernet = neuflow.Ethernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
+                                       core = self.core}
+   end
 
    -- for loops: this retains a list of jump locations
    self.loopTags = {}
