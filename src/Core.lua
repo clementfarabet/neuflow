@@ -18,7 +18,7 @@ function Core:__init(args)
       print('<neuflow.Core> WARNING: no platform set, using generic settings')
    end
    if self.platform ~= 'generic' then
-      torch.include('NeuFlow', 'defines_' .. self.platform .. '.lua')
+      torch.include('neuflow', 'defines_' .. self.platform .. '.lua')
    end
 
    -- parse args:
