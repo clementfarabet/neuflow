@@ -81,8 +81,8 @@ function DmaEthernet:streamFromHost(stream, tag)
    self:printToEthernet(string.format('RX | %s | %0d | %0d', tag, data_size, nb_packets))
 
    -- (2) stream data in
-   self.core:configPort{index = 2, action = 'write', data = stream}
-   self.core:configPort{index = 2, action = 'sync+close'}
+   self.core:configPort{index = -1, action = 'write', data = stream}
+   self.core:configPort{index = -1, action = 'sync+close'}
 end
 
 function DmaEthernet:loadByteCode()
