@@ -44,6 +44,7 @@
 static unsigned char dest_mac[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
 static unsigned char host_mac[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 static unsigned char eth_type[2] = {0x10, 0x00};
+static unsigned char eth_type_dma[2] = {0x88, 0xb5};
 static const int neuflow_one_encoding = 1<<8;
 static int neuflow_first_call = 1;
 
@@ -143,21 +144,28 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
   // size of socket address
   socklen = sizeof(sock_address);
 
-  // authorize receiving raw ethernet frames, with ETHTYPE == 0x1000
-  struct ndrv_demux_desc demux_desc[1];
-  bzero(demux_desc, sizeof(demux_desc)*1);
-  demux_desc[0].type = NDRV_DEMUXTYPE_ETHERTYPE;
-  demux_desc[0].length = 2;
-  demux_desc[0].data.ether_type = htons(0x1000);
+  // authorize receiving raw ethernet frames by type
+  const u_short ETHER_TYPES[] = {((eth_type[0]<<8)+eth_type[1]),
+                                 ((eth_type_dma[0]<<8)+eth_type_dma[1])};
 
-  struct ndrv_protocol_desc desc;
-  bzero(&desc, sizeof(desc));
-  desc.version = NDRV_PROTOCOL_DESC_VERS;
-  desc.protocol_family = 1;
-  desc.demux_count = 1;
-  desc.demux_list = demux_desc;
+  const int ETHER_TYPES_COUNT = sizeof(ETHER_TYPES)/sizeof(ETHER_TYPES[0]);
+  struct ndrv_demux_desc demux[ETHER_TYPES_COUNT];
 
-  int result = setsockopt(sock, SOL_NDRVPROTO, NDRV_SETDMXSPEC, (caddr_t)&desc, sizeof(desc));
+  int aa;
+  for (aa = 0; aa < ETHER_TYPES_COUNT; aa++) {
+    demux[aa].type            = NDRV_DEMUXTYPE_ETHERTYPE;
+    demux[aa].length          = sizeof(demux[aa].data.ether_type);
+    demux[aa].data.ether_type = htons(ETHER_TYPES[aa]);
+  }
+
+  struct ndrv_protocol_desc proto;
+  bzero(&proto, sizeof(proto));
+  proto.version         = NDRV_PROTOCOL_DESC_VERS;
+  proto.protocol_family = NDRV_DEMUXTYPE_ETHERTYPE;
+  proto.demux_count     = ETHER_TYPES_COUNT;
+  proto.demux_list      = demux;
+
+  int result = setsockopt(sock, SOL_NDRVPROTO, NDRV_SETDMXSPEC, (caddr_t)&proto, sizeof(proto));
   if (result != 0) {
     fprintf(stderr, "error on setsockopt %d\n", result);
     exit(1);
@@ -249,8 +257,14 @@ unsigned char * receive_frame_C(int *lengthp) {
     /* } */
     if (accept) break;
   }
-  if (lengthp != NULL) (*lengthp) = len-ETH_HLEN;
-  return &recbuffer[ETH_HLEN];
+
+  if (eth_type_dma[0] == recbuffer[2*ETH_ALEN] && eth_type_dma[1] == recbuffer[2*ETH_ALEN+1]) {
+    if (lengthp != NULL) (*lengthp) = (recbuffer[ETH_HLEN] << 8) + recbuffer[ETH_HLEN+1];
+    return &recbuffer[ETH_HLEN+2];
+  } else {
+    if (lengthp != NULL) (*lengthp) = len-ETH_HLEN;
+    return &recbuffer[ETH_HLEN];
+  }
 }
 
 /***********************************************************
