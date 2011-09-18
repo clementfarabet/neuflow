@@ -228,7 +228,7 @@ int close_socket_C() {
  * returns:
  *    length - nb of bytes read/received
  **********************************************************/
-unsigned char recbuffer[ETH_FRAME_LEN];
+unsigned char recbuffer[ETH_FRAME_LEN+1];
 unsigned char * receive_frame_C(int *lengthp) {
   int len;
   while (1) {
@@ -542,8 +542,10 @@ static int etherflow_(Api_receive_string_lua)(lua_State *L) {
   int length;
   unsigned char *buffer = receive_frame_C(&length);
 
-  // Protection: insert a 0 in case
-  buffer[length] = 0;
+  // Protection: Checks if null-terminated and if not, inserts a null
+  if ('\0' != buffer[length-1]) {
+    buffer[length] = '\0';
+  }
 
   // Push string
   lua_pushstring(L, (char *)(buffer+ETH_HLEN));
