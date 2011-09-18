@@ -249,8 +249,8 @@ unsigned char * receive_frame_C(int *lengthp) {
     /* } */
     if (accept) break;
   }
-  if (lengthp != NULL) (*lengthp) = len;
-  return recbuffer;
+  if (lengthp != NULL) (*lengthp) = len-ETH_HLEN;
+  return &recbuffer[ETH_HLEN];
 }
 
 /***********************************************************
@@ -438,11 +438,11 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
   while (length < num_of_bytes){
     // Grab a packet
     buffer = receive_frame_C(&currentlength);
-    length += currentlength-ETH_HLEN;
+    length += currentlength;
     num_of_frames++;
 
     // Save data to tensor
-    for (i = ETH_HLEN; tensor_pointer < size && i < currentlength; i+=2){
+    for (i = 0; tensor_pointer < size && i < currentlength; i+=2){
       short* val_short = (short*)&buffer[i];
       real val = (real)*val_short;
       val /= neuflow_one_encoding;
@@ -548,7 +548,7 @@ static int etherflow_(Api_receive_string_lua)(lua_State *L) {
   }
 
   // Push string
-  lua_pushstring(L, (char *)(buffer+ETH_HLEN));
+  lua_pushstring(L, (char *)(buffer));
   return 1;
 }
 
@@ -557,11 +557,11 @@ static int etherflow_(Api_receive_frame_lua)(lua_State *L) {
   int length;
   unsigned char *buffer = receive_frame_C(&length);
 
-  lua_pushnumber(L, length-ETH_HLEN);
+  lua_pushnumber(L, length);
   lua_newtable(L);
 
   int i;
-  for(i=ETH_HLEN; i<length; i++){
+  for(i=0; i<length; i++){
     lua_pushnumber(L, i);
     lua_pushnumber(L, buffer[i]);
     lua_settable(L, -3);
