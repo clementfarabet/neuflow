@@ -258,13 +258,25 @@ unsigned char * receive_frame_C(int *lengthp) {
     if (accept) break;
   }
 
-  if (eth_type_dma[0] == recbuffer[2*ETH_ALEN] && eth_type_dma[1] == recbuffer[2*ETH_ALEN+1]) {
-    if (lengthp != NULL) (*lengthp) = (recbuffer[ETH_HLEN] << 8) + recbuffer[ETH_HLEN+1];
-    return &recbuffer[ETH_HLEN+2];
-  } else {
-    if (lengthp != NULL) (*lengthp) = len-ETH_HLEN;
-    return &recbuffer[ETH_HLEN];
+  int payload_start = ETH_HLEN;
+
+  if (lengthp != NULL) {
+    (*lengthp) = len-ETH_HLEN;
+
+    // If Ethernet packet from DMA port
+    if (eth_type_dma[0] == recbuffer[2*ETH_ALEN] && eth_type_dma[1] == recbuffer[2*ETH_ALEN+1]) {
+
+      payload_start = ETH_HLEN+2;
+      (*lengthp)    = (recbuffer[ETH_HLEN] << 8) + recbuffer[ETH_HLEN+1];
+
+      if (0 == *lengthp) {
+        payload_start = ETH_HLEN;
+        (*lengthp)    = len-ETH_HLEN;
+      }
+    }
   }
+
+  return &recbuffer[payload_start];
 }
 
 /***********************************************************
