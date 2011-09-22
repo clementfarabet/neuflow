@@ -18,7 +18,8 @@ require 'qtwidget'
 -- INIT: initialize the neuFlow context
 -- a mem manager, the dataflow core, and the compiler
 --
-nf = neuflow.init{platform='xilinx_ml605'} -- pico_m503
+-- platform='xilinx_ml605' or platform='pico_m503'
+nf = neuflow.init{platform='pico_m503'}
 
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and 
@@ -29,6 +30,10 @@ nf = neuflow.init{platform='xilinx_ml605'} -- pico_m503
 
 -- input data
 inputsize = 400
+
+--input = torch.Tensor(1,inputsize,inputsize)
+--image.scale(image.lena()[1], input[1])
+
 input = torch.Tensor(3,inputsize,inputsize)
 image.scale(image.lena(), input)
 
