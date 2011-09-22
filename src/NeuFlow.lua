@@ -262,6 +262,8 @@ end
 
 
 function NeuFlow:copyFromHost_ack(source, dest)
+   print("DEPRECATED")
+
    -- if no dest, create it
    if not dest then
       dest = self:allocHeap(source)
@@ -326,12 +328,7 @@ function NeuFlow:copyFromHost(source, dest)
          self.core:endProcess()
       end
    end
-   -- always print a dummy flag, useful for profiling
-   if self.mode ~= 'simulation' then
-      self.core:startProcess()
-      self.ethernet:printToEthernet('copy-done')
-      self.core:endProcess()
-   end
+
    return dest
 end
 
@@ -343,12 +340,7 @@ function NeuFlow:copyToHost(source, dest)
    if self.mode == 'simulation' then
       ack = 'no-ack'
    end
-   -- always print a dummy flag, useful for profiling
-   if self.mode ~= 'simulation' then
-      self.core:startProcess()
-      self.ethernet:printToEthernet('copy-starting')
-      self.core:endProcess()
-   end
+
    -- check if source is a list of streams, or a stream
    local lsource
    if #source == 0 then
@@ -376,6 +368,8 @@ end
 
 
 function NeuFlow:copyToHost_ack(source, dest)
+   print("DEPRECATED")
+
    -- no ack in simulation
    local ack
    if self.mode == 'simulation' then
@@ -576,7 +570,6 @@ function NeuFlow:copyToDev(tensor)
    else
       etherflow.sendtensor(tensor)
    end
-   self:getFrame('copy-done')
    self.profiler:lap('copy-to-dev')
 end
 
@@ -586,7 +579,6 @@ end
 function NeuFlow:copyFromDev(tensor)
    profiler_neuflow = self.profiler:start('on-board-processing')
    self.profiler:setColor('on-board-processing', 'blue')
-   self:getFrame('copy-starting')
    self.profiler:lap('on-board-processing')
    self.profiler:start('copy-from-dev')
    local dims = tensor:nDimension()

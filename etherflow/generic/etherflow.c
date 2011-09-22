@@ -328,10 +328,6 @@ int send_tensor_byte_C(unsigned char * data, int size) {
   int elements_pointer = 0;
   int i;
 
-  // this is the tensor descriptor header
-  if (!neuflow_first_call) receive_frame_C(NULL);
-  neuflow_first_call = 0;
-
   // sending data
   while(elements_pointer != size) {
     // send raw bytes
@@ -389,10 +385,6 @@ int etherflow_(send_tensor_C)(real * data, int size) {
   unsigned char packet[ETH_FRAME_LEN];
   int i;
 
-  // this is the tensor descriptor header
-  if (!neuflow_first_call) receive_frame_C(NULL);
-  neuflow_first_call = 0;
-
   // send
   while(elements_pointer != size){
     // convert real -> Q8.8
@@ -427,6 +419,10 @@ int etherflow_(send_tensor_C)(real * data, int size) {
     send_frame_C(packet_size, packet);
   }
 
+  // A delay to give the data time to clear the transfer and for the streamer port to close before
+  // the next transfer.
+  usleep(100);
+
   return 0;
 }
 
@@ -448,10 +444,6 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
   int tensor_pointer = 0;
   int i;
   int num_of_frames = 0;
-
-  // this is the tensor descriptor header
-  if (!neuflow_first_call) receive_frame_C(NULL);
-  neuflow_first_call = 0;
 
   // if not a multiple of 4 the streamToHost function
   // will add an extra line to the stream
@@ -479,6 +471,7 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
 
   // send ack after each tensor
   send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
+  usleep(100);
 
   return 0;
 }

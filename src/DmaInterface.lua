@@ -18,6 +18,8 @@ function DmaEthernet:__init(args)
 end
 
 function DmaEthernet:printToEthernet(str)
+   print("DEPRECATED")
+
    -- Printing to ethernet involves initializing a transfer with the driver,
    -- then writing the data (frame), then triggering the transfer.
 
@@ -55,11 +57,11 @@ function DmaEthernet:streamToHost(stream, tag, mode)
       self.core:message(string.format('eth: sending %0d packets [tag = %s]', nb_packets, tag))
    end
 
-   -- (1) specify: name | size | nb_packets
-   self:printToEthernet(string.format('TX | %s | %0d | %0d', tag, data_size, nb_packets))
-
-   -- (2) stream data out
+   -- stream data (tensor) out with a write ack
+   self.core:configPort{index = -1, action = 'write', data = {x=0, y=0, w=32, h=1}}
    self.core:configPort{index = 0, action = 'fetch+read+sync+close', data = stream}
+   self.core:configPort{index = -1, action = 'sync+close'}
+
 end
 
 function DmaEthernet:streamFromHost(stream, tag)
@@ -77,10 +79,7 @@ function DmaEthernet:streamFromHost(stream, tag)
       self.core:message(string.format('eth: requesting %0d packets [tag = %s]', nb_packets, tag))
    end
 
-   -- (1) specify: name | size | nb_packets
-   self:printToEthernet(string.format('RX | %s | %0d | %0d', tag, data_size, nb_packets))
-
-   -- (2) stream data in
+   -- stream data in
    self.core:configPort{index = -1, action = 'write', data = stream}
    self.core:configPort{index = -1, action = 'sync+close'}
 end
