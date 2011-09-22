@@ -359,7 +359,8 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
          local output_list = {}
 
          -- find all outputs
-         for o = 1,conv_module.connTable:size(1) do
+         for oidx = 1,conv_module.connTable:size(1) do
+            local o = conv_module.connTable[oidx][2]
             if (i == conv_module.connTable[o][1]) then
                -- allocate output
                local item = self.core.mem.buff[inputs[1]]
@@ -374,7 +375,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                outputs[o] = id_output
 
                -- allocate kernel + bias
-               local kernel = conv_module.weight[current_op]
+               local kernel = conv_module.weight[o]
                local bias = conv_module.bias:narrow(1,o,1)
                local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
                                                            kernel, bias)
@@ -428,6 +429,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
       self.core:endProcess()
    end
 
+   local coefs
    if mapping then
       -- generate coefs for this non-linear mapping
       coefs = self:getCoefs(mapping)
@@ -764,7 +766,8 @@ function Compiler:SpatialLinear(linear_module, inputs)
          if (i == 1) then
             self.core:convolve(self.core.mem.buff[inputs[i]],
                                self.core.mem.raw_data[id_kernel],
-                               self.core.mem.buff[id_output])
+                               self.core.mem.buff[id_output],
+                               {bias = 'on'})
          else
             self.core:convolveAndAcc(self.core.mem.buff[inputs[i]],
                                      self.core.mem.raw_data[id_kernel],
