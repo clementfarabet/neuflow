@@ -43,11 +43,7 @@ function DmaEthernet:printToEthernet(str)
 end
 
 function DmaEthernet:streamToHost(stream, tag, mode)
-   -- verif data size >= 64
    local data_size = stream.w * stream.h * 2
-   if (data_size < 64) then
-      error('<neuflow.DmaEthernet> ERROR: cant stream data packets smaller than 64 bytes')
-   end
 
    -- estimate number of eth packets
    local nb_packets = math.ceil(data_size / self.max_packet_size)
@@ -58,9 +54,7 @@ function DmaEthernet:streamToHost(stream, tag, mode)
    end
 
    -- stream data (tensor) out with a write ack
-   self.core:configPort{index = -1, action = 'write', data = {x=0, y=0, w=32, h=1}}
    self.core:configPort{index = 0, action = 'fetch+read+sync+close', data = stream}
-   self.core:configPort{index = -1, action = 'sync+close'}
 
 end
 

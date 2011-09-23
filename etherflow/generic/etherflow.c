@@ -41,6 +41,8 @@
 /***********************************************************
  * Global Parameters
  **********************************************************/
+static unsigned int carryover_ptr = 0;
+static real carryover[ETH_FRAME_LEN];
 static unsigned char dest_mac[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
 static unsigned char host_mac[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 static unsigned char eth_type[2] = {0x10, 0x00};
@@ -442,26 +444,26 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
   unsigned char *buffer;
   int num_of_bytes = size*2; // each value is 2 bytes
   int tensor_pointer = 0;
-  int i;
-  int num_of_frames = 0;
+  int ii = 0;
 
-  // if not a multiple of 4 the streamToHost function
-  // will add an extra line to the stream
-  // we want to make sure to receive it here
-  if(num_of_bytes%4 != 0){
-    num_of_bytes += (size/height)*2;
+  // if carryover pointer != 0 it means that there is left over (carryover)
+  // data from the last call, add this carryover data to "data"
+  if (0 < carryover_ptr) {
+    memcpy((void*) data, (void*) carryover, carryover_ptr);
+    length         = 2*carryover_ptr;
+    tensor_pointer = carryover_ptr;
+    carryover_ptr  = 0;
   }
 
   // receive tensor
   while (length < num_of_bytes){
-    // Grab a packet
+    // grab packet
     buffer = receive_frame_C(&currentlength);
     length += currentlength;
-    num_of_frames++;
 
-    // Save data to tensor
-    for (i = 0; tensor_pointer < size && i < currentlength; i+=2){
-      short* val_short = (short*)&buffer[i];
+    // unpack Ethernet payload to tensor data array
+    for (ii = 0; tensor_pointer < size && ii < currentlength; ii+=2){
+      short* val_short = (short*)&buffer[ii];
       real val = (real)*val_short;
       val /= neuflow_one_encoding;
       data[tensor_pointer] = val;
@@ -469,9 +471,16 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
     }
   }
 
-  // send ack after each tensor
-  send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
-  usleep(100);
+  // if not all data from the Ethernet packet has been read out, carry it over
+  // to the next tensor
+  while (ii < currentlength) {
+    short* val_short = (short*)&buffer[ii];
+    real val = (real)*val_short;
+    val /= neuflow_one_encoding;
+    carryover[carryover_ptr] = val;
+    carryover_ptr++;
+    ii+=2;
+  }
 
   return 0;
 }
