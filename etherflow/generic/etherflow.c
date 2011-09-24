@@ -448,12 +448,12 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
 
   // if carryover pointer != 0 it means that there is left over (carryover)
   // data from the last call, add this carryover data to "data"
-  if (0 < carryover_ptr) {
-    memcpy((void*) data, (void*) carryover, carryover_ptr);
-    length         = 2*carryover_ptr;
-    tensor_pointer = carryover_ptr;
-    carryover_ptr  = 0;
-  }
+//  if (0 < carryover_ptr) {
+//    memcpy((void*) data, (void*) carryover, carryover_ptr);
+//    length         = 2*carryover_ptr;
+//    tensor_pointer = carryover_ptr;
+//    carryover_ptr  = 0;
+//  }
 
   // receive tensor
   while (length < num_of_bytes){
@@ -473,14 +473,18 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
 
   // if not all data from the Ethernet packet has been read out, carry it over
   // to the next tensor
-  while (ii < currentlength) {
-    short* val_short = (short*)&buffer[ii];
-    real val = (real)*val_short;
-    val /= neuflow_one_encoding;
-    carryover[carryover_ptr] = val;
-    carryover_ptr++;
-    ii+=2;
-  }
+//  while (ii < currentlength) {
+//    short* val_short = (short*)&buffer[ii];
+//    real val = (real)*val_short;
+//    val /= neuflow_one_encoding;
+//    carryover[carryover_ptr] = val;
+//    carryover_ptr++;
+//    ii+=2;
+//  }
+
+  // send ack after each tensor
+  send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
+  usleep(100);
 
   return 0;
 }
