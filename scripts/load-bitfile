@@ -4,8 +4,9 @@
 if [ $# == 0 ]
 then
     echo "syntax:"
-    echo "  load-bitfile bitfile   [loads a bitfile]"
-    echo "  load-bitfile unlock    [unlocks the cable, if not responsive]"
+    echo "  load-bitfile bitfile            [loads a bitfile]"
+    echo "  load-bitfile bitfile platform   [specifies the platform: ml605 | m503 (default=ml605)]"
+    echo "  load-bitfile unlock             [unlocks the cable, if not responsive]"
     exit
 fi
 
@@ -20,6 +21,22 @@ then
     echo "   $ source /opt/Xilinx/VERSION/.../settings**.sh"
     echo "   and then re-run this script !"
     exit
+fi
+
+# platform
+if [ $# == 2 ]
+then
+    if [ $2 == "ml605" ]
+    then
+        fpga=2
+    fi
+    if [ $2 == "m503" ]
+    then
+        fpga=1
+    fi
+    echo "--> programming device ${fpga}"
+else
+    fpga=2 
 fi
 
 # parse arg
@@ -37,8 +54,8 @@ else
     echo "setmode -bs" > "$tmp"
     echo "setcable -p auto" >> "$tmp"
     echo "identify" >> "$tmp"
-    echo "assignFile -p 2 -file" $1 >> "$tmp"
-    echo "program -p 2" >> "$tmp"
+    echo "assignFile -p ${fpga} -file" $1 >> "$tmp"
+    echo "program -p ${fpga}" >> "$tmp"
     echo "quit" >> "$tmp"
 fi
 
