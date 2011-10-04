@@ -1,5 +1,8 @@
 /***********************************************************
  * A self-contained example
+ * Compile: 
+ *   gcc -fpic -shared etherflow.c -o libeth.so
+ *   gcc example.c libeth.so -o example
  **********************************************************/
 
 #include <string.h>
