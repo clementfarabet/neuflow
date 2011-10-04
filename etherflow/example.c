@@ -27,7 +27,7 @@ int main() {
   FILE *f = fopen("neuflow.bin", "rb");
   if (f) fread(neuflow_bin, BINARY_SIZE, 1, f);
   else {
-    printf("error: could not load binary\n");
+    printf("error: could not find neuflow code (neuflow.bin)\n");
     return 1;
   }
 
