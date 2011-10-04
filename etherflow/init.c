@@ -11,6 +11,8 @@
 #define torch_(NAME) TH_CONCAT_3(torch_, Real, NAME)
 #define torch_string_(NAME) TH_CONCAT_STRING_3(torch., Real, NAME)
 #define etherflow_(NAME) TH_CONCAT_3(etherflow_, Real, NAME)
+#define etherflow_send_(NAME) TH_CONCAT_3(etherflow_send_, Real, NAME)
+#define etherflow_receive_(NAME) TH_CONCAT_3(etherflow_receive_, Real, NAME)
 
 static const void* torch_FloatTensor_id = NULL;
 static const void* torch_DoubleTensor_id = NULL;

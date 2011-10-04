@@ -296,7 +296,7 @@ int send_frame_C(short int length, const unsigned char * data_p) {
  * returns:
  *    void
  **********************************************************/
-int send_tensor_byte_C(unsigned char * data, int size) {
+int etherflow_send_ByteTensor_C(unsigned char * data, int size) {
   short int packet_size;
   unsigned char packet[ETH_FRAME_LEN];
   int elements_pointer = 0;
@@ -356,7 +356,7 @@ int send_tensor_byte_C(unsigned char * data, int size) {
  * returns:
  *    void
  **********************************************************/
-int etherflow_(send_tensor_C)(real * data, int size) {
+int etherflow_send_(Tensor_C)(real * data, int size) {
   // get the arguments
   short int packet_size;
   int elements_pointer = 0;
@@ -414,7 +414,7 @@ int etherflow_(send_tensor_C)(real * data, int size) {
  * returns:
  *    void
  **********************************************************/
-int etherflow_(receive_tensor_C)(real *data, int size, int height) {
+int etherflow_receive_(Tensor_C)(real *data, int size, int height) {
   int length = 0;
   int currentlength = 0;
   unsigned char *buffer;
@@ -457,6 +457,7 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
   return 0;
 }
 
+#ifndef _NO_LUA_
 /***********************************************************
  * Lua wrappers
  **********************************************************/
@@ -465,7 +466,7 @@ static int etherflow_(Api_receive_tensor_lua)(lua_State *L){
   THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
   real *data = THTensor_(data)(tensor);
   int size = THTensor_(nElement)(tensor);
-  etherflow_(receive_tensor_C)(data, size, tensor->size[0]);
+  etherflow_receive_(Tensor_C)(data, size, tensor->size[0]);
   return 0;
 }
 
@@ -474,7 +475,7 @@ static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
   THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
   int size = THTensor_(nElement)(tensor);
   real *data = THTensor_(data)(tensor);
-  etherflow_(send_tensor_C)(data, size);
+  etherflow_send_(Tensor_C)(data, size);
   return 0;
 }
 
@@ -483,7 +484,7 @@ static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
   THByteTensor *tensor = luaT_toudata(L, 1, luaT_checktypename2id(L, "torch.ByteTensor"));
   int size = THByteTensor_nElement(tensor);
   unsigned char *data = THByteTensor_data(tensor);
-  send_tensor_byte_C(data, size);
+  etherflow_send_ByteTensor_C(data, size);
   return 0;
 }
 
@@ -596,4 +597,5 @@ void etherflow_(Api_init)(lua_State *L)
   luaT_registeratname(L, etherflow_(Api__), "etherflow");
 }
 
+#endif
 #endif
