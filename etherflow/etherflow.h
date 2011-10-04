@@ -45,8 +45,8 @@ int etherflow_send_ByteTensor_C(unsigned char * data, int size);
  * returns:
  *    void
  **********************************************************/
-int etherflow_send_FloatTensor_C(real * data, int size);
-int etherflow_send_DoubleTensor_C(real * data, int size);
+int etherflow_send_FloatTensor_C(float * data, int size);
+int etherflow_send_DoubleTensor_C(double * data, int size);
 
 /***********************************************************
  * receive_tensor_TYPE()
@@ -58,5 +58,5 @@ int etherflow_send_DoubleTensor_C(real * data, int size);
  * returns:
  *    void
  **********************************************************/
-int etherflow_receive_FloatTensor_C(real *data, int size, int height);
-int etherflow_receive_DoubleTensor_C(real *data, int size, int height);
+int etherflow_receive_FloatTensor_C(float *data, int size, int height);
+int etherflow_receive_DoubleTensor_C(double *data, int size, int height);
