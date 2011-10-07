@@ -17,7 +17,8 @@ require 'qtwidget'
 -- INIT: initialize the neuFlow context
 -- a mem manager, the dataflow core, and the compiler
 --
-nf = neuflow.init()
+-- platform='xilinx_ml605' or platform='pico_m503'
+nf = neuflow.init{platform='pico_m503'}
 
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and 
