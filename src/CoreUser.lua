@@ -673,7 +673,9 @@ end
 
 function CoreUser:copy(input, output)
    self:startProcess()
-   self:message('copy.'..input.orig_h..'x'..input.orig_w..'.image')
+   if (self.msg_level ~= 'none') then
+      self:message('copy.'..input.orig_h..'x'..input.orig_w..'.image')
+   end
 
    -- global input 0 > global output 1
    self:send_selectModule(blast_bus.area_tile, blast_bus.addr_mapp_0, blast_bus.subAddr_IO)
