@@ -67,7 +67,7 @@ static struct sockaddr_ndrv sock_address;
  * returns:
  *    socket - a socket descriptor
  **********************************************************/
-int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac) {
+int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac) {
 
   // dest mac ?
   if (destmac != NULL) {
@@ -214,7 +214,7 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
  * returns:
  *    none
  **********************************************************/
-int close_socket_C() {
+int etherflow_close_socket_C() {
   close(sock);
   return 0;
 }
@@ -229,7 +229,7 @@ int close_socket_C() {
  *    length - nb of bytes read/received
  **********************************************************/
 unsigned char recbuffer[ETH_FRAME_LEN];
-unsigned char * receive_frame_C(int *lengthp) {
+unsigned char * etherflow_receive_frame_C(int *lengthp) {
   int len;
   while (1) {
     // receive a frame
@@ -263,7 +263,7 @@ unsigned char * receive_frame_C(int *lengthp) {
  * returns:
  *    error code
  **********************************************************/
-int send_frame_C(short int length, const unsigned char * data_p) {
+int frame_send_frame_C(short int length, const unsigned char * data_p) {
 
   // buffer to send:
   unsigned char send_buffer[ETH_FRAME_LEN];
@@ -303,7 +303,7 @@ int etherflow_send_ByteTensor_C(unsigned char * data, int size) {
   int i;
 
   // this is the tensor descriptor header
-  if (!neuflow_first_call) receive_frame_C(NULL);
+  if (!neuflow_first_call) etherflow_receive_frame_C(NULL);
   neuflow_first_call = 0;
 
   // sending data
@@ -333,7 +333,7 @@ int etherflow_send_ByteTensor_C(unsigned char * data, int size) {
     }
 
     // send
-    send_frame_C(packet_size, packet);
+    frame_send_frame_C(packet_size, packet);
 
     // why do we have to do that? buffer size?
     usleep(100);
@@ -364,7 +364,7 @@ int etherflow_send_(Tensor_C)(real * data, int size) {
   int i;
 
   // this is the tensor descriptor header
-  if (!neuflow_first_call) receive_frame_C(NULL);
+  if (!neuflow_first_call) etherflow_receive_frame_C(NULL);
   neuflow_first_call = 0;
 
   // send
@@ -398,7 +398,7 @@ int etherflow_send_(Tensor_C)(real * data, int size) {
     }
 
     // send
-    send_frame_C(packet_size, packet);
+    frame_send_frame_C(packet_size, packet);
   }
 
   return 0;
@@ -424,7 +424,7 @@ int etherflow_receive_(Tensor_C)(real *data, int size, int height) {
   int num_of_frames = 0;
 
   // this is the tensor descriptor header
-  if (!neuflow_first_call) receive_frame_C(NULL);
+  if (!neuflow_first_call) etherflow_receive_frame_C(NULL);
   neuflow_first_call = 0;
 
   // if not a multiple of 4 the streamToHost function
@@ -437,7 +437,7 @@ int etherflow_receive_(Tensor_C)(real *data, int size, int height) {
   // receive tensor
   while (length < num_of_bytes){
     // Grab a packet
-    buffer = receive_frame_C(&currentlength);
+    buffer = etherflow_receive_frame_C(&currentlength);
     length += currentlength-ETH_HLEN;
     num_of_frames++;
 
@@ -452,7 +452,7 @@ int etherflow_receive_(Tensor_C)(real *data, int size, int height) {
   }
 
   // send ack after each tensor
-  send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
+  frame_send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
 
   return 0;
 }
@@ -522,12 +522,12 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
   }
 
   // open socket
-  open_socket_C(dev, destmac, srcmac);
+  etherflow_open_socket_C(dev, destmac, srcmac);
   return 0;
 }
 
 static int etherflow_(Api_close_socket_lua)(lua_State *L) {
-  close_socket_C();
+  etherflow_close_socket_C();
   return 0;
 }
 
@@ -535,13 +535,13 @@ static int etherflow_(Api_send_frame_lua)(lua_State *L) {
   /* get the arguments */
   const char * data_p = lua_tostring(L, 1);
   int length = strlen(data_p);
-  return send_frame_C(length, (unsigned char *)data_p);
+  return frame_send_frame_C(length, (unsigned char *)data_p);
 }
 
 static int etherflow_(Api_receive_string_lua)(lua_State *L) {
   // receive frame
   int length;
-  unsigned char *buffer = receive_frame_C(&length);
+  unsigned char *buffer = etherflow_receive_frame_C(&length);
 
   // Protection: insert a 0 in case
   buffer[length] = 0;
@@ -554,7 +554,7 @@ static int etherflow_(Api_receive_string_lua)(lua_State *L) {
 static int etherflow_(Api_receive_frame_lua)(lua_State *L) {
   /* get the arguments */
   int length;
-  unsigned char *buffer = receive_frame_C(&length);
+  unsigned char *buffer = etherflow_receive_frame_C(&length);
 
   lua_pushnumber(L, length-ETH_HLEN);
   lua_newtable(L);

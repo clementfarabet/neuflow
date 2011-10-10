@@ -68,9 +68,6 @@ function NeuFlow:__init(args)
    -- bytecode has a constant size (oFlower bios)
    self.bytecodesize = bootloader.load_size
 
-   -- stupid hack
-   self.first_time = true
-
    -- and finally initialize hardware
    self:initialize()
 end
@@ -602,12 +599,7 @@ end
 --
 function NeuFlow:getFrame(tag, type)
    local data
-   if not self.first_time then
-      data = etherflow.receivestring()
-   else
-      self.first_time = false
-      return true
-   end
+   data = etherflow.receivestring()
    if (data:sub(1,2) == type) then
       tag_received = parse_descriptor(data)
    end

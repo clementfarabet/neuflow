@@ -10,7 +10,7 @@
  * returns:
  *    socket - a socket descriptor
  **********************************************************/
-int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac);
+int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac);
 
 /***********************************************************
  * close_socket()
@@ -20,7 +20,30 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
  * returns:
  *    none
  **********************************************************/
-int close_socket_C();
+int etherflow_close_socket_C();
+
+/***********************************************************
+ * receive_frame_C()
+ * what: receives an ethernet frame
+ * params:
+ *    socket - socket descriptor.
+ *    buffer - to receive the data
+ * returns:
+ *    length - nb of bytes read/received
+ **********************************************************/
+unsigned char * etherflow_receive_frame_C(int *lengthp);
+
+/***********************************************************
+ * send_frame_C()
+ * what: sends an ethernet frame
+ * params:
+ *    socket - socket descriptor.
+ *    length - length of data to send
+ *    data_p - data pointer
+ * returns:
+ *    error code
+ **********************************************************/
+int etherflow_send_frame_C(short int length, const unsigned char * data_p);
 
 /***********************************************************
  * send_tensor_byte()
