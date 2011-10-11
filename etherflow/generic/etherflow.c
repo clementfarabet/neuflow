@@ -343,6 +343,24 @@ int etherflow_send_ByteTensor_C(unsigned char * data, int size) {
   return 0;
 }
 
+/***********************************************************
+ * enable_handshake()
+ * disable_handshake()
+ * what: enables, or disables handshake
+ *       for neuflow->PC transfers
+ * params:
+ *    void
+ * returns:
+ *    void
+ **********************************************************/
+static int receive_ack = 1;
+void etherflow_enable_handshake(void) {
+  receive_ack = 1;
+}
+void etherflow_disable_handshake(void) {
+  receive_ack = 0;
+}
+
 #endif // _ETHERFLOW_COMMON_
 
 /***********************************************************
@@ -452,7 +470,8 @@ int etherflow_receive_(Tensor_C)(real *data, int size, int height) {
   }
 
   // send ack after each tensor
-  frame_send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
+  if (receive_ack)
+    frame_send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
 
   return 0;
 }
@@ -461,6 +480,14 @@ int etherflow_receive_(Tensor_C)(real *data, int size, int height) {
 /***********************************************************
  * Lua wrappers
  **********************************************************/
+static int etherflow_(Api_handshake_lua)(lua_State *L){
+  int handshake = lua_toboolean(L, 1);
+  if (handshake)
+    etherflow_enable_handshake();
+  else
+    etherflow_disable_handshake();
+}
+
 static int etherflow_(Api_receive_tensor_lua)(lua_State *L){
   /* get the arguments */
   THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
@@ -580,6 +607,7 @@ static int etherflow_(Api_set_first_call)(lua_State *L) {
  **********************************************************/
 static const struct luaL_Reg etherflow_(Api__) [] = {
   {"open_socket", etherflow_(Api_open_socket_lua)},
+  {"handshake", etherflow_(Api_handshake_lua)},
   {"receive_frame", etherflow_(Api_receive_frame_lua)},
   {"receive_string", etherflow_(Api_receive_string_lua)},
   {"send_frame", etherflow_(Api_send_frame_lua)},

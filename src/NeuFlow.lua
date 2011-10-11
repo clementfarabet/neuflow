@@ -50,6 +50,7 @@ function NeuFlow:__init(args)
    self.profiler = neuflow.Profiler()
 
    -- ethernet socket (auto found for now)
+   self.handshake = true
    if self.use_ethernet then
       print '<neuflow.NeuFlow> loading ethernet driver'
       local l = xrequire 'etherflow'
@@ -252,45 +253,6 @@ function NeuFlow:copy(source, dest)
    return dest
 end
 
-
-function NeuFlow:copyFromHost_ack(source, dest)
-   -- if no dest, create it
-   if not dest then
-      dest = self:allocHeap(source)
-   end
-   -- check if dest is a list of streams, or a stream
-   local ldest
-   if #dest == 0 then
-      ldest = {dest}
-   else
-      ldest = dest
-   end
-   -- if simulation, we replace this transfer by a plain copy
-   if self.mode == 'simulation' then
-      -- alloc in constant data:
-      source = self:allocData(source)
-      print('<neuflow.NeuFlow> copy host->dev [simul]: ' .. #ldest .. 'x' .. ldest[1].orig_h .. 'x' .. ldest[1].orig_w)
-      self:copy(source,ldest)
-   else
-      -- process list of streams
-      print('<neuflow.NeuFlow> copy host->dev: ' .. #ldest .. 'x' .. ldest[1].orig_h .. 'x' .. ldest[1].orig_w)
-      for i = 1,#ldest do
-         self.core:startProcess()
-         self.ethernet:streamFromHost_ack(ldest[i], 'default')
-         self.core:endProcess()
-      end
-   end
-   -- always print a dummy flag, useful for profiling
-   if self.mode ~= 'simulation' then
-      self.core:startProcess()
-      self.ethernet:printToEthernet('copy-done')
-      self.core:endProcess()
-   end
-   return dest
-end
-
-
-
 function NeuFlow:copyFromHost(source, dest)
    -- if no dest, create it
    if not dest then
@@ -327,12 +289,10 @@ function NeuFlow:copyFromHost(source, dest)
    return dest
 end
 
-
-
 function NeuFlow:copyToHost(source, dest)
    -- no ack in simulation
    local ack
-   if self.mode == 'simulation' then
+   if self.mode == 'simulation' or (not self.handshake) then
       ack = 'no-ack'
    end
    -- always print a dummy flag, useful for profiling
@@ -365,45 +325,6 @@ function NeuFlow:copyToHost(source, dest)
    dest:resize(#lsource, orig_h, orig_w)
    return dest
 end
-
-
-function NeuFlow:copyToHost_ack(source, dest)
-   -- no ack in simulation
-   local ack
-   if self.mode == 'simulation' then
-      ack = 'no-ack'
-   end
-   -- always print a dummy flag, useful for profiling
-   if self.mode ~= 'simulation' then
-      self.core:startProcess()
-      self.ethernet:printToEthernet('copy-starting')
-      self.core:endProcess()
-   end
-   -- check if source is a list of streams, or a stream
-   local lsource
-   if #source == 0 then
-      lsource = {source}
-   else
-      lsource = source
-   end
-   -- record original sizes
-   local orig_h = lsource[1].orig_h
-   local orig_w = lsource[1].orig_w
-   -- process list of streams
-   print('<neuflow.NeuFlow> copy dev->host: ' .. #lsource .. 'x' .. lsource[1].orig_h .. 'x' .. lsource[1].orig_w)
-   for i = 1,#lsource do
-      self.core:startProcess()
-      self.ethernet:streamToHost_ack(lsource[i], 'default', ack)
-      self.core:endProcess()
-   end
-   -- create/resize dest
-   if not dest then
-      dest = torch.Tensor()
-   end
-   dest:resize(#lsource, orig_h, orig_w)
-   return dest
-end
-
 
 ----------------------------------------------------------------------
 -- wrappers for compilers
@@ -576,6 +497,7 @@ end
 -- receive tensor
 --
 function NeuFlow:copyFromDev(tensor)
+   etherflow.handshake(self.handshake)
    profiler_neuflow = self.profiler:start('on-board-processing')
    self.profiler:setColor('on-board-processing', 'blue')
    self:getFrame('copy-starting')
