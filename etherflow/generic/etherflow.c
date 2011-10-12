@@ -33,7 +33,8 @@
 #define ETH_ALEN        6        /* Octets in one ethernet addr     */
 #define ETH_HLEN        14       /* Total octets in header.         */
 #define ETH_ZLEN        60       /* Min. octets in frame sans FCS   */
-#define ETH_DATA_LEN    1500     /* Max. octets in payload          */
+//#define ETH_DATA_LEN    1500     /* Max. octets in payload          */
+#define ETH_DATA_LEN    1400     /* Max. octets in payload          */
 #define ETH_FRAME_LEN   1514     /* Max. octets in frame sans FCS   */
 #define ETH_FCS_LEN     4        /* Octets in the FCS               */
 #endif
@@ -47,6 +48,7 @@ static unsigned char dest_mac[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
 static unsigned char host_mac[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 static unsigned char eth_type[2] = {0x10, 0x00};
 static unsigned char eth_type_dma[2] = {0x88, 0xb5};
+static unsigned char eth_type_rst[2] = {0x88, 0xb6};
 static const int neuflow_one_encoding = 1<<8;
 static int neuflow_first_call = 1;
 
@@ -291,7 +293,7 @@ unsigned char * receive_frame_C(int *lengthp) {
  * returns:
  *    error code
  **********************************************************/
-int send_frame_C(short int length, const unsigned char * data_p) {
+int send_type_frame_C(short int length, const unsigned char *data_p, int ethertype) {
 
   // buffer to send:
   unsigned char send_buffer[ETH_FRAME_LEN];
@@ -300,10 +302,33 @@ int send_frame_C(short int length, const unsigned char * data_p) {
   memcpy((void*)send_buffer, (void*)dest_mac, ETH_ALEN);
   memcpy((void*)(send_buffer+ETH_ALEN), (void*)host_mac, ETH_ALEN);
 
-  // copy length to send_buffer
-  unsigned char* length_str_reversed = (unsigned char*)&length;
-  send_buffer[ETH_ALEN*2] = length_str_reversed[1];
-  send_buffer[ETH_ALEN*2+1] = length_str_reversed[0];
+  if (1 == ethertype) {
+
+    // copy ethertype to send_buffer
+    send_buffer[ETH_ALEN*2+0] = eth_type_dma[1];
+    send_buffer[ETH_ALEN*2+1] = eth_type_dma[0];
+
+    // copy length to send_buffer
+    unsigned char* length_str_reversed = (unsigned char*)&length;
+    send_buffer[ETH_ALEN*2+2] = length_str_reversed[1];
+    send_buffer[ETH_ALEN*2+3] = length_str_reversed[0];
+  } else if (2 == ethertype) {
+
+    // copy ethertype to send_buffer
+    send_buffer[ETH_ALEN*2+0] = eth_type_rst[1];
+    send_buffer[ETH_ALEN*2+1] = eth_type_rst[0];
+
+    // copy length to send_buffer
+    unsigned char* length_str_reversed = (unsigned char*)&length;
+    send_buffer[ETH_ALEN*2+2] = length_str_reversed[1];
+    send_buffer[ETH_ALEN*2+3] = length_str_reversed[0];
+  } else {
+
+    // copy length to send_buffer
+    unsigned char* length_str_reversed = (unsigned char*)&length;
+    send_buffer[ETH_ALEN*2+0] = length_str_reversed[1];
+    send_buffer[ETH_ALEN*2+1] = length_str_reversed[0];
+  }
 
   // copy user data to send_buffer
   memcpy((void*)(send_buffer+ETH_HLEN), (void*)data_p, length);
@@ -313,6 +338,12 @@ int send_frame_C(short int length, const unsigned char * data_p) {
 
   return 0;
 }
+
+int send_frame_C(short int length, const unsigned char *data_p) {
+  //return send_type_frame_C(length, data_p, 1); // Use Ethertype
+  return send_type_frame_C(length, data_p, 0); // Don't use Ethertype
+}
+
 
 /***********************************************************
  * send_tensor_byte()
@@ -511,6 +542,10 @@ static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
 }
 
 static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
+  // resest packet
+  //send_type_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678", 2);
+  //usleep(100);
+
   // get params
   THByteTensor *tensor = luaT_toudata(L, 1, luaT_checktypename2id(L, "torch.ByteTensor"));
   int size = THByteTensor_nElement(tensor);
