@@ -263,7 +263,7 @@ unsigned char * etherflow_receive_frame_C(int *lengthp) {
  * returns:
  *    error code
  **********************************************************/
-int frame_send_frame_C(short int length, const unsigned char * data_p) {
+int etherflow_send_frame_C(short int length, const unsigned char * data_p) {
 
   // buffer to send:
   unsigned char send_buffer[ETH_FRAME_LEN];
@@ -333,7 +333,7 @@ int etherflow_send_ByteTensor_C(unsigned char * data, int size) {
     }
 
     // send
-    frame_send_frame_C(packet_size, packet);
+    etherflow_send_frame_C(packet_size, packet);
 
     // why do we have to do that? buffer size?
     usleep(100);
@@ -416,7 +416,7 @@ int etherflow_send_(Tensor_C)(real * data, int size) {
     }
 
     // send
-    frame_send_frame_C(packet_size, packet);
+    etherflow_send_frame_C(packet_size, packet);
   }
 
   return 0;
@@ -471,7 +471,7 @@ int etherflow_receive_(Tensor_C)(real *data, int size, int height) {
 
   // send ack after each tensor
   if (receive_ack)
-    frame_send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
+    etherflow_send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
 
   return 0;
 }
@@ -562,7 +562,7 @@ static int etherflow_(Api_send_frame_lua)(lua_State *L) {
   /* get the arguments */
   const char * data_p = lua_tostring(L, 1);
   int length = strlen(data_p);
-  return frame_send_frame_C(length, (unsigned char *)data_p);
+  return etherflow_send_frame_C(length, (unsigned char *)data_p);
 }
 
 static int etherflow_(Api_receive_string_lua)(lua_State *L) {
