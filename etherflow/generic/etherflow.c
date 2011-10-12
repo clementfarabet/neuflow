@@ -305,8 +305,8 @@ int send_type_frame_C(short int length, const unsigned char *data_p, int etherty
   if (1 == ethertype) {
 
     // copy ethertype to send_buffer
-    send_buffer[ETH_ALEN*2+0] = eth_type_dma[1];
-    send_buffer[ETH_ALEN*2+1] = eth_type_dma[0];
+    send_buffer[ETH_ALEN*2+0] = eth_type_dma[0];
+    send_buffer[ETH_ALEN*2+1] = eth_type_dma[1];
 
     // copy length to send_buffer
     unsigned char* length_str_reversed = (unsigned char*)&length;
@@ -315,8 +315,8 @@ int send_type_frame_C(short int length, const unsigned char *data_p, int etherty
   } else if (2 == ethertype) {
 
     // copy ethertype to send_buffer
-    send_buffer[ETH_ALEN*2+0] = eth_type_rst[1];
-    send_buffer[ETH_ALEN*2+1] = eth_type_rst[0];
+    send_buffer[ETH_ALEN*2+0] = eth_type_rst[0];
+    send_buffer[ETH_ALEN*2+1] = eth_type_rst[1];
 
     // copy length to send_buffer
     unsigned char* length_str_reversed = (unsigned char*)&length;
