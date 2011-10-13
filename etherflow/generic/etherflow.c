@@ -295,8 +295,13 @@ unsigned char * receive_frame_C(int *lengthp) {
  **********************************************************/
 int send_type_frame_C(short int length, const unsigned char *data_p, int ethertype) {
 
+  int pos_payload_length;
+  int pos_payload_data;
+  int frame_length;
+
   // buffer to send:
   unsigned char send_buffer[ETH_FRAME_LEN];
+  bzero(&send_buffer, ETH_FRAME_LEN);
 
   // prepare send_buffer with DEST and SRC addresses
   memcpy((void*)send_buffer, (void*)dest_mac, ETH_ALEN);
@@ -308,33 +313,40 @@ int send_type_frame_C(short int length, const unsigned char *data_p, int etherty
     send_buffer[ETH_ALEN*2+0] = eth_type_dma[0];
     send_buffer[ETH_ALEN*2+1] = eth_type_dma[1];
 
-    // copy length to send_buffer
-    unsigned char* length_str_reversed = (unsigned char*)&length;
-    send_buffer[ETH_ALEN*2+2] = length_str_reversed[1];
-    send_buffer[ETH_ALEN*2+3] = length_str_reversed[0];
+    pos_payload_length = ETH_ALEN*2+2;
+    pos_payload_data   = ETH_HLEN+2;
+    frame_length       = length+ETH_HLEN+2;
   } else if (2 == ethertype) {
 
     // copy ethertype to send_buffer
     send_buffer[ETH_ALEN*2+0] = eth_type_rst[0];
     send_buffer[ETH_ALEN*2+1] = eth_type_rst[1];
 
-    // copy length to send_buffer
-    unsigned char* length_str_reversed = (unsigned char*)&length;
-    send_buffer[ETH_ALEN*2+2] = length_str_reversed[1];
-    send_buffer[ETH_ALEN*2+3] = length_str_reversed[0];
+    pos_payload_length = ETH_ALEN*2+2;
+    pos_payload_data   = ETH_HLEN+2;
+    frame_length       = length+ETH_HLEN+2;
   } else {
 
-    // copy length to send_buffer
-    unsigned char* length_str_reversed = (unsigned char*)&length;
-    send_buffer[ETH_ALEN*2+0] = length_str_reversed[1];
-    send_buffer[ETH_ALEN*2+1] = length_str_reversed[0];
+    pos_payload_length = ETH_ALEN*2;
+    pos_payload_data   = ETH_HLEN;
+    frame_length       = length+ETH_HLEN;
   }
 
+  // if smaller than min packet size - pad
+  if (ETH_ZLEN > frame_length) {
+    frame_length = ETH_ZLEN;
+  }
+
+  // copy length to send_buffer
+  unsigned char* length_str_reversed = (unsigned char*)&length;
+  send_buffer[pos_payload_length+0] = length_str_reversed[1];
+  send_buffer[pos_payload_length+1] = length_str_reversed[0];
+
   // copy user data to send_buffer
-  memcpy((void*)(send_buffer+ETH_HLEN), (void*)data_p, length);
+  memcpy((void*)(send_buffer+pos_payload_data), (void*)data_p, length);
 
   // send packet
-  sendto(sock, send_buffer, length+ETH_HLEN, 0, (struct sockaddr*)&sock_address, socklen);
+  sendto(sock, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
 
   return 0;
 }
@@ -375,24 +387,13 @@ int send_tensor_byte_C(unsigned char * data, int size) {
       else break;
     }
 
-    // only the last packet could be not dividable by 4
-    while(packet_size%4 != 0){
-      packet[packet_size] = 0;
-      packet_size++;
-    }
-
-    // smaller than min packet size - pad
-    if (packet_size < ETH_ZLEN+4){ // smaller than min packet size - pad
-      for(i = packet_size; i < ETH_ZLEN+4; i++){packet[i] = 0;}
-      packet_size = ETH_ZLEN+4;
-    }
-
     // send
     send_frame_C(packet_size, packet);
-
-    // why do we have to do that? buffer size?
-    usleep(100);
   }
+
+  // A delay to give the data time to clear the transfer and for the streamer port to close before
+  // the next transfer.
+  usleep(100);
 
   // return the number of results
   return 0;
@@ -434,18 +435,6 @@ int etherflow_(send_tensor_C)(real * data, int size) {
         packet_size+=2;
       }
       else break;
-    }
-
-    // only the last packet could be not dividable by 4
-    while(packet_size%4 != 0){
-      packet[packet_size] = 0;
-      packet_size++;
-    }
-
-    // smaller than min packet size - pad
-    if (packet_size < ETH_ZLEN+4) {
-      for(i = packet_size; i < ETH_ZLEN+4; i++) {packet[i] = 0;}
-      packet_size = ETH_ZLEN+4;
     }
 
     // send
