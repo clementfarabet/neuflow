@@ -57,6 +57,10 @@ function etherflow.sendtensor(tensor)
    tensor.etherflow.send_tensor(tensor)
 end
 
+function etherflow.sendreset()
+   etherflow.double.send_reset()
+end
+
 function etherflow.receivetensor(tensor)
    tensor.etherflow.receive_tensor(tensor)
 end

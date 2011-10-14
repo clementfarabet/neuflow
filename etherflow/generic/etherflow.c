@@ -530,11 +530,15 @@ static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
   return 0;
 }
 
-static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
+static int etherflow_(Api_send_reset_lua)(lua_State *L) {
   // resest packet
-  //send_type_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678", 2);
-  //usleep(100);
+  printf("<ethernet> send reset\n");
+  send_type_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678", 2);
+  usleep(1000000); // wait 1 sec for dev to come out of reset
+  return 0;
+}
 
+static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
   // get params
   THByteTensor *tensor = luaT_toudata(L, 1, luaT_checktypename2id(L, "torch.ByteTensor"));
   int size = THByteTensor_nElement(tensor);
@@ -642,6 +646,7 @@ static const struct luaL_Reg etherflow_(Api__) [] = {
   {"send_frame", etherflow_(Api_send_frame_lua)},
   {"send_tensor", etherflow_(Api_send_tensor_lua)},
   {"send_bytetensor", etherflow_(Api_send_tensor_byte_lua)},
+  {"send_reset", etherflow_(Api_send_reset_lua)},
   {"receive_tensor", etherflow_(Api_receive_tensor_lua)},
   {"close_socket", etherflow_(Api_close_socket_lua)},
   {"set_first_call", etherflow_(Api_set_first_call)},
