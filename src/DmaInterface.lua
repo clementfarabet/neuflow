@@ -82,10 +82,13 @@ end
 
 function DmaEthernet:loadByteCode()
    -- Creating a stream
-   local bytecode_stream = {x = 0, y = 0, w = 1024, y = 1024}
+   local bytecode_stream = {x = 0, y = 0, w = 1024, h = 16*1024}
 
    -- Regular streamFromHost
-   self.core:streamFromHost(bytecode_stream, 'bytecode')
+   self:streamFromHost(bytecode_stream, 'bytecode')
+
+   -- ACK to indicate that bytecode has been received
+   --self.core:configPort{index = 0, action = 'fetch+read+sync+close', data = {x = 0, y = 0, w = 64, h = 1}}
 
    -- Jump to address 0 and execute
    self.core:gotoGlobal(bootloader.entry_point)
