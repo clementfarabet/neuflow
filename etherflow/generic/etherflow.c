@@ -352,8 +352,8 @@ int send_type_frame_C(short int length, const unsigned char *data_p, int etherty
 }
 
 int send_frame_C(short int length, const unsigned char *data_p) {
-  //return send_type_frame_C(length, data_p, 1); // Use Ethertype
-  return send_type_frame_C(length, data_p, 0); // Don't use Ethertype
+  return send_type_frame_C(length, data_p, 1); // Use Ethertype
+  //return send_type_frame_C(length, data_p, 0); // Don't use Ethertype
 }
 
 
