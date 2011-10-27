@@ -127,9 +127,11 @@ int network_recv_packet() {
 
   // debugging
   int xx;
+  printf("recv packet: ");
   for (xx = 0; xx < frame_length ; xx++) {
     printf("%x ", recv_buffer[xx]);
   }
+  printf("\n");
 
   return 0;
 }
@@ -148,9 +150,11 @@ int network_send_packet() {
 
   // print values instead of sending them for debug
   int xx;
+  printf("send packet: ");
   for (xx = 0; xx < frame_length ; xx++) {
     printf("%x ", send_buffer[xx]);
   }
+  printf("\n");
   return 0;
 
   //return sendto(sockfd, send_packet.buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
@@ -284,20 +288,27 @@ int tbsp_read_data_length(struct tbsp_packet *packet) {
 
 int tbsp_send_reset() {
 
-  tbsp_write_type(&send_packet, TBSP_RESET);
+  int xx;
+  for (xx = 0; xx < 10; xx++) {
+    // send reset packet
+    tbsp_write_type(&send_packet, TBSP_RESET);
+    network_send_packet();
 
-  // send reset packet
-  network_send_packet();
+    // send req packet
+    tbsp_write_type(&send_packet, TBSP_REQ);
+    network_send_packet();
 
-  // send req packet
+    // recv packet
+    network_recv_packet();
 
-  // recv packet
+    if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
+      if (0 == tbsp_read_seq_position(&recv_packet)) {
+        return 0;
+      }
+    }
+  }
 
-  // if recv packet not ack, return -1
-  
-  // if recv packet ack seq # not 0, return -1
-
-  return 0;
+  return -1;
 }
 
 
@@ -366,9 +377,17 @@ int main(void) {
   tbsp_packet_init(&recv_packet, &recv_buffer[0]);
 
 
+  // Test TBSP reset functions
+  memcpy( &recv_buffer[0],            eth_addr_host, ETH_ALEN);
+  memcpy( &recv_buffer[ETH_ALEN],     eth_addr_dest, ETH_ALEN);
+  memcpy( &recv_buffer[(2*ETH_ALEN)], eth_type_tbsp, ethertype_length);
+  tbsp_write_type(&recv_packet, TBSP_ACK);
+  tbsp_write_seq_position(&recv_packet, 0);
+
+  tbsp_send_reset();
+
 
   // Test TBSP handler functions
-
   tbsp_write_type(&send_packet, TBSP_RESET);
   printf("type %i\n", tbsp_read_type(&send_packet));
 
@@ -378,10 +397,7 @@ int main(void) {
   tbsp_write_data_length(&send_packet, 258);
   printf("data length %i\n", tbsp_read_data_length(&send_packet));
 
-
-  printf("send buffer: ");
   network_send_packet();
-  printf("\n");
 
 
   // Test network_recv_packet()
@@ -391,9 +407,7 @@ int main(void) {
 
   tbsp_write_data_length(&recv_packet, 258);
 
-  printf("recv buffer: ");
   network_recv_packet();
-  printf("\n");
 
 
   return 0;
