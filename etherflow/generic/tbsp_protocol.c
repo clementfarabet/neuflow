@@ -89,16 +89,47 @@ struct tbsp_packet recv_packet;
  */
 
 int network_recv_packet() {
+  int kk = 0;
+  int ii = 0;
+  int bad_packet = 0;
 
-  // do {
-  // len = recv(sockfd, recv_packet.buffer, ETH_FRAME_LEN, 0);
-  // if (0 > len) { return len};
+  // debugging
+  int frame_length;
 
-  // check dst MAC
-  // check src MAC
-  // check Ethertype
+  do {
+    kk = 0;
+    ii = 0;
+    bad_packet = 0;
 
-  // } while (); // if not for us, loop
+    // frame_length pre-set offline debugging
+    frame_length = ETH_HLEN + tbsp_header_length + tbsp_read_data_length(&recv_packet);
+
+    //int frame_length = recv(sockfd, recv_packet.buffer, ETH_FRAME_LEN, 0);
+    if (0 > frame_length) { return frame_length; }
+
+    // check dst MAC
+    for (kk = 0; kk < ETH_ALEN; kk++) {
+      if (eth_addr_host[kk] != recv_buffer[ii++]) { bad_packet = 1; }
+    }
+
+    // check src MAC
+    for (kk = 0; kk < ETH_ALEN; kk++) {
+      if (eth_addr_dest[kk] != recv_buffer[ii++]) { bad_packet = 1; }
+    }
+
+    // check Ethertype
+    for (kk=0; kk<2; kk++) {
+      if (eth_type_tbsp[kk] != recv_buffer[ii++]) { bad_packet = 1; }
+    }
+
+  } while (bad_packet);
+
+
+  // debugging
+  int xx;
+  for (xx = 0; xx < frame_length ; xx++) {
+    printf("%x ", recv_buffer[xx]);
+  }
 
   return 0;
 }
@@ -354,6 +385,18 @@ int main(void) {
 
   printf("send buffer: ");
   network_send_packet();
+  printf("\n");
+
+
+  // Test network_recv_packet()
+  memcpy( &recv_buffer[0],            eth_addr_host, ETH_ALEN);
+  memcpy( &recv_buffer[ETH_ALEN],     eth_addr_dest, ETH_ALEN);
+  memcpy( &recv_buffer[(2*ETH_ALEN)], eth_type_tbsp, ethertype_length);
+
+  tbsp_write_data_length(&recv_packet, 258);
+
+  printf("recv buffer: ");
+  network_recv_packet();
   printf("\n");
 
 
