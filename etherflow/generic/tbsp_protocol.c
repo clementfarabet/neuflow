@@ -249,8 +249,7 @@ enum tbsp_types_t tbsp_read_type (struct tbsp_packet *packet) {
 }
 
 
-void tbsp_write_seq_position(struct tbsp_packet *packet, int seq_pos) {
-  // uint32_t
+void tbsp_write_seq_position(struct tbsp_packet *packet, uint32_t seq_pos) {
 
   packet->tbsp_sequence[0] = (uint8_t) (seq_pos >> 24);
   packet->tbsp_sequence[1] = (uint8_t) (seq_pos >> 16);
@@ -259,20 +258,18 @@ void tbsp_write_seq_position(struct tbsp_packet *packet, int seq_pos) {
 }
 
 
-int tbsp_read_seq_position(struct tbsp_packet *packet) {
-  // uint32_t
+uint32_t tbsp_read_seq_position(struct tbsp_packet *packet) {
 
-  int seq_pos = (((int) packet->tbsp_sequence[0]) << 24) \
-              + (((int) packet->tbsp_sequence[1]) << 16) \
-              + (((int) packet->tbsp_sequence[2]) << 8)  \
-              +  ((int) packet->tbsp_sequence[3]);
+  uint32_t seq_pos = (((uint32_t) packet->tbsp_sequence[0]) << 24) \
+                   + (((uint32_t) packet->tbsp_sequence[1]) << 16) \
+                   + (((uint32_t) packet->tbsp_sequence[2]) << 8)  \
+                   +  ((uint32_t) packet->tbsp_sequence[3]);
 
   return seq_pos;
 }
 
 
-void tbsp_write_data_length(struct tbsp_packet *packet, int data_length) {
-  // uint16_t
+void tbsp_write_data_length(struct tbsp_packet *packet, uint16_t data_length) {
 
   packet->tbsp_length[0] = (uint8_t) (data_length >> 8);
   packet->tbsp_length[1] = (uint8_t) (data_length);
@@ -280,9 +277,8 @@ void tbsp_write_data_length(struct tbsp_packet *packet, int data_length) {
 
 
 int tbsp_read_data_length(struct tbsp_packet *packet) {
-  // uint16_t
 
-  return (((int) packet->tbsp_length[0]) << 8) + ((int) packet->tbsp_length[1]);
+  return (((uint16_t) packet->tbsp_length[0]) << 8) + ((uint16_t) packet->tbsp_length[1]);
 }
 
 
