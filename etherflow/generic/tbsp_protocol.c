@@ -62,6 +62,7 @@ const int tbsp_frame_length     = ETH_DATA_LEN;
 const int tbsp_type_length      = 1;
 const int tbsp_sequence_length  = 4;
 const int tbsp_length_length    = 2;
+const int tbsp_header_length    = 7;
 const int tbsp_data_length      = ETH_DATA_LEN - 1 - 4 - 2;
 
 enum tbsp_types_t {TBSP_ERROR=0, TBSP_RESET=1, TBSP_DATA=2, TBSP_REQ=3, TBSP_ACK=4};
@@ -104,15 +105,24 @@ int network_recv_packet() {
 
 
 int network_send_packet() {
-/*
-  memcpy(send_packet->eth_dest, eth_addr_dest, ETH_ALEN);
-  memcpy(send_packet->eth_host, eth_addr_host, ETH_ALEN);
-  memcpy(send_packet->eth_type, eth_type_tbsp, ethertype_length);
-*/
 
-  // length should be ethernet size + tbsp size (taken from struct)
+  memcpy( &send_buffer[0],            eth_addr_dest, ETH_ALEN);
+  memcpy( &send_buffer[ETH_ALEN],     eth_addr_host, ETH_ALEN);
+  memcpy( &send_buffer[(2*ETH_ALEN)], eth_type_tbsp, ethertype_length);
 
-  return sendto(sockfd, send_packet.buffer, ETH_FRAME_LEN, 0, (struct sockaddr*)&sock_address, socklen);
+  int frame_length = ETH_HLEN + tbsp_header_length + tbsp_read_data_length(&send_packet);
+  if (ETH_ZLEN > frame_length) {
+    frame_length = ETH_ZLEN;
+  }
+
+  // print values instead of sending them for debug
+  int xx;
+  for (xx = 0; xx < frame_length ; xx++) {
+    printf("%x ", send_buffer[xx]);
+  }
+  return 0;
+
+  //return sendto(sockfd, send_packet.buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
 }
 
 
@@ -324,11 +334,6 @@ int main(void) {
   bzero(send_buffer, send_buffer_length);
   tbsp_packet_init(&send_packet, &send_buffer[0]);
 
-  memcpy(send_packet.eth_dest, eth_addr_dest, ETH_ALEN);
-  memcpy(send_packet.eth_host, eth_addr_host, ETH_ALEN);
-  memcpy(send_packet.eth_type, eth_type_tbsp, ethertype_length);
-
-
   // init recv packet
   bzero(recv_buffer, recv_buffer_length);
   tbsp_packet_init(&recv_packet, &recv_buffer[0]);
@@ -347,12 +352,8 @@ int main(void) {
   printf("data length %i\n", tbsp_read_data_length(&send_packet));
 
 
-  // see raw packet bytes
-  int xx;
   printf("send buffer: ");
-  for (xx = 0; xx <send_buffer_length; xx++) {
-    printf("%x ", send_packet.buffer[xx]);
-  }
+  network_send_packet();
   printf("\n");
 
 
