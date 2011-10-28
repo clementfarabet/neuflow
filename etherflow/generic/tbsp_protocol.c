@@ -317,22 +317,42 @@ int tbsp_send_reset() {
 }
 
 
-int tbsp_send_stream(uint8_t *data, int length) {
+void tbsp_send_stream(uint8_t *data, int length) {
+  int current_ptr = 0;
+  int data_length = 0;
+  int start_pos   = current_send_seq_pos;
 
   // optimistic sending
+  while (current_ptr < length) {
 
-  // do {
-  // set seq pos, data length
-  // copy data from "data" to send packet
-  // network_send_packet()
+    if ((length - current_ptr) >= tbsp_data_length) {
+      data_length = tbsp_data_length;
+    } else {
+      data_length = (length - current_ptr);
+    }
 
-  // if sent all data send req packet
-  // network_recv_packet() loop until ack
-  // reset send seq pos
+    tbsp_write_type(&send_packet, TBSP_DATA);
+    tbsp_write_seq_position(&send_packet, current_send_seq_pos);
+    tbsp_write_data_length(&send_packet, data_length);
+    memcpy(send_packet.tbsp_data, &data[current_ptr], data_length);
+    // send data packet
+    network_send_packet();
 
-  // } while (); // if send seq pos not end of "data", loop
+    current_send_seq_pos += data_length;
+    current_ptr += data_length;
 
-  return 0;
+    if (current_ptr >= length) {
+      tbsp_write_type(&send_packet, TBSP_REQ);
+      network_send_packet();
+
+      do {
+        network_recv_packet();
+      } while (TBSP_ACK != tbsp_read_type(&recv_packet));
+
+      current_send_seq_pos = tbsp_read_seq_position(&recv_packet);
+      current_ptr = (current_send_seq_pos - start_pos);
+    }
+  }
 }
 
 
@@ -489,6 +509,15 @@ int main(void) {
 
   bzero( &data[0], 100);
   tbsp_recv_stream( &data[0], 100);
+
+
+  // Test tbsp_send_stream
+  printf("send stream\n\n");
+  bzero( recv_packet.tbsp_type, tbsp_frame_length);
+  tbsp_write_type(&recv_packet, TBSP_ACK);
+  tbsp_write_seq_position(&recv_packet, 100);
+  tbsp_send_stream( &data[0], 100);
+
 
   return 0;
 }
