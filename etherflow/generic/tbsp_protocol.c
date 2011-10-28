@@ -154,7 +154,7 @@ void tbsp_write_data_length(struct tbsp_packet *packet, uint16_t data_length) {
 }
 
 
-int tbsp_read_data_length(struct tbsp_packet *packet) {
+uint16_t tbsp_read_data_length(struct tbsp_packet *packet) {
 
   return (((uint16_t) packet->tbsp_length[0]) << 8) + ((uint16_t) packet->tbsp_length[1]);
 }
