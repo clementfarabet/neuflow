@@ -70,10 +70,6 @@ enum tbsp_types_t {TBSP_ERROR=0, TBSP_RESET=1, TBSP_DATA=2, TBSP_REQ=3, TBSP_ACK
 struct tbsp_packet {
   uint8_t *buffer;
 
-  uint8_t *eth_dest;
-  uint8_t *eth_host;
-  uint8_t *eth_type;
-  uint8_t *eth_payload;
   uint8_t *tbsp_type;
   uint8_t *tbsp_sequence;
   uint8_t *tbsp_length;
@@ -98,15 +94,10 @@ void tbsp_packet_init(struct tbsp_packet *packet, uint8_t *buffer) {
 
   packet->buffer = buffer;
 
-  packet->eth_dest      = &buffer[0];
-  packet->eth_host      = &buffer[6];
-  packet->eth_type      = &buffer[12];
-  packet->eth_payload   = &buffer[14];
-
-  packet->tbsp_type     = &buffer[14];
-  packet->tbsp_sequence = &buffer[15];
-  packet->tbsp_length   = &buffer[19];
-  packet->tbsp_data     = &buffer[21];
+  packet->tbsp_type     = &buffer[0];
+  packet->tbsp_sequence = &buffer[1];
+  packet->tbsp_length   = &buffer[5];
+  packet->tbsp_data     = &buffer[7];
 
 }
 
@@ -457,11 +448,11 @@ int main(void) {
 
   // init send packet
   bzero(send_buffer, send_buffer_length);
-  tbsp_packet_init(&send_packet, &send_buffer[0]);
+  tbsp_packet_init(&send_packet, &send_buffer[ETH_HLEN]);
 
   // init recv packet
   bzero(recv_buffer, recv_buffer_length);
-  tbsp_packet_init(&recv_packet, &recv_buffer[0]);
+  tbsp_packet_init(&recv_packet, &recv_buffer[ETH_HLEN]);
 
 
   // Test TBSP reset functions
