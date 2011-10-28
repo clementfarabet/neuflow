@@ -8,7 +8,7 @@
 #include <sys/time.h>
 #include <sys/errno.h>
 #include <netinet/in.h>
-//#include <arpa/inet.h>
+#include <unistd.h>
 
 
 //// linux
@@ -49,7 +49,7 @@ static struct sockaddr_ndrv sock_address;
 static uint8_t eth_addr_dest[6] = {0x00,0x80,0x10,0x64,0x00,0x00};
 static uint8_t eth_addr_host[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 static uint8_t eth_type_tbsp[2] = {0x88, 0xb5};
-const int ethertype_length	      = (ETH_HLEN-(2*ETH_ALEN));
+const int ethertype_length	    = (ETH_HLEN-(2*ETH_ALEN));
 
 uint8_t send_buffer[ETH_FRAME_LEN];
 const int send_buffer_length = ETH_FRAME_LEN;
@@ -88,6 +88,7 @@ uint8_t carryover[ETH_FRAME_LEN];
 
 uint32_t current_send_seq_pos = 0;
 uint32_t current_recv_seq_pos = 0;
+
 
 /**
  * TBSP Handler Functions
@@ -237,10 +238,10 @@ int network_send_packet() {
 }
 
 
-//int network_close_socket() {
-//
-//  return close(sockfd);
-//}
+int network_close_socket() {
+
+  return close(sockfd);
+}
 
 
 int network_open_socket(const char *dev) {
