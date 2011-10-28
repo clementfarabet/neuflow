@@ -371,7 +371,7 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 
           memcpy(&data[current_ptr], recv_packet.tbsp_data, data_length);
         } else {
-          carryover_ptr = length - (current_ptr + data_length);
+          carryover_ptr = (current_ptr + data_length) - length;
           data_length   = data_length - carryover_ptr;
 
           memcpy(&carryover[0], &recv_packet.tbsp_data[data_length], carryover_ptr);
