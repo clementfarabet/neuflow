@@ -166,7 +166,7 @@ int network_recv_packet() {
     ii = 0;
     bad_packet = 0;
 
-    int frame_length = recv(sockfd, recv_packet.buffer, ETH_FRAME_LEN, 0);
+    int frame_length = recv(sockfd, recv_buffer, ETH_FRAME_LEN, 0);
     if (0 > frame_length) { return frame_length; }
 
     // check dst MAC
@@ -201,7 +201,7 @@ int network_send_packet() {
     frame_length = ETH_ZLEN;
   }
 
-  return sendto(sockfd, send_packet.buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
+  return sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
 }
 
 
