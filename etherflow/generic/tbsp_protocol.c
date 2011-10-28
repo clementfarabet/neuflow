@@ -370,12 +370,41 @@ void tbsp_recv_stream(uint8_t *data, int length) {
         if ((current_ptr + data_length) < length) {
 
           memcpy(&data[current_ptr], recv_packet.tbsp_data, data_length);
+
+
+          // debugging
+          printf("normal copy %i : ", seq_pos);
+          int yy;
+          for (yy = 0; yy < length; yy++) {
+            printf("%x ", data[yy]);
+          }
+          printf("\n");
+          tbsp_write_seq_position(&recv_packet, (tbsp_read_seq_position(&recv_packet) + 15));
+          // end debugging
+
         } else {
           carryover_ptr = (current_ptr + data_length) - length;
           data_length   = data_length - carryover_ptr;
 
           memcpy(&carryover[0], &recv_packet.tbsp_data[data_length], carryover_ptr);
           memcpy(&data[current_ptr], recv_packet.tbsp_data, data_length);
+
+          // debugging
+          int yy;
+          printf("carryover copy %i : ", seq_pos);
+          for (yy = 0; yy < length; yy++) {
+            printf("%x ", data[yy]);
+          }
+          printf("\n");
+
+          printf("carryover buffer : ");
+          for (yy = 0; yy < carryover_ptr; yy++) {
+            printf("%x ", carryover[yy]);
+          }
+          printf("\n");
+          tbsp_write_seq_position(&recv_packet, (tbsp_read_seq_position(&recv_packet) + 15));
+          // end debugging
+
           break;
         }
       }
@@ -442,6 +471,24 @@ int main(void) {
 
   network_recv_packet();
 
+
+  // Test tbsp_recv_stream
+  tbsp_write_type(&recv_packet, TBSP_DATA);
+  tbsp_write_seq_position(&recv_packet, 0);
+  tbsp_write_data_length(&recv_packet, 15);
+
+  int xx;
+  for (xx = 0; xx < 15; xx++) {
+    recv_packet.tbsp_data[xx] = (xx + 1);
+  }
+
+
+  uint8_t data[100];;
+  bzero( &data[0], 100);
+  tbsp_recv_stream( &data[0], 100);
+
+  bzero( &data[0], 100);
+  tbsp_recv_stream( &data[0], 100);
 
   return 0;
 }
