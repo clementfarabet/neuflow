@@ -83,6 +83,11 @@ struct tbsp_packet {
 struct tbsp_packet send_packet;
 struct tbsp_packet recv_packet;
 
+int carryover_ptr = 0;
+uint8_t carryover[ETH_FRAME_LEN];
+
+uint32_t current_send_seq_pos = 0;
+uint32_t current_recv_seq_pos = 0;
 
 /**
  * Network Functions
@@ -323,7 +328,7 @@ int tbsp_send_stream(uint8_t *data, int length) {
 
   // if sent all data send req packet
   // network_recv_packet() loop until ack
-  // reset send seq pos 
+  // reset send seq pos
 
   // } while (); // if send seq pos not end of "data", loop
 
@@ -331,25 +336,53 @@ int tbsp_send_stream(uint8_t *data, int length) {
 }
 
 
-int tbsp_recv_stream(uint8_t *data, int length) {
+void tbsp_recv_stream(uint8_t *data, int length) {
+  int start_stream   = 0;
+  int num_acks       = 0;
 
-  // check carryover from last stream
-  // if carryover, add to data array
+  // if carryover from last stream, add to data array
+  if (0 < carryover_ptr) {
+    memcpy(&data[0], &carryover[0], carryover_ptr);
+    carryover_ptr = 0;
+    start_stream  = 1;
+  }
 
-  // while data not full
-  // network_recv_packet 
-  // check type, data or ack
-  // if ack type, set send seq pos
-  // if data type, get seq num and data length
-  //   copy the length of packet data to seq pos in data
+  while (1) {
+    network_recv_packet();
 
-/*
-  memcpy(send_packet->tbsp_data, data[send_seq_pos], sizeof(tbsp_d)/sizeof(tbsp_d[0]));
-*/
+    if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
+      if (1 == start_stream) { num_acks++; }
 
-  // if carryover, copy carry to carryover buffer
+      current_send_seq_pos = tbsp_read_seq_position(&recv_packet);
 
-  return 0;
+      // Once stream has started 2 acks in a row means there is no more data
+      if (2 == num_acks) { break; }
+    }
+
+    if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
+      start_stream    = 1;
+      num_acks        = 0;
+      int seq_pos     = tbsp_read_seq_position(&recv_packet);
+      int data_length = tbsp_read_data_length(&recv_packet);
+      int current_ptr = (seq_pos - current_recv_seq_pos);
+
+      if (0 <= current_ptr) {
+        if ((current_ptr + data_length) < length) {
+
+          memcpy(&data[current_ptr], recv_packet.tbsp_data, data_length);
+        } else {
+          carryover_ptr = length - (current_ptr + data_length);
+          data_length   = data_length - carryover_ptr;
+
+          memcpy(&carryover[0], &recv_packet.tbsp_data[data_length], carryover_ptr);
+          memcpy(&data[current_ptr], recv_packet.tbsp_data, data_length);
+          break;
+        }
+      }
+    }
+  }
+
+  current_recv_seq_pos = current_recv_seq_pos + ((uint32_t) length);
 }
 
 
