@@ -169,6 +169,15 @@ int network_recv_packet() {
     int frame_length = recv(sockfd, recv_buffer, ETH_FRAME_LEN, 0);
     if (0 > frame_length) { return frame_length; }
 
+    // debugging
+    int xx;
+    printf("<recv packet> : ");
+    for (xx = 0; xx < frame_length; xx++) {
+      printf("%x ", recv_buffer[xx]);
+    }
+    printf("\n");
+    // end debugging
+
     // check dst MAC
     for (kk = 0; kk < ETH_ALEN; kk++) {
       if (eth_addr_host[kk] != recv_buffer[ii++]) { bad_packet = 1; }
@@ -406,13 +415,22 @@ int main(void) {
   }
   printf("RESET SUCCESS\n");
 
-  int length;
+  int length = 500;
   uint8_t data[length];;
   bzero( &data[0], length);
   tbsp_recv_stream( &data[0], length);
 
   int xx;
-  printf("Data Stream : ");
+  printf("Data Stream 0: ");
+  for (xx = 0; xx < length; xx++) {
+    printf("%c ", data[xx]);
+  }
+  printf("\n");
+
+  bzero( &data[0], length);
+  tbsp_recv_stream( &data[0], length);
+
+  printf("Data Stream 1: ");
   for (xx = 0; xx < length; xx++) {
     printf("%c ", data[xx]);
   }
