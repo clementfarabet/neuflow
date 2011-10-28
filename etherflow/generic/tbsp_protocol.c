@@ -90,6 +90,77 @@ uint32_t current_send_seq_pos = 0;
 uint32_t current_recv_seq_pos = 0;
 
 /**
+ * TBSP Handler Functions
+ */
+
+void tbsp_packet_init(struct tbsp_packet *packet, uint8_t *buffer) {
+
+  packet->buffer = buffer;
+
+  packet->eth_dest      = &buffer[0];
+  packet->eth_host      = &buffer[6];
+  packet->eth_type      = &buffer[12];
+  packet->eth_payload   = &buffer[14];
+
+  packet->tbsp_type     = &buffer[14];
+  packet->tbsp_sequence = &buffer[15];
+  packet->tbsp_length   = &buffer[19];
+  packet->tbsp_data     = &buffer[21];
+
+}
+
+
+void tbsp_write_type (struct tbsp_packet *packet, enum tbsp_types_t type) {
+  *packet->tbsp_type = (uint8_t) type;
+}
+
+
+enum tbsp_types_t tbsp_read_type (struct tbsp_packet *packet) {
+  int type = (int) *packet->tbsp_type;
+
+  if (TBSP_RESET == (enum tbsp_types_t) type) return TBSP_RESET;
+  if (TBSP_DATA  == (enum tbsp_types_t) type) return TBSP_DATA;
+  if (TBSP_REQ   == (enum tbsp_types_t) type) return TBSP_REQ;
+  if (TBSP_ACK   == (enum tbsp_types_t) type) return TBSP_ACK;
+
+  return TBSP_ERROR;
+}
+
+
+void tbsp_write_seq_position(struct tbsp_packet *packet, uint32_t seq_pos) {
+
+  packet->tbsp_sequence[0] = (uint8_t) (seq_pos >> 24);
+  packet->tbsp_sequence[1] = (uint8_t) (seq_pos >> 16);
+  packet->tbsp_sequence[2] = (uint8_t) (seq_pos >> 8);
+  packet->tbsp_sequence[3] = (uint8_t) (seq_pos);
+}
+
+
+uint32_t tbsp_read_seq_position(struct tbsp_packet *packet) {
+
+  uint32_t seq_pos = (((uint32_t) packet->tbsp_sequence[0]) << 24) \
+                   + (((uint32_t) packet->tbsp_sequence[1]) << 16) \
+                   + (((uint32_t) packet->tbsp_sequence[2]) << 8)  \
+                   +  ((uint32_t) packet->tbsp_sequence[3]);
+
+  return seq_pos;
+}
+
+
+void tbsp_write_data_length(struct tbsp_packet *packet, uint16_t data_length) {
+
+  packet->tbsp_length[0] = (uint8_t) (data_length >> 8);
+  packet->tbsp_length[1] = (uint8_t) (data_length);
+}
+
+
+int tbsp_read_data_length(struct tbsp_packet *packet) {
+
+  return (((uint16_t) packet->tbsp_length[0]) << 8) + ((uint16_t) packet->tbsp_length[1]);
+}
+
+
+/**
  * Network Functions
  */
 
@@ -221,75 +292,8 @@ int network_open_socket(const char *dev) {
 
 
 /**
- * TBSP Functions
+ * TBSP Communication Functions
  */
-
-void tbsp_packet_init(struct tbsp_packet *packet, uint8_t *buffer) {
-
-  packet->buffer = buffer;
-
-  packet->eth_dest      = &buffer[0];
-  packet->eth_host      = &buffer[6];
-  packet->eth_type      = &buffer[12];
-  packet->eth_payload   = &buffer[14];
-
-  packet->tbsp_type     = &buffer[14];
-  packet->tbsp_sequence = &buffer[15];
-  packet->tbsp_length   = &buffer[19];
-  packet->tbsp_data     = &buffer[21];
-
-}
-
-
-void tbsp_write_type (struct tbsp_packet *packet, enum tbsp_types_t type) {
-  *packet->tbsp_type = (uint8_t) type;
-}
-
-
-enum tbsp_types_t tbsp_read_type (struct tbsp_packet *packet) {
-  int type = (int) *packet->tbsp_type;
-
-  if (TBSP_RESET == (enum tbsp_types_t) type) return TBSP_RESET;
-  if (TBSP_DATA  == (enum tbsp_types_t) type) return TBSP_DATA;
-  if (TBSP_REQ   == (enum tbsp_types_t) type) return TBSP_REQ;
-  if (TBSP_ACK   == (enum tbsp_types_t) type) return TBSP_ACK;
-
-  return TBSP_ERROR;
-}
-
-
-void tbsp_write_seq_position(struct tbsp_packet *packet, uint32_t seq_pos) {
-
-  packet->tbsp_sequence[0] = (uint8_t) (seq_pos >> 24);
-  packet->tbsp_sequence[1] = (uint8_t) (seq_pos >> 16);
-  packet->tbsp_sequence[2] = (uint8_t) (seq_pos >> 8);
-  packet->tbsp_sequence[3] = (uint8_t) (seq_pos);
-}
-
-
-uint32_t tbsp_read_seq_position(struct tbsp_packet *packet) {
-
-  uint32_t seq_pos = (((uint32_t) packet->tbsp_sequence[0]) << 24) \
-                   + (((uint32_t) packet->tbsp_sequence[1]) << 16) \
-                   + (((uint32_t) packet->tbsp_sequence[2]) << 8)  \
-                   +  ((uint32_t) packet->tbsp_sequence[3]);
-
-  return seq_pos;
-}
-
-
-void tbsp_write_data_length(struct tbsp_packet *packet, uint16_t data_length) {
-
-  packet->tbsp_length[0] = (uint8_t) (data_length >> 8);
-  packet->tbsp_length[1] = (uint8_t) (data_length);
-}
-
-
-int tbsp_read_data_length(struct tbsp_packet *packet) {
-
-  return (((uint16_t) packet->tbsp_length[0]) << 8) + ((uint16_t) packet->tbsp_length[1]);
-}
-
 
 int tbsp_send_reset() {
 
