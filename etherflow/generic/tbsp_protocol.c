@@ -210,6 +210,15 @@ int network_send_packet() {
     frame_length = ETH_ZLEN;
   }
 
+  // debugging
+  int xx;
+  printf("<send packet> : ");
+  for (xx = 0; xx < frame_length; xx++) {
+    printf("%x ", send_buffer[xx]);
+  }
+  printf("\n");
+  // end debugging
+
   return sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
 }
 
@@ -376,6 +385,11 @@ void tbsp_recv_stream(uint8_t *data, int length) {
         } else {
           carryover_ptr = (current_ptr + data_length) - length;
           data_length   = data_length - carryover_ptr;
+
+          // debugging
+          printf("<recv stream> seq_pos %i, current_recv_seq_pos %i\n", seq_pos, current_recv_seq_pos );
+          printf("<recv stream> data_length %i, current_ptr %i\n", data_length, current_ptr);
+          // end debugging
 
           memcpy(&carryover[0], &recv_packet.tbsp_data[data_length], carryover_ptr);
           memcpy(&data[current_ptr], recv_packet.tbsp_data, data_length);
