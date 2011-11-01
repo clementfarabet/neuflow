@@ -11,12 +11,15 @@
 #include <unistd.h>
 
 
-//// linux
-//#include <linux/if_packet.h>
-//#include <linux/if_ether.h>
-//#include <linux/if_arp.h>
-//#include <linux/filter.h>
-//#include <asm/types.h>
+#ifdef _LINUX_
+
+#include <linux/if_packet.h>
+#include <linux/if_ether.h>
+#include <linux/if_arp.h>
+#include <linux/filter.h>
+#include <asm/types.h>
+
+#else // not _LINUX_ but _APPLE_
 
 // osx
 #include <net/if.h>
@@ -35,15 +38,24 @@
 #define ETH_FRAME_LEN   1514     /* Max. octets in frame sans FCS   */
 #define ETH_FCS_LEN     4        /* Octets in the FCS               */
 
+#endif // _LINUX_
+
 
 /**
  * Global Parameters
  */
 
-// socket parameters
 static int sockfd;
 static socklen_t socklen;
+
+#ifdef _LINUX_
+static struct sockaddr_ll sock_address;
+static struct ifreq ifr;
+static int ifindex;
+#else // not _LINUX_ but _APPLE_
+// socket parameters
 static struct sockaddr_ndrv sock_address;
+#endif // _LINUX_
 
 // ethernet packet parameters
 static uint8_t eth_addr_dest[6] = {0x00,0x80,0x10,0x64,0x00,0x00};
@@ -229,6 +241,83 @@ int network_close_socket() {
 }
 
 
+#ifdef _LINUX_
+
+int network_open_socket(const char *dev) {
+
+  // open raw socket and configure it
+  if ((sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL))) == -1) {
+    fprintf(stderr, "socket: socket() failed: %s\n", strerror(errno));
+    return -1;
+  }
+
+  // retrieve ethernet interface index
+  strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+  if (ioctl(sockfd, SIOCGIFINDEX, &ifr) == -1) {
+    perror(dev);
+    return -1;
+  }
+  ifindex = ifr.ifr_ifindex;
+
+  // retrieve corresponding MAC
+  if (ioctl(sockfd, SIOCGIFHWADDR, &ifr) == -1) {
+    perror("GET_HWADDR");
+    return -1;
+  }
+
+  // prepare sockaddr_ll
+  sock_address.sll_family   = AF_PACKET;
+  sock_address.sll_protocol = htons(ETH_P_ALL);
+  sock_address.sll_ifindex  = ifindex;
+  sock_address.sll_hatype   = 0;//ARPHRD_ETHER;
+  sock_address.sll_pkttype  = 0;//PACKET_OTHERHOST;
+  sock_address.sll_halen    = ETH_ALEN;
+  sock_address.sll_addr[0]  = dest_mac[0];
+  sock_address.sll_addr[1]  = dest_mac[1];
+  sock_address.sll_addr[2]  = dest_mac[2];
+  sock_address.sll_addr[3]  = dest_mac[3];
+  sock_address.sll_addr[4]  = dest_mac[4];
+  sock_address.sll_addr[5]  = dest_mac[5];
+  sock_address.sll_addr[6]  = 0x00;
+  sock_address.sll_addr[7]  = 0x00;
+
+  // size of socket
+  socklen = sizeof(sock_address);
+
+  // Message
+  printf("<etherflow> started on device %s\n", dev);
+
+  // set buffer sizes
+  unsigned int size = sizeof(int);
+  int realbufsize = 0;
+
+  // receive buffer
+  int sockbufsize_rcv = 64*1024*1024;
+  int set_res = setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE, (int *)&sockbufsize_rcv, sizeof(int));
+  int get_res = getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
+  if ((set_res < 0)||(get_res < 0)) {
+    perror("set/get sockopt");
+    close(sockfg);
+    exit(1);
+  }
+  printf("<etherflow> set rx buffer size to %dMB\n", realbufsize/(1024*1024));
+
+  // send buffer
+  int sockbufsize_snd = 64*1024*1024;
+  set_res = setsockopt(sock, SOL_SOCKET, SO_SNDBUFFORCE, (int *)&sockbufsize_snd, sizeof(int));
+  get_res = getsockopt(sock, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
+  if ((set_res < 0)||(get_res < 0)) {
+    perror("set/get sockopt");
+    close(sockfg);
+    exit(1);
+  }
+  printf("<etherflow> set tx buffer size to %dMB\n", realbufsize/(1024*1024));
+
+  return 0;
+}
+
+#else // not _LINUX_ but _APPLE_
+
 int network_open_socket(const char *dev) {
 
   if ((sockfd = socket(PF_NDRV, SOCK_RAW, 0)) == -1) {
@@ -275,6 +364,8 @@ int network_open_socket(const char *dev) {
 
   return 0;
 }
+
+#endif // _LINUX_
 
 
 /**
@@ -410,7 +501,11 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 
 int main(void) {
   // open socket
+#ifdef _LINUX_
+  char *dev = "eth0";
+#else // not _LINUX_ but _APPLE_
   char *dev = "en0";
+#endif
   network_open_socket(dev);
   if (sockfd < 0) {
     return -1;
