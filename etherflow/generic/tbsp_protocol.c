@@ -289,6 +289,8 @@ int tbsp_send_reset() {
 
     if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
       if (0 == tbsp_read_seq_position(&recv_packet)) {
+        current_send_seq_pos = 0;
+        current_recv_seq_pos = 0;
         return 0;
       }
     }
