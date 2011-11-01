@@ -431,22 +431,27 @@ int main(void) {
   }
   printf("RESET SUCCESS\n");
 
-  int length = 500;
-  uint8_t data[length];;
-  bzero( &data[0], length);
-  tbsp_recv_stream( &data[0], length);
 
   int xx;
-  printf("Data Stream 0: ");
+  int length = 100;
+  uint8_t data[length];;
+  for (xx = 0; xx < length; xx++) {
+    data[xx] = (uint8_t) xx;
+  }
+
+
+
+  printf("Send Data Stream: ");
   for (xx = 0; xx < length; xx++) {
     printf("%c ", data[xx]);
   }
   printf("\n");
+  tbsp_send_stream( &data[0], length);
 
-  bzero( &data[0], length);
+
+
+  printf("Recv Data Stream: ");
   tbsp_recv_stream( &data[0], length);
-
-  printf("Data Stream 1: ");
   for (xx = 0; xx < length; xx++) {
     printf("%c ", data[xx]);
   }
