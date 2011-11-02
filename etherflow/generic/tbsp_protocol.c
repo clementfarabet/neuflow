@@ -272,12 +272,12 @@ int network_open_socket(const char *dev) {
   sock_address.sll_hatype   = 0;//ARPHRD_ETHER;
   sock_address.sll_pkttype  = 0;//PACKET_OTHERHOST;
   sock_address.sll_halen    = ETH_ALEN;
-  sock_address.sll_addr[0]  = dest_mac[0];
-  sock_address.sll_addr[1]  = dest_mac[1];
-  sock_address.sll_addr[2]  = dest_mac[2];
-  sock_address.sll_addr[3]  = dest_mac[3];
-  sock_address.sll_addr[4]  = dest_mac[4];
-  sock_address.sll_addr[5]  = dest_mac[5];
+  sock_address.sll_addr[0]  = eth_addr_dest[0];
+  sock_address.sll_addr[1]  = eth_addr_dest[1];
+  sock_address.sll_addr[2]  = eth_addr_dest[2];
+  sock_address.sll_addr[3]  = eth_addr_dest[3];
+  sock_address.sll_addr[4]  = eth_addr_dest[4];
+  sock_address.sll_addr[5]  = eth_addr_dest[5];
   sock_address.sll_addr[6]  = 0x00;
   sock_address.sll_addr[7]  = 0x00;
 
@@ -293,22 +293,22 @@ int network_open_socket(const char *dev) {
 
   // receive buffer
   int sockbufsize_rcv = 64*1024*1024;
-  int set_res = setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE, (int *)&sockbufsize_rcv, sizeof(int));
-  int get_res = getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
+  int set_res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUFFORCE, (int *)&sockbufsize_rcv, sizeof(int));
+  int get_res = getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
   if ((set_res < 0)||(get_res < 0)) {
     perror("set/get sockopt");
-    close(sockfg);
+    close(sockfd);
     exit(1);
   }
   printf("<etherflow> set rx buffer size to %dMB\n", realbufsize/(1024*1024));
 
   // send buffer
   int sockbufsize_snd = 64*1024*1024;
-  set_res = setsockopt(sock, SOL_SOCKET, SO_SNDBUFFORCE, (int *)&sockbufsize_snd, sizeof(int));
-  get_res = getsockopt(sock, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
+  set_res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUFFORCE, (int *)&sockbufsize_snd, sizeof(int));
+  get_res = getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
   if ((set_res < 0)||(get_res < 0)) {
     perror("set/get sockopt");
-    close(sockfg);
+    close(sockfd);
     exit(1);
   }
   printf("<etherflow> set tx buffer size to %dMB\n", realbufsize/(1024*1024));
