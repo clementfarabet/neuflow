@@ -501,67 +501,6 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 }
 
 
-/**
- * Etherflow Functions
- */
-
-
-int main(void) {
-  // open socket
-#ifdef _LINUX_
-  char *dev = "eth0";
-#else // not _LINUX_ but _APPLE_
-  char *dev = "en0";
-#endif
-  network_open_socket(dev);
-  if (sockfd < 0) {
-    return -1;
-  }
-
-  // init send packet
-  bzero(send_buffer, send_buffer_length);
-  tbsp_packet_init(&send_packet, &send_buffer[ETH_HLEN]);
-
-  // init recv packet
-  bzero(recv_buffer, recv_buffer_length);
-  tbsp_packet_init(&recv_packet, &recv_buffer[ETH_HLEN]);
-
-  // reset NewFlow hardware
-  if (0 > tbsp_send_reset()) {
-    printf("RESET FAIL\n");
-    return -1;
-  }
-  printf("RESET SUCCESS\n");
-
-
-  int xx;
-  int length = 100;
-  uint8_t data[length];;
-  for (xx = 0; xx < length; xx++) {
-    data[xx] = (uint8_t) xx;
-  }
-
-
-
-  printf("Send Data Stream: ");
-  for (xx = 0; xx < length; xx++) {
-    printf("%c ", data[xx]);
-  }
-  printf("\n");
-  tbsp_send_stream( &data[0], length);
-
-
-
-  printf("Recv Data Stream: ");
-  tbsp_recv_stream( &data[0], length);
-  for (xx = 0; xx < length; xx++) {
-    printf("%c ", data[xx]);
-  }
-  printf("\n");
-
-
-  return 0;
-}
 #endif // _ETHERFLOW_COMMON_
 
 /**
