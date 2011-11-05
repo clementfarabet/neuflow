@@ -54,9 +54,9 @@ function DmaEthernet:streamToHost(stream, tag, mode)
    end
 
    -- stream data (tensor) out with a write ack
-   self.core:configPort{index = -1, action = 'write', data = {x=0, y=0, w=32, h=1}}
+--   self.core:configPort{index = -1, action = 'write', data = {x=0, y=0, w=32, h=1}}
    self.core:configPort{index = 0, action = 'fetch+read+sync+close', data = stream}
-   self.core:configPort{index = -1, action = 'sync+close'}
+--   self.core:configPort{index = -1, action = 'sync+close'}
 
 end
 
