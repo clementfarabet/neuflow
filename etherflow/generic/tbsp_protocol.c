@@ -562,12 +562,13 @@ int main(void) {
 
   return 0;
 }
+#endif // _ETHERFLOW_COMMON_
 
 /**
  * Lua wrappers
  */
 
-static int l_open_connection(lua_State *L) {
+static int etherflow_(Api_open_socket_lua)(lua_State *L) {
 #ifdef _LINUX_
   const char *dev = "eth0";
 #else // not _LINUX_ but _APPLE_
@@ -610,19 +611,19 @@ static int l_open_connection(lua_State *L) {
 }
 
 
-static int l_close_connection(lua_State *L) {
+static int etherflow_(Api_close_socket_lua)(lua_State *L) {
   network_close_socket();
   return 0;
 }
 
 
-static int l_send_reset(lua_State *L) {
+static int etherflow_(Api_send_reset_lua)(lua_State *L) {
   lua_pushnumber(L, tbsp_send_reset());
   return 1;
 }
 
 
-static int l_send_tensor_real(lua_State *L) {
+static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
   THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
   int length_real = THTensor_(nElement)(tensor);
   real *data_real = THTensor_(data)(tensor);
@@ -645,7 +646,7 @@ static int l_send_tensor_real(lua_State *L) {
 }
 
 
-static int l_send_tensor_byte(lua_State *L) {
+static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
   THByteTensor *tensor = luaT_toudata(L, 1, luaT_checktypename2id(L, "torch.ByteTensor"));
   int length = THByteTensor_nElement(tensor);
   uint8_t *data = THByteTensor_data(tensor);
@@ -656,7 +657,7 @@ static int l_send_tensor_byte(lua_State *L) {
 }
 
 
-static int l_recv_tensor_real(lua_State *L) {
+static int etherflow_(Api_receive_tensor_lua)(lua_State *L){
   THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
   int length_real = THTensor_(nElement)(tensor);
   real *data_real = THTensor_(data)(tensor);
@@ -679,17 +680,13 @@ static int l_recv_tensor_real(lua_State *L) {
 }
 
 
-#endif // _ETHERFLOW_COMMON_
-
-
-// register functions for Lua
 static const struct luaL_Reg etherflow_(Api__) [] = {
-  {"open_socket",     l_open_connection},
-  {"close_socket",    l_close_connection},
-  {"send_reset",      l_send_reset},
-  {"send_tensor",     l_send_tensor_real},
-  {"send_bytetensor", l_send_tensor_byte},
-  {"receive_tensor",  l_recv_tensor_real},
+  {"open_socket",     etherflow_(Api_open_socket_lua)},
+  {"close_socket",    etherflow_(Api_close_socket_lua)},
+  {"send_reset",      etherflow_(Api_send_reset_lua)},
+  {"send_tensor",     etherflow_(Api_send_tensor_lua)},
+  {"send_bytetensor", etherflow_(Api_send_tensor_byte_lua)},
+  {"receive_tensor",  etherflow_(Api_receive_tensor_lua)},
   {NULL,              NULL}
 };
 
