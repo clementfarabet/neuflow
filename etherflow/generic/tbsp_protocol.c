@@ -586,6 +586,15 @@ static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
 
 
 static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
+  // debugging
+  // reset NewFlow hardware
+  if (0 > tbsp_send_reset()) {
+    printf("RESET FAIL\n");
+    return -1;
+  }
+  printf("RESET SUCCESS\n");
+  // end debugging
+
   THByteTensor *tensor = luaT_toudata(L, 1, luaT_checktypename2id(L, "torch.ByteTensor"));
   int length = THByteTensor_nElement(tensor);
   uint8_t *data = THByteTensor_data(tensor);
