@@ -15,7 +15,8 @@
 static const void* torch_FloatTensor_id = NULL;
 static const void* torch_DoubleTensor_id = NULL;
 
-#include "generic/etherflow.c"
+//#include "generic/etherflow.c"
+#include "generic/tbsp_protocol.c"
 #include "THGenerateFloatTypes.h"
 
 DLL_EXPORT int luaopen_libetherflow(lua_State *L)

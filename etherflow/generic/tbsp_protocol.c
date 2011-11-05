@@ -1,3 +1,9 @@
+#ifndef TH_GENERIC_FILE
+#define TH_GENERIC_FILE "generic/tbsp_protocol.c"
+#else
+
+#ifndef _ETHERFLOW_COMMON_
+#define _ETHERFLOW_COMMON_
 
 // common
 #include <stdlib.h>
@@ -44,6 +50,7 @@
 /**
  * Global Parameters
  */
+static const int neuflow_one_encoding = 1<<8;
 
 static int sockfd;
 static socklen_t socklen;
@@ -555,3 +562,154 @@ int main(void) {
 
   return 0;
 }
+
+/**
+ * Lua wrappers
+ */
+
+static int l_open_connection(lua_State *L) {
+#ifdef _LINUX_
+  const char *dev = "eth0";
+#else // not _LINUX_ but _APPLE_
+  const char *dev = "en0";
+#endif
+
+  // get dev name
+  if (lua_isstring(L, 1)) dev = lua_tostring(L,1);
+
+  // get dest mac address
+  if (lua_istable(L, 2)) {
+    int k;
+    for (k=1; k<=ETH_ALEN; k++) {
+      lua_rawgeti(L, 2, k);
+      eth_addr_dest[k-1] = (uint8_t) lua_tonumber(L, -1); lua_pop(L, 1);
+    }
+  }
+
+  // get src mac address
+  if (lua_istable(L, 3)) {
+    int k;
+    for (k=1; k<=ETH_ALEN; k++) {
+      lua_rawgeti(L, 3, k);
+      eth_addr_host[k-1] = (uint8_t) lua_tonumber(L, -1); lua_pop(L, 1);
+    }
+  }
+
+  network_open_socket(dev);
+
+  // init send packet
+  bzero(send_buffer, send_buffer_length);
+  tbsp_packet_init(&send_packet, &send_buffer[ETH_HLEN]);
+
+  // init recv packet
+  bzero(recv_buffer, recv_buffer_length);
+  tbsp_packet_init(&recv_packet, &recv_buffer[ETH_HLEN]);
+
+  lua_pushnumber(L, sockfd);  /* push result */
+  return 1;  /* number of results */
+}
+
+
+static int l_close_connection(lua_State *L) {
+  network_close_socket();
+  return 0;
+}
+
+
+static int l_send_reset(lua_State *L) {
+  lua_pushnumber(L, tbsp_send_reset());
+  return 1;
+}
+
+
+static int l_send_tensor_real(lua_State *L) {
+  THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
+  int length_real = THTensor_(nElement)(tensor);
+  real *data_real = THTensor_(data)(tensor);
+
+  int length_byte = 2*length_real;
+  uint8_t data_byte[length_byte];
+
+  // convert real data to byte data
+  int xx;
+  for (xx = 0; xx < length_real; xx++) {
+    int16_t fixed_point = (int16_t) ((data_real[xx]*neuflow_one_encoding)*0.5);
+
+    data_byte[(2*xx)]   = (uint8_t) fixed_point;
+    data_byte[(2*xx)+1] = (uint8_t) fixed_point >> 8;
+  }
+
+  tbsp_send_stream( &data_byte[0], length_byte);
+
+  return 0;
+}
+
+
+static int l_send_tensor_byte(lua_State *L) {
+  THByteTensor *tensor = luaT_toudata(L, 1, luaT_checktypename2id(L, "torch.ByteTensor"));
+  int length = THByteTensor_nElement(tensor);
+  uint8_t *data = THByteTensor_data(tensor);
+
+  tbsp_send_stream( &data[0], length);
+
+  return 0;
+}
+
+
+static int l_recv_tensor_real(lua_State *L) {
+  THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
+  int length_real = THTensor_(nElement)(tensor);
+  real *data_real = THTensor_(data)(tensor);
+
+  int length_byte = 2*length_real;
+  uint8_t data_byte[length_byte];
+  bzero(&data_byte, length_byte);
+
+  tbsp_recv_stream( &data_byte[0], length_byte);
+
+  //convert byte to real
+  int xx;
+  for (xx = 0; xx < length_real; xx++) {
+    int16_t fixed_point = (int16_t) (data_byte[(2*xx)+1]<<8) + data_byte[(2*xx)];
+
+    data_real[xx] = fixed_point / neuflow_one_encoding;
+  }
+
+  return 0;
+}
+
+
+#endif // _ETHERFLOW_COMMON_
+
+
+// register functions for Lua
+static const struct luaL_Reg etherflow_(Api__) [] = {
+  {"open_socket",     l_open_connection},
+  {"close_socket",    l_close_connection},
+  {"send_reset",      l_send_reset},
+  {"send_tensor",     l_send_tensor_real},
+  {"send_bytetensor", l_send_tensor_byte},
+  {"receive_tensor",  l_recv_tensor_real},
+  {NULL,              NULL}
+};
+
+
+void etherflow_(Api_init)(lua_State *L)
+{
+  luaT_pushmetaclass(L, torch_(Tensor_id));
+  luaT_registeratname(L, etherflow_(Api__), "etherflow");
+}
+
+/*
+//static const struct luaL_Reg tbsp_protocol[] = {
+  {"open_connection",  l_open_connection},
+  {"close_connection", l_close_connection},
+  {"send_reset",       l_send_reset},
+  {"send_tensor_real", l_send_tensor_real},
+  {"send_tensor_byte", l_send_tensor_byte},
+  {"recv_tensor_real", l_recv_tensor_real},
+  {NULL,               NULL}
+};
+*/
+
+#endif
