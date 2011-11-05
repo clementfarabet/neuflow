@@ -188,15 +188,6 @@ int network_recv_packet() {
     int frame_length = recv(sockfd, recv_buffer, ETH_FRAME_LEN, 0);
     if (0 > frame_length) { return frame_length; }
 
-    // debugging
-    int xx;
-    printf("<recv packet> : ");
-    for (xx = 0; xx < frame_length; xx++) {
-      printf("%x ", recv_buffer[xx]);
-    }
-    printf("\n");
-    // end debugging
-
     // check dst MAC
     for (kk = 0; kk < ETH_ALEN; kk++) {
       if (eth_addr_host[kk] != recv_buffer[ii++]) { bad_packet = 1; }
@@ -211,6 +202,26 @@ int network_recv_packet() {
     for (kk=0; kk<2; kk++) {
       if (eth_type_tbsp[kk] != recv_buffer[ii++]) { bad_packet = 1; }
     }
+
+    // debugging
+//    if (!bad_packet) {
+//      if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
+//        printf("<recv packet ack> seq_pos %d:\n", tbsp_read_seq_position(&recv_packet));
+//      }
+//      if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
+//        printf("<recv packet data> seq_pos %d:\n", tbsp_read_seq_position(&recv_packet));
+//        printf("<recv packet data> length  %d:\n", tbsp_read_data_length(&recv_packet));
+//
+////        int xx;
+////        printf("<recv packet data> : ");
+////        for (xx = 0; xx < tbsp_read_data_length(&recv_packet); xx++) {
+////          printf("%x ", recv_buffer[xx]);
+////        }
+////        printf("\n");
+//      }
+//
+//    }
+    // end debugging
 
   } while (bad_packet);
 
@@ -230,12 +241,12 @@ int network_send_packet() {
   }
 
   // debugging
-  int xx;
-  printf("<send packet> : ");
-  for (xx = 0; xx < frame_length; xx++) {
-    printf("%x ", send_buffer[xx]);
-  }
-  printf("\n");
+//  int xx;
+//  printf("<send packet> : ");
+//  for (xx = 0; xx < frame_length; xx++) {
+//    printf("%x ", send_buffer[xx]);
+//  }
+//  printf("\n");
   // end debugging
 
   return sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
@@ -382,6 +393,10 @@ int network_open_socket(const char *dev) {
 int tbsp_send_reset() {
   int xx;
 
+  // debugging
+  printf("<send reset>\n");
+  // end debugging
+
   for (xx = 0; xx < 10; xx++) {
     // send reset packet
     tbsp_write_type(&send_packet, TBSP_RESET);
@@ -411,6 +426,10 @@ void tbsp_send_stream(uint8_t *data, int length) {
   int current_ptr = 0;
   int data_length = 0;
   int start_pos   = current_send_seq_pos;
+
+  // debugging
+  printf("<send stream> length %d %x\n", length, length);
+  // end debugging
 
   // optimistic sending
   while (current_ptr < length) {
@@ -450,6 +469,10 @@ void tbsp_recv_stream(uint8_t *data, int length) {
   int start_stream   = 0;
   int num_acks       = 0;
 
+  // debugging
+  printf("<recv stream>\n");
+  // end debugging
+
   // if carryover from last stream, add to data array
   if (0 < carryover_ptr) {
     memcpy(&data[0], &carryover[0], carryover_ptr);
@@ -485,8 +508,8 @@ void tbsp_recv_stream(uint8_t *data, int length) {
           data_length   = data_length - carryover_ptr;
 
           // debugging
-          printf("<recv stream> seq_pos %i, current_recv_seq_pos %i\n", seq_pos, current_recv_seq_pos );
-          printf("<recv stream> data_length %i, current_ptr %i\n", data_length, current_ptr);
+//          printf("<recv stream> seq_pos %i, current_recv_seq_pos %i\n", seq_pos, current_recv_seq_pos );
+//          printf("<recv stream> data_length %i, current_ptr %i\n", data_length, current_ptr);
           // end debugging
 
           memcpy(&carryover[0], &recv_packet.tbsp_data[data_length], carryover_ptr);
