@@ -581,6 +581,8 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 
 #endif // _ETHERFLOW_COMMON_
 
+
+#ifndef _NO_LUA_
 /**
  * Lua wrappers
  */
@@ -732,4 +734,5 @@ void etherflow_(Api_init)(lua_State *L)
   luaT_registeratname(L, etherflow_(Api__), "etherflow");
 }
 
-#endif
+#endif // _NO_LUA_
+#endif // TH_GENERIC_FILE
