@@ -634,6 +634,10 @@ static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
     data_byte[(2*xx)+1] = (uint8_t) fixed_point >> 8;
   }
 
+  // A delay to give the data time to clear the last transfer and for the
+  // streamer port to close before the this transfer.
+  usleep(100);
+
   tbsp_send_stream( &data_byte[0], length_byte);
 
   return 0;
@@ -653,6 +657,10 @@ static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
   THByteTensor *tensor = luaT_toudata(L, 1, luaT_checktypename2id(L, "torch.ByteTensor"));
   int length = THByteTensor_nElement(tensor);
   uint8_t *data = THByteTensor_data(tensor);
+
+  // A delay to give the data time to clear the last transfer and for the
+  // streamer port to close before the this transfer.
+  usleep(100);
 
   tbsp_send_stream( &data[0], length);
 
