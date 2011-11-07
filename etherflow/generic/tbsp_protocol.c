@@ -653,7 +653,7 @@ static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
   // convert real data to byte data
   int xx;
   for (xx = 0; xx < length_real; xx++) {
-    int16_t fixed_point = (int16_t) ((data_real[xx]*neuflow_one_encoding)*0.5);
+    int16_t fixed_point = (int16_t) (data_real[xx]*neuflow_one_encoding);
 
     data_byte[(2*xx)]   = (uint8_t) fixed_point;
     data_byte[(2*xx)+1] = (uint8_t) fixed_point >> 8;
