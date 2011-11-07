@@ -206,16 +206,21 @@ int network_recv_packet() {
     // debugging
 //    if (!bad_packet) {
 //      if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
-//        printf("<recv packet ack> seq_pos %d:\n", tbsp_read_seq_position(&recv_packet));
+//        printf("<recv packet ack> dev rx seq_pos %d, 2nd %d:\n", \
+//            tbsp_read_seq_position(&recv_packet), \
+//            tbsp_read_2nd_seq_position(&recv_packet));
 //      }
 //      if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
-//        printf("<recv packet data> seq_pos %d:\n", tbsp_read_seq_position(&recv_packet));
-//        printf("<recv packet data> length  %d:\n", tbsp_read_data_length(&recv_packet));
+//        printf("<recv packet data> seq_pos %d, length %d, total %d, packet num %d\n", \
+//            tbsp_read_seq_position(&recv_packet), \
+//            tbsp_read_data_length(&recv_packet), \
+//            (tbsp_read_seq_position(&recv_packet) + tbsp_read_data_length(&recv_packet)), \
+//            tbsp_read_packet_num(&recv_packet));
 //
 ////        int xx;
 ////        printf("<recv packet data> : ");
 ////        for (xx = 0; xx < tbsp_read_data_length(&recv_packet); xx++) {
-////          printf("%x ", recv_buffer[xx]);
+////          printf("%x ", recv_packet.tbsp_data[xx]);
 ////        }
 ////        printf("\n");
 //      }
@@ -423,7 +428,7 @@ int tbsp_send_reset() {
   int xx;
 
   // debugging
-  printf("<send reset>\n");
+//  printf("<send reset>\n");
   // end debugging
 
   for (xx = 0; xx < 10; xx++) {
@@ -460,7 +465,7 @@ void tbsp_send_stream(uint8_t *data, int length) {
   int start_pos   = current_send_seq_pos;
 
   // debugging
-  printf("<send stream> length %d %x\n", length, length);
+//  printf("<send stream> length %d\n", length);
   // end debugging
 
   // optimistic sending
@@ -502,7 +507,7 @@ void tbsp_recv_stream(uint8_t *data, int length) {
   int num_acks       = 0;
 
   // debugging
-  printf("<recv stream>\n");
+//  printf("<recv stream> length to read %d\n", length);
   // end debugging
 
   // if carryover from last stream, add to data array
@@ -540,8 +545,21 @@ void tbsp_recv_stream(uint8_t *data, int length) {
           data_length   = data_length - carryover_ptr;
 
           // debugging
-//          printf("<recv stream> seq_pos %i, current_recv_seq_pos %i\n", seq_pos, current_recv_seq_pos );
-//          printf("<recv stream> data_length %i, current_ptr %i\n", data_length, current_ptr);
+//          printf("<recv stream> seq_pos %i, current_recv_seq_pos %i\n", \
+//              seq_pos, \
+//              current_recv_seq_pos);
+//
+//          printf("<recv stream> data_length %i %i, current_ptr %i\n", \
+//              data_length, \
+//              tbsp_read_data_length(&recv_packet), \
+//              current_ptr);
+//
+//          int xx;
+//          printf("<recv stream> packet: ");
+//          for (xx = 0; xx < tbsp_read_data_length(&recv_packet); xx++) {
+//            printf("%x ", recv_packet.tbsp_data[xx]);
+//          }
+//          printf("\n");
           // end debugging
 
           memcpy(&carryover[0], &recv_packet.tbsp_data[data_length], carryover_ptr);
