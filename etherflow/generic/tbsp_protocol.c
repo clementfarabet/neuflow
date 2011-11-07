@@ -562,8 +562,13 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 //          printf("\n");
           // end debugging
 
-          memcpy(&carryover[0], &recv_packet.tbsp_data[data_length], carryover_ptr);
-          memcpy(&data[current_ptr], recv_packet.tbsp_data, data_length);
+          if (0 <= data_length) {
+            memcpy(&carryover[0], &recv_packet.tbsp_data[data_length], carryover_ptr);
+            memcpy(&data[current_ptr], recv_packet.tbsp_data, data_length);
+          } else {
+            carryover_ptr = 0;
+          }
+
           break;
         }
       }
