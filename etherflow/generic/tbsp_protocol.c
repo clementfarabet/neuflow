@@ -675,7 +675,7 @@ static int etherflow_(Api_receive_tensor_lua)(lua_State *L){
   for (xx = 0; xx < length_real; xx++) {
     int16_t fixed_point = (int16_t) (data_byte[(2*xx)+1]<<8) + data_byte[(2*xx)];
 
-    data_real[xx] = fixed_point / neuflow_one_encoding;
+    data_real[xx] = ((real) fixed_point) / neuflow_one_encoding;
   }
 
   // send data ack after tensor
