@@ -402,6 +402,9 @@ int tbsp_send_reset() {
     tbsp_write_type(&send_packet, TBSP_RESET);
     network_send_packet();
 
+    // A delay to give the pico board time to come out of reset.
+    usleep(10000);
+
     // send req packet
     tbsp_write_type(&send_packet, TBSP_REQ);
     network_send_packet();
