@@ -709,16 +709,4 @@ void etherflow_(Api_init)(lua_State *L)
   luaT_registeratname(L, etherflow_(Api__), "etherflow");
 }
 
-/*
-//static const struct luaL_Reg tbsp_protocol[] = {
-  {"open_connection",  l_open_connection},
-  {"close_connection", l_close_connection},
-  {"send_reset",       l_send_reset},
-  {"send_tensor_real", l_send_tensor_real},
-  {"send_tensor_byte", l_send_tensor_byte},
-  {"recv_tensor_real", l_recv_tensor_real},
-  {NULL,               NULL}
-};
-*/
-
 #endif
