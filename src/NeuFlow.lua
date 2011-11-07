@@ -518,10 +518,20 @@ function NeuFlow:execSimulation(args)
 end
 
 ----------------------------------------------------------------------
+-- transmit reset
+--
+function NeuFlow:sendReset()
+   etherflow.sendreset()
+end
+
+
+----------------------------------------------------------------------
 -- transmit bytecode
 --
 function NeuFlow:loadBytecode(bytecode)
    if bytecode then
+      etherflow.sendreset()
+
       -- then transmit bytecode
       print('<neuflow.NeuFlow> transmitting bytecode')
       self.profiler:start('load-bytecode')
