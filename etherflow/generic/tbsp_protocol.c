@@ -380,6 +380,35 @@ int network_open_socket(const char *dev) {
     return -1;
   }
 
+  // Message
+  printf("<etherflow> started on device %s\n", dev);
+
+  // set buffer sizes
+  unsigned int size = sizeof(int);
+  int realbufsize = 0;
+
+  // receive buffer
+  int sockbufsize_rcv = 3*1024*1024;
+  int set_res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (int *)&sockbufsize_rcv, sizeof(int));
+  int get_res = getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
+  if ((set_res < 0)||(get_res < 0)) {
+    perror("set/get sockopt");
+    close(sockfd);
+    exit(1);
+  }
+  printf("<etherflow> set rx buffer size to %dMB\n", realbufsize/(1024*1024));
+
+  // send buffer
+  int sockbufsize_snd = 3*1024*1024;
+  set_res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (int *)&sockbufsize_snd, sizeof(int));
+  get_res = getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
+  if ((set_res < 0)||(get_res < 0)) {
+    perror("set/get sockopt");
+    close(sockfd);
+    exit(1);
+  }
+  printf("<etherflow> set tx buffer size to %dMB\n", realbufsize/(1024*1024));
+
   return 0;
 }
 
