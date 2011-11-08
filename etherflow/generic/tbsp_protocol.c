@@ -68,7 +68,7 @@ static struct sockaddr_ndrv sock_address;
 static uint8_t eth_addr_dest[6] = {0x00,0x80,0x10,0x64,0x00,0x00};
 static uint8_t eth_addr_host[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 static uint8_t eth_type_tbsp[2] = {0x88, 0xb5};
-const int ethertype_length	    = (ETH_HLEN-(2*ETH_ALEN));
+const int ethertype_length      = (ETH_HLEN-(2*ETH_ALEN));
 
 uint8_t send_buffer[ETH_FRAME_LEN];
 const int send_buffer_length = ETH_FRAME_LEN;
@@ -217,28 +217,29 @@ int network_recv_packet() {
     }
 
     // debugging
-//    if (!bad_packet) {
-//      if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
-//        printf("<recv packet ack> dev rx seq_pos %d, 2nd %d:\n", \
-//            tbsp_read_seq_position(&recv_packet), \
-//            tbsp_read_2nd_seq_position(&recv_packet));
-//      }
-//      if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
-//        printf("<recv packet data> seq_pos %d, length %d, total %d, packet num %d\n", \
-//            tbsp_read_seq_position(&recv_packet), \
-//            tbsp_read_data_length(&recv_packet), \
-//            (tbsp_read_seq_position(&recv_packet) + tbsp_read_data_length(&recv_packet)), \
-//            tbsp_read_packet_num(&recv_packet));
-//
-////        int xx;
-////        printf("<recv packet data> : ");
-////        for (xx = 0; xx < tbsp_read_data_length(&recv_packet); xx++) {
-////          printf("%x ", recv_packet.tbsp_data[xx]);
-////        }
-////        printf("\n");
-//      }
-//
-//    }
+/*
+    if (!bad_packet) {
+      if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
+        printf("<recv packet ack> dev rx seq_pos %d, 2nd %d:\n", \
+            tbsp_read_seq_position(&recv_packet), \
+            tbsp_read_2nd_seq_position(&recv_packet));
+      } else if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
+        printf("<recv packet data> seq_pos %d, length %d, total %d\n", \
+            tbsp_read_seq_position(&recv_packet), \
+            tbsp_read_data_length(&recv_packet), \
+            (tbsp_read_seq_position(&recv_packet) + tbsp_read_data_length(&recv_packet)));
+
+//        int xx;
+//        printf("<recv packet data> : ");
+//        for (xx = 0; xx < tbsp_read_data_length(&recv_packet); xx++) {
+//          printf("%x ", recv_packet.tbsp_data[xx]);
+//        }
+//        printf("\n");
+      } else {
+        printf("<recv packet error>\n");
+      }
+    }
+*/
     // end debugging
 
   } while (bad_packet);
@@ -563,21 +564,23 @@ void tbsp_recv_stream(uint8_t *data, int length) {
           data_length   = data_length - carryover_ptr;
 
           // debugging
-//          printf("<recv stream> seq_pos %i, current_recv_seq_pos %i\n", \
-//              seq_pos, \
-//              current_recv_seq_pos);
-//
-//          printf("<recv stream> data_length %i %i, current_ptr %i\n", \
-//              data_length, \
-//              tbsp_read_data_length(&recv_packet), \
-//              current_ptr);
-//
+/*
+          printf("<recv stream> seq_pos %i, current_recv_seq_pos %i\n", \
+              seq_pos, \
+              current_recv_seq_pos);
+
+          printf("<recv stream> data_length %i %i, current_ptr %i\n", \
+              data_length, \
+              tbsp_read_data_length(&recv_packet), \
+              current_ptr);
+
 //          int xx;
 //          printf("<recv stream> packet: ");
 //          for (xx = 0; xx < tbsp_read_data_length(&recv_packet); xx++) {
 //            printf("%x ", recv_packet.tbsp_data[xx]);
 //          }
 //          printf("\n");
+*/
           // end debugging
 
           if (0 <= data_length) {
