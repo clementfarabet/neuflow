@@ -501,6 +501,9 @@ void tbsp_send_stream(uint8_t *data, int length) {
     current_ptr += data_length;
 
     if (current_ptr >= length) {
+      usleep(100); // more likely to get an ack
+      bzero(send_packet.tbsp_type, (tbsp_header_length + tbsp_data_length));
+
       tbsp_write_type(&send_packet, TBSP_REQ);
       network_send_packet();
 
