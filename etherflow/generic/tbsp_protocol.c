@@ -81,8 +81,8 @@ const int tbsp_frame_length     = ETH_DATA_LEN;
 const int tbsp_type_length      = 1;
 const int tbsp_sequence_length  = 4;
 const int tbsp_length_length    = 2;
-const int tbsp_header_length    = 7;
-const int tbsp_data_length      = ETH_DATA_LEN - 1 - 4 - 2;
+const int tbsp_header_length    = 9;
+const int tbsp_data_length      = ETH_DATA_LEN - 9;
 
 enum tbsp_types_t {TBSP_ERROR=0, TBSP_RESET=1, TBSP_DATA=2, TBSP_REQ=3, TBSP_ACK=4};
 
@@ -91,6 +91,7 @@ struct tbsp_packet {
 
   uint8_t *tbsp_type;
   uint8_t *tbsp_sequence;
+  uint8_t *tbsp_2nd_sequence;
   uint8_t *tbsp_length;
   uint8_t *tbsp_data;
 };
@@ -113,10 +114,11 @@ void tbsp_packet_init(struct tbsp_packet *packet, uint8_t *buffer) {
 
   packet->buffer = buffer;
 
-  packet->tbsp_type     = &buffer[0];
-  packet->tbsp_sequence = &buffer[1];
-  packet->tbsp_length   = &buffer[5];
-  packet->tbsp_data     = &buffer[7];
+  packet->tbsp_type         = &buffer[0];
+  packet->tbsp_sequence     = &buffer[1];
+  packet->tbsp_2nd_sequence = &buffer[5];
+  packet->tbsp_length       = &buffer[5];
+  packet->tbsp_data         = &buffer[9];
 
 }
 
@@ -153,6 +155,17 @@ uint32_t tbsp_read_seq_position(struct tbsp_packet *packet) {
                    + (((uint32_t) packet->tbsp_sequence[1]) << 16) \
                    + (((uint32_t) packet->tbsp_sequence[2]) << 8)  \
                    +  ((uint32_t) packet->tbsp_sequence[3]);
+
+  return seq_pos;
+}
+
+
+uint32_t tbsp_read_2nd_seq_position(struct tbsp_packet *packet) {
+
+  uint32_t seq_pos = (((uint32_t) packet->tbsp_2nd_sequence[0]) << 24) \
+                   + (((uint32_t) packet->tbsp_2nd_sequence[1]) << 16) \
+                   + (((uint32_t) packet->tbsp_2nd_sequence[2]) << 8)  \
+                   +  ((uint32_t) packet->tbsp_2nd_sequence[3]);
 
   return seq_pos;
 }
@@ -527,6 +540,8 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 
       // Once stream has started 2 acks in a row means there is no more data
       if (2 == num_acks) { break; }
+
+      if ((tbsp_read_2nd_seq_position(&recv_packet) - current_recv_seq_pos) >= length) { break; }
     }
 
     if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
