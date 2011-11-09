@@ -521,7 +521,9 @@ end
 -- transmit reset
 --
 function NeuFlow:sendReset()
-   etherflow.sendreset()
+   if (-1 == etherflow.sendreset()) then
+      print('<reset> fail')
+   end
 end
 
 
