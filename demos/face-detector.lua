@@ -100,6 +100,7 @@ nf.forward = function(nf,input)
 ----------------------------------------------------------------------
 -- LOAD: load the bytecode on the device, and execute it
 --
+nf:sendReset()
 nf:loadBytecode()
 
 ----------------------------------------------------------------------

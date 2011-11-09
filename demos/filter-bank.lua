@@ -55,6 +55,7 @@ end nf:endLoop('main')
 ----------------------------------------------------------------------
 -- LOAD: load the bytecode on the device, and execute it
 --
+nf:sendReset()
 nf:loadBytecode()
 
 ----------------------------------------------------------------------

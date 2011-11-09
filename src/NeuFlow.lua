@@ -530,8 +530,6 @@ end
 --
 function NeuFlow:loadBytecode(bytecode)
    if bytecode then
-      etherflow.sendreset()
-
       -- then transmit bytecode
       print('<neuflow.NeuFlow> transmitting bytecode')
       self.profiler:start('load-bytecode')
