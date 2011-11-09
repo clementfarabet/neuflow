@@ -725,14 +725,14 @@ static int etherflow_(Api_receive_tensor_lua)(lua_State *L){
   }
 
   // send data ack after tensor
-  tbsp_write_type(&send_packet, TBSP_DATA);
-  tbsp_write_seq_position(&send_packet, current_send_seq_pos);
-  tbsp_write_data_length(&send_packet, 64);
-  bzero(send_packet.tbsp_data, 64);
-  current_send_seq_pos += 64;
-
-  // send data packet
-  network_send_packet();
+//  tbsp_write_type(&send_packet, TBSP_DATA);
+//  tbsp_write_seq_position(&send_packet, current_send_seq_pos);
+//  tbsp_write_data_length(&send_packet, 64);
+//  bzero(send_packet.tbsp_data, 64);
+//  current_send_seq_pos += 64;
+//
+//  // send data ack packet
+//  network_send_packet();
 
   return 0;
 }
