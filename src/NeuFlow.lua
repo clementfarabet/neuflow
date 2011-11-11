@@ -76,6 +76,10 @@ function NeuFlow:__init(args)
    -- stupid hack
    self.first_time = true
 
+   -- data ack
+   self.ack_tensor = torch.Tensor(1,1,32)
+   self.ack_stream = self:allocHeap(self.ack_tensor)
+
    -- and finally initialize hardware
    self:initialize()
 end
@@ -353,11 +357,19 @@ function NeuFlow:copyToHost(source, dest)
    local orig_w = lsource[1].orig_w
    -- process list of streams
    print('<neuflow.NeuFlow> copy dev->host: ' .. #lsource .. 'x' .. lsource[1].orig_h .. 'x' .. lsource[1].orig_w)
-   for i = 1,#lsource do
+
+   for i = 1, (#lsource-1) do
       self.core:startProcess()
-      self.ethernet:streamToHost(lsource[i], 'default', ack)
+      self.ethernet:streamToHost(lsource[i], 'default')
+
+      self.ethernet:streamFromHost(self.ack_stream[1], 'ack_stream')
       self.core:endProcess()
    end
+
+   self.core:startProcess()
+   self.ethernet:streamToHost(lsource[#lsource], 'default')
+   self.core:endProcess()
+
    -- create/resize dest
    if not dest then
       dest = torch.Tensor()
@@ -591,14 +603,15 @@ function NeuFlow:copyFromDev(tensor)
    self.profiler:setColor('on-board-processing', 'blue')
    self.profiler:lap('on-board-processing')
    self.profiler:start('copy-from-dev')
+
    local dims = tensor:nDimension()
-   if dims == 3 then
-      for i = 1,tensor:size(1) do
-         etherflow.receivetensor(tensor[i])
-      end
-   else
-      etherflow.receivetensor(tensor)
+
+   etherflow.receivetensor(tensor[1])
+   for i = 2,tensor:size(1) do
+      etherflow.sendtensor(self.ack_tensor)
+      etherflow.receivetensor(tensor[i])
    end
+
    self.profiler:lap('copy-from-dev')
 end
 
