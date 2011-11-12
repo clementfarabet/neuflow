@@ -447,6 +447,7 @@ int tbsp_send_reset() {
 
   for (xx = 0; xx < 10; xx++) {
     // send reset packet
+    bzero(send_packet.tbsp_type, tbsp_header_length);
     tbsp_write_type(&send_packet, TBSP_RESET);
     network_send_packet();
 
@@ -454,6 +455,7 @@ int tbsp_send_reset() {
     usleep(10000);
 
     // send req packet
+    bzero(send_packet.tbsp_type, tbsp_header_length);
     tbsp_write_type(&send_packet, TBSP_REQ);
     network_send_packet();
 
@@ -484,14 +486,17 @@ void tbsp_send_stream(uint8_t *data, int length) {
 
   // optimistic sending
   while (current_ptr < length) {
+    bzero(send_packet.tbsp_type, tbsp_header_length);
 
-    if ((length - current_ptr) >= tbsp_data_length) {
+    if ((length - current_ptr) > tbsp_data_length) {
       data_length = tbsp_data_length;
+      tbsp_write_type(&send_packet, TBSP_DATA);
     } else {
+      // last packet of stream
       data_length = (length - current_ptr);
+      tbsp_write_type(&send_packet, TBSP_REQ);
     }
 
-    tbsp_write_type(&send_packet, TBSP_DATA);
     tbsp_write_seq_position(&send_packet, current_send_seq_pos);
     tbsp_write_data_length(&send_packet, data_length);
     memcpy(send_packet.tbsp_data, &data[current_ptr], data_length);
@@ -502,12 +507,6 @@ void tbsp_send_stream(uint8_t *data, int length) {
     current_ptr += data_length;
 
     if (current_ptr >= length) {
-      usleep(100); // more likely to get an ack
-      bzero(send_packet.tbsp_type, (tbsp_header_length + tbsp_data_length));
-
-      tbsp_write_type(&send_packet, TBSP_REQ);
-      network_send_packet();
-
       do {
         network_recv_packet();
       } while (TBSP_ACK != tbsp_read_type(&recv_packet));
