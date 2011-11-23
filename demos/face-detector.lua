@@ -43,8 +43,7 @@ nf = neuflow.init()
 --
 
 -- load pre-trained network from disk
-network = nn.Sequential()
-network:read(torch.DiskFile(opt.network))
+network = torch.load(opt.network)
 network_fov = 32
 network_sub = 4
 softnorm = network.modules[1]
