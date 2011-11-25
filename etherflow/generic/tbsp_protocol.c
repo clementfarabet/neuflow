@@ -81,8 +81,8 @@ const int tbsp_frame_length     = ETH_DATA_LEN;
 const int tbsp_type_length      = 1;
 const int tbsp_sequence_length  = 4;
 const int tbsp_length_length    = 2;
-const int tbsp_header_length    = 9;
-const int tbsp_data_length      = ETH_DATA_LEN - 9;
+const int tbsp_header_length    = 11;
+const int tbsp_data_length      = ETH_DATA_LEN - 11;
 
 enum tbsp_types_t {TBSP_ERROR=0, TBSP_RESET=1, TBSP_DATA=2, TBSP_REQ=3, TBSP_ACK=4};
 
@@ -90,7 +90,7 @@ struct tbsp_packet {
   uint8_t *buffer;
 
   uint8_t *tbsp_type;
-  uint8_t *tbsp_sequence;
+  uint8_t *tbsp_1st_sequence;
   uint8_t *tbsp_2nd_sequence;
   uint8_t *tbsp_length;
   uint8_t *tbsp_data;
@@ -115,11 +115,10 @@ void tbsp_packet_init(struct tbsp_packet *packet, uint8_t *buffer) {
   packet->buffer = buffer;
 
   packet->tbsp_type         = &buffer[0];
-  packet->tbsp_sequence     = &buffer[1];
+  packet->tbsp_1st_sequence = &buffer[1];
   packet->tbsp_2nd_sequence = &buffer[5];
-  packet->tbsp_length       = &buffer[5];
-  packet->tbsp_data         = &buffer[9];
-
+  packet->tbsp_length       = &buffer[9];
+  packet->tbsp_data         = &buffer[11];
 }
 
 
@@ -140,23 +139,32 @@ enum tbsp_types_t tbsp_read_type (struct tbsp_packet *packet) {
 }
 
 
-void tbsp_write_seq_position(struct tbsp_packet *packet, uint32_t seq_pos) {
+void tbsp_write_1st_seq_position(struct tbsp_packet *packet, uint32_t seq_pos) {
 
-  packet->tbsp_sequence[0] = (uint8_t) (seq_pos >> 24);
-  packet->tbsp_sequence[1] = (uint8_t) (seq_pos >> 16);
-  packet->tbsp_sequence[2] = (uint8_t) (seq_pos >> 8);
-  packet->tbsp_sequence[3] = (uint8_t) (seq_pos);
+  packet->tbsp_1st_sequence[0] = (uint8_t) (seq_pos >> 24);
+  packet->tbsp_1st_sequence[1] = (uint8_t) (seq_pos >> 16);
+  packet->tbsp_1st_sequence[2] = (uint8_t) (seq_pos >> 8);
+  packet->tbsp_1st_sequence[3] = (uint8_t) (seq_pos);
 }
 
 
-uint32_t tbsp_read_seq_position(struct tbsp_packet *packet) {
+uint32_t tbsp_read_1st_seq_position(struct tbsp_packet *packet) {
 
-  uint32_t seq_pos = (((uint32_t) packet->tbsp_sequence[0]) << 24) \
-                   + (((uint32_t) packet->tbsp_sequence[1]) << 16) \
-                   + (((uint32_t) packet->tbsp_sequence[2]) << 8)  \
-                   +  ((uint32_t) packet->tbsp_sequence[3]);
+  uint32_t seq_pos = (((uint32_t) packet->tbsp_1st_sequence[0]) << 24) \
+                   + (((uint32_t) packet->tbsp_1st_sequence[1]) << 16) \
+                   + (((uint32_t) packet->tbsp_1st_sequence[2]) << 8)  \
+                   +  ((uint32_t) packet->tbsp_1st_sequence[3]);
 
   return seq_pos;
+}
+
+
+void tbsp_write_2nd_seq_position(struct tbsp_packet *packet, uint32_t seq_pos) {
+
+  packet->tbsp_2nd_sequence[0] = (uint8_t) (seq_pos >> 24);
+  packet->tbsp_2nd_sequence[1] = (uint8_t) (seq_pos >> 16);
+  packet->tbsp_2nd_sequence[2] = (uint8_t) (seq_pos >> 8);
+  packet->tbsp_2nd_sequence[3] = (uint8_t) (seq_pos);
 }
 
 
@@ -221,13 +229,14 @@ int network_recv_packet() {
     if (!bad_packet) {
       if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
         printf("<recv packet ack> dev rx seq_pos %d, 2nd %d:\n", \
-            tbsp_read_seq_position(&recv_packet), \
+            tbsp_read_1st_seq_position(&recv_packet), \
             tbsp_read_2nd_seq_position(&recv_packet));
       } else if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
-        printf("<recv packet data> seq_pos %d, length %d, total %d\n", \
-            tbsp_read_seq_position(&recv_packet), \
+        printf("<recv packet data> 1st seq_pos %d,  2nd seq_pos %d, length %d, total %d\n", \
+            tbsp_read_1st_seq_position(&recv_packet), \
+            tbsp_read_2nd_seq_position(&recv_packet), \
             tbsp_read_data_length(&recv_packet), \
-            (tbsp_read_seq_position(&recv_packet) + tbsp_read_data_length(&recv_packet)));
+            (tbsp_read_1st_seq_position(&recv_packet) + tbsp_read_data_length(&recv_packet)));
 
 //        int xx;
 //        printf("<recv packet data> : ");
@@ -442,7 +451,7 @@ int tbsp_send_reset() {
   int xx;
 
   // debugging
-//  printf("<send reset>\n");
+  printf("<send reset>\n");
   // end debugging
 
   for (xx = 0; xx < 10; xx++) {
@@ -463,7 +472,9 @@ int tbsp_send_reset() {
     network_recv_packet();
 
     if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
-      if (0 == tbsp_read_seq_position(&recv_packet)) {
+      if ((0 == tbsp_read_1st_seq_position(&recv_packet))
+        & (0 == tbsp_read_2nd_seq_position(&recv_packet))) {
+
         current_send_seq_pos = 0;
         current_recv_seq_pos = 0;
         return 0;
@@ -497,7 +508,8 @@ void tbsp_send_stream(uint8_t *data, int length) {
       tbsp_write_type(&send_packet, TBSP_REQ);
     }
 
-    tbsp_write_seq_position(&send_packet, current_send_seq_pos);
+    tbsp_write_1st_seq_position(&send_packet, current_send_seq_pos);
+    tbsp_write_2nd_seq_position(&send_packet, current_recv_seq_pos);
     tbsp_write_data_length(&send_packet, data_length);
     memcpy(send_packet.tbsp_data, &data[current_ptr], data_length);
     // send data packet
@@ -507,11 +519,12 @@ void tbsp_send_stream(uint8_t *data, int length) {
     current_ptr += data_length;
 
     if (current_ptr >= length) {
-      do {
+      //do {
         network_recv_packet();
-      } while (TBSP_ACK != tbsp_read_type(&recv_packet));
+      //} while (TBSP_ACK != tbsp_read_type(&recv_packet));
 
-      current_send_seq_pos = tbsp_read_seq_position(&recv_packet);
+      //current_send_seq_pos = tbsp_read_1st_seq_position(&recv_packet);
+      current_send_seq_pos = tbsp_read_2nd_seq_position(&recv_packet);
       current_ptr = (current_send_seq_pos - start_pos);
     }
   }
@@ -539,7 +552,8 @@ void tbsp_recv_stream(uint8_t *data, int length) {
     if (TBSP_ACK == tbsp_read_type(&recv_packet)) {
       if (1 == start_stream) { num_acks++; }
 
-      current_send_seq_pos = tbsp_read_seq_position(&recv_packet);
+      //current_send_seq_pos = tbsp_read_1st_seq_position(&recv_packet);
+      current_send_seq_pos = tbsp_read_2nd_seq_position(&recv_packet);
 
       // Once stream has started 2 acks in a row means there is no more data
       if (2 == num_acks) { break; }
@@ -550,7 +564,7 @@ void tbsp_recv_stream(uint8_t *data, int length) {
     if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
       start_stream    = 1;
       num_acks        = 0;
-      int seq_pos     = tbsp_read_seq_position(&recv_packet);
+      int seq_pos     = tbsp_read_1st_seq_position(&recv_packet);
       int data_length = tbsp_read_data_length(&recv_packet);
       int current_ptr = (seq_pos - current_recv_seq_pos);
 
@@ -725,7 +739,8 @@ static int etherflow_(Api_receive_tensor_lua)(lua_State *L){
 
   // send data ack after tensor
 //  tbsp_write_type(&send_packet, TBSP_DATA);
-//  tbsp_write_seq_position(&send_packet, current_send_seq_pos);
+//  tbsp_write_1st_seq_position(&send_packet, current_send_seq_pos);
+//  tbsp_write_2nd_seq_position(&send_packet, current_recv_seq_pos);
 //  tbsp_write_data_length(&send_packet, 64);
 //  bzero(send_packet.tbsp_data, 64);
 //  current_send_seq_pos += 64;
