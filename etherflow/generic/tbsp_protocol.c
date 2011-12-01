@@ -558,7 +558,7 @@ void tbsp_recv_stream(uint8_t *data, int length) {
       // Once stream has started 2 acks in a row means there is no more data
       if (2 == num_acks) { break; }
 
-      if ((tbsp_read_2nd_seq_position(&recv_packet) - current_recv_seq_pos) >= length) { break; }
+      if ((tbsp_read_1st_seq_position(&recv_packet) - current_recv_seq_pos) >= length) { break; }
     }
 
     if (TBSP_DATA == tbsp_read_type(&recv_packet)) {
