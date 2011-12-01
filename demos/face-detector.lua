@@ -44,8 +44,7 @@ nf = neuflow.init{platform='pico_m503'}
 --
 
 -- load pre-trained network from disk
-network = nn.Sequential()
-network:read(torch.DiskFile(opt.network))
+network = torch.load(opt.network)
 network_fov = 32
 network_sub = 4
 softnorm = network.modules[1]
@@ -123,6 +122,7 @@ function process()
    -- (1) grab frame
    p:start('get-camera-frame')
    frameRGB = camera:forward()
+   frameRGB = image.scale(frameRGB, 640, 480)
    p:lap('get-camera-frame')
 
    -- (2) transform it into Y space
