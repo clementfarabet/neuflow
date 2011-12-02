@@ -41,6 +41,10 @@ function etherflow.close(dev)
    etherflow.double.close_socket()
 end
 
+function etherflow.handshake(bool)
+--   etherflow.double.handshake(bool)
+end
+
 --function etherflow.sendstring(str)
 --   etherflow.double.send_frame(str)
 --end

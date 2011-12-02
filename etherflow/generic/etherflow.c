@@ -33,8 +33,7 @@
 #define ETH_ALEN        6        /* Octets in one ethernet addr     */
 #define ETH_HLEN        14       /* Total octets in header.         */
 #define ETH_ZLEN        60       /* Min. octets in frame sans FCS   */
-//#define ETH_DATA_LEN    1500     /* Max. octets in payload          */
-#define ETH_DATA_LEN    1400     /* Max. octets in payload          */
+#define ETH_DATA_LEN    1500     /* Max. octets in payload          */
 #define ETH_FRAME_LEN   1514     /* Max. octets in frame sans FCS   */
 #define ETH_FCS_LEN     4        /* Octets in the FCS               */
 #endif
@@ -42,13 +41,9 @@
 /***********************************************************
  * Global Parameters
  **********************************************************/
-static unsigned int carryover_ptr = 0;
-static real carryover[ETH_FRAME_LEN];
 static unsigned char dest_mac[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
 static unsigned char host_mac[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 static unsigned char eth_type[2] = {0x10, 0x00};
-static unsigned char eth_type_dma[2] = {0x88, 0xb5};
-static unsigned char eth_type_rst[2] = {0x88, 0xb6};
 static const int neuflow_one_encoding = 1<<8;
 static int neuflow_first_call = 1;
 
@@ -72,7 +67,7 @@ static struct sockaddr_ndrv sock_address;
  * returns:
  *    socket - a socket descriptor
  **********************************************************/
-int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac) {
+int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac) {
 
   // dest mac ?
   if (destmac != NULL) {
@@ -148,28 +143,21 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
   // size of socket address
   socklen = sizeof(sock_address);
 
-  // authorize receiving raw ethernet frames by type
-  const u_short ETHER_TYPES[] = {((eth_type[0]<<8)+eth_type[1]),
-                                 ((eth_type_dma[0]<<8)+eth_type_dma[1])};
+  // authorize receiving raw ethernet frames, with ETHTYPE == 0x1000
+  struct ndrv_demux_desc demux_desc[1];
+  bzero(demux_desc, sizeof(demux_desc)*1);
+  demux_desc[0].type = NDRV_DEMUXTYPE_ETHERTYPE;
+  demux_desc[0].length = 2;
+  demux_desc[0].data.ether_type = htons(0x1000);
 
-  const int ETHER_TYPES_COUNT = sizeof(ETHER_TYPES)/sizeof(ETHER_TYPES[0]);
-  struct ndrv_demux_desc demux[ETHER_TYPES_COUNT];
+  struct ndrv_protocol_desc desc;
+  bzero(&desc, sizeof(desc));
+  desc.version = NDRV_PROTOCOL_DESC_VERS;
+  desc.protocol_family = 1;
+  desc.demux_count = 1;
+  desc.demux_list = demux_desc;
 
-  int aa;
-  for (aa = 0; aa < ETHER_TYPES_COUNT; aa++) {
-    demux[aa].type            = NDRV_DEMUXTYPE_ETHERTYPE;
-    demux[aa].length          = sizeof(demux[aa].data.ether_type);
-    demux[aa].data.ether_type = htons(ETHER_TYPES[aa]);
-  }
-
-  struct ndrv_protocol_desc proto;
-  bzero(&proto, sizeof(proto));
-  proto.version         = NDRV_PROTOCOL_DESC_VERS;
-  proto.protocol_family = NDRV_DEMUXTYPE_ETHERTYPE;
-  proto.demux_count     = ETHER_TYPES_COUNT;
-  proto.demux_list      = demux;
-
-  int result = setsockopt(sock, SOL_NDRVPROTO, NDRV_SETDMXSPEC, (caddr_t)&proto, sizeof(proto));
+  int result = setsockopt(sock, SOL_NDRVPROTO, NDRV_SETDMXSPEC, (caddr_t)&desc, sizeof(desc));
   if (result != 0) {
     fprintf(stderr, "error on setsockopt %d\n", result);
     exit(1);
@@ -188,7 +176,7 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
   int sockbufsize_rcv = 64*1024*1024;
   int set_res = setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE, (int *)&sockbufsize_rcv, sizeof(int));
 #else // _APPLE_
-  int sockbufsize_rcv = 3*1024*1024;
+  int sockbufsize_rcv = 4*1024*1024;
   int set_res = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (int *)&sockbufsize_rcv, sizeof(int));
 #endif
   int get_res = getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
@@ -204,7 +192,7 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
   int sockbufsize_snd = 64*1024*1024;
   set_res = setsockopt(sock, SOL_SOCKET, SO_SNDBUFFORCE, (int *)&sockbufsize_snd, sizeof(int));
 #else // _APPLE_
-  int sockbufsize_snd = 3*1024*1024;
+  int sockbufsize_snd = 4*1024*1024;
   set_res = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (int *)&sockbufsize_snd, sizeof(int));
 #endif
   get_res = getsockopt(sock, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
@@ -226,7 +214,7 @@ int open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac
  * returns:
  *    none
  **********************************************************/
-int close_socket_C() {
+int etherflow_close_socket_C() {
   close(sock);
   return 0;
 }
@@ -240,8 +228,8 @@ int close_socket_C() {
  * returns:
  *    length - nb of bytes read/received
  **********************************************************/
-unsigned char recbuffer[ETH_FRAME_LEN+1];
-unsigned char * receive_frame_C(int *lengthp) {
+unsigned char recbuffer[ETH_FRAME_LEN];
+unsigned char * etherflow_receive_frame_C(int *lengthp) {
   int len;
   while (1) {
     // receive a frame
@@ -261,26 +249,8 @@ unsigned char * receive_frame_C(int *lengthp) {
     /* } */
     if (accept) break;
   }
-
-  int payload_start = ETH_HLEN;
-
-  if (lengthp != NULL) {
-    (*lengthp) = len-ETH_HLEN;
-
-    // If Ethernet packet from DMA port
-    if (eth_type_dma[0] == recbuffer[2*ETH_ALEN] && eth_type_dma[1] == recbuffer[2*ETH_ALEN+1]) {
-
-      payload_start = ETH_HLEN+2;
-      (*lengthp)    = (recbuffer[ETH_HLEN] << 8) + recbuffer[ETH_HLEN+1];
-
-      if (0 == *lengthp) {
-        payload_start = ETH_HLEN;
-        (*lengthp)    = len-ETH_HLEN;
-      }
-    }
-  }
-
-  return &recbuffer[payload_start];
+  if (lengthp != NULL) (*lengthp) = len;
+  return recbuffer;
 }
 
 /***********************************************************
@@ -293,69 +263,28 @@ unsigned char * receive_frame_C(int *lengthp) {
  * returns:
  *    error code
  **********************************************************/
-int send_type_frame_C(short int length, const unsigned char *data_p, int ethertype) {
-
-  int pos_payload_length;
-  int pos_payload_data;
-  int frame_length;
+int etherflow_send_frame_C(short int length, const unsigned char * data_p) {
 
   // buffer to send:
   unsigned char send_buffer[ETH_FRAME_LEN];
-  bzero(&send_buffer, ETH_FRAME_LEN);
 
   // prepare send_buffer with DEST and SRC addresses
   memcpy((void*)send_buffer, (void*)dest_mac, ETH_ALEN);
   memcpy((void*)(send_buffer+ETH_ALEN), (void*)host_mac, ETH_ALEN);
 
-  if (1 == ethertype) {
-
-    // copy ethertype to send_buffer
-    send_buffer[ETH_ALEN*2+0] = eth_type_dma[0];
-    send_buffer[ETH_ALEN*2+1] = eth_type_dma[1];
-
-    pos_payload_length = ETH_ALEN*2+2;
-    pos_payload_data   = ETH_HLEN+2;
-    frame_length       = length+ETH_HLEN+2;
-  } else if (2 == ethertype) {
-
-    // copy ethertype to send_buffer
-    send_buffer[ETH_ALEN*2+0] = eth_type_rst[0];
-    send_buffer[ETH_ALEN*2+1] = eth_type_rst[1];
-
-    pos_payload_length = ETH_ALEN*2+2;
-    pos_payload_data   = ETH_HLEN+2;
-    frame_length       = length+ETH_HLEN+2;
-  } else {
-
-    pos_payload_length = ETH_ALEN*2;
-    pos_payload_data   = ETH_HLEN;
-    frame_length       = length+ETH_HLEN;
-  }
-
-  // if smaller than min packet size - pad
-  if (ETH_ZLEN > frame_length) {
-    frame_length = ETH_ZLEN;
-  }
-
   // copy length to send_buffer
   unsigned char* length_str_reversed = (unsigned char*)&length;
-  send_buffer[pos_payload_length+0] = length_str_reversed[1];
-  send_buffer[pos_payload_length+1] = length_str_reversed[0];
+  send_buffer[ETH_ALEN*2] = length_str_reversed[1];
+  send_buffer[ETH_ALEN*2+1] = length_str_reversed[0];
 
   // copy user data to send_buffer
-  memcpy((void*)(send_buffer+pos_payload_data), (void*)data_p, length);
+  memcpy((void*)(send_buffer+ETH_HLEN), (void*)data_p, length);
 
   // send packet
-  sendto(sock, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
+  sendto(sock, send_buffer, length+ETH_HLEN, 0, (struct sockaddr*)&sock_address, socklen);
 
   return 0;
 }
-
-int send_frame_C(short int length, const unsigned char *data_p) {
-  return send_type_frame_C(length, data_p, 1); // Use Ethertype
-  //return send_type_frame_C(length, data_p, 0); // Don't use Ethertype
-}
-
 
 /***********************************************************
  * send_tensor_byte()
@@ -367,11 +296,15 @@ int send_frame_C(short int length, const unsigned char *data_p) {
  * returns:
  *    void
  **********************************************************/
-int send_tensor_byte_C(unsigned char * data, int size) {
+int etherflow_send_ByteTensor_C(unsigned char * data, int size) {
   short int packet_size;
   unsigned char packet[ETH_FRAME_LEN];
   int elements_pointer = 0;
   int i;
+
+  // this is the tensor descriptor header
+  if (!neuflow_first_call) etherflow_receive_frame_C(NULL);
+  neuflow_first_call = 0;
 
   // sending data
   while(elements_pointer != size) {
@@ -387,16 +320,45 @@ int send_tensor_byte_C(unsigned char * data, int size) {
       else break;
     }
 
-    // send
-    send_frame_C(packet_size, packet);
-  }
+    // only the last packet could be not dividable by 4
+    while(packet_size%4 != 0){
+      packet[packet_size] = 0;
+      packet_size++;
+    }
 
-  // A delay to give the data time to clear the transfer and for the streamer port to close before
-  // the next transfer.
-  usleep(100);
+    // smaller than min packet size - pad
+    if (packet_size < ETH_ZLEN+4){ // smaller than min packet size - pad
+      for(i = packet_size; i < ETH_ZLEN+4; i++){packet[i] = 0;}
+      packet_size = ETH_ZLEN+4;
+    }
+
+    // send
+    etherflow_send_frame_C(packet_size, packet);
+
+    // why do we have to do that? buffer size?
+    usleep(100);
+  }
 
   // return the number of results
   return 0;
+}
+
+/***********************************************************
+ * enable_handshake()
+ * disable_handshake()
+ * what: enables, or disables handshake
+ *       for neuflow->PC transfers
+ * params:
+ *    void
+ * returns:
+ *    void
+ **********************************************************/
+static int receive_ack = 1;
+void etherflow_enable_handshake(void) {
+  receive_ack = 1;
+}
+void etherflow_disable_handshake(void) {
+  receive_ack = 0;
 }
 
 #endif // _ETHERFLOW_COMMON_
@@ -412,12 +374,16 @@ int send_tensor_byte_C(unsigned char * data, int size) {
  * returns:
  *    void
  **********************************************************/
-int etherflow_(send_tensor_C)(real * data, int size) {
+int etherflow_send_(Tensor_C)(real * data, int size) {
   // get the arguments
   short int packet_size;
   int elements_pointer = 0;
   unsigned char packet[ETH_FRAME_LEN];
   int i;
+
+  // this is the tensor descriptor header
+  if (!neuflow_first_call) etherflow_receive_frame_C(NULL);
+  neuflow_first_call = 0;
 
   // send
   while(elements_pointer != size){
@@ -437,13 +403,21 @@ int etherflow_(send_tensor_C)(real * data, int size) {
       else break;
     }
 
-    // send
-    send_frame_C(packet_size, packet);
-  }
+    // only the last packet could be not dividable by 4
+    while(packet_size%4 != 0){
+      packet[packet_size] = 0;
+      packet_size++;
+    }
 
-  // A delay to give the data time to clear the transfer and for the streamer port to close before
-  // the next transfer.
-  usleep(100);
+    // smaller than min packet size - pad
+    if (packet_size < ETH_ZLEN+4) {
+      for(i = packet_size; i < ETH_ZLEN+4; i++) {packet[i] = 0;}
+      packet_size = ETH_ZLEN+4;
+    }
+
+    // send
+    etherflow_send_frame_C(packet_size, packet);
+  }
 
   return 0;
 }
@@ -458,32 +432,36 @@ int etherflow_(send_tensor_C)(real * data, int size) {
  * returns:
  *    void
  **********************************************************/
-int etherflow_(receive_tensor_C)(real *data, int size, int height) {
+int etherflow_receive_(Tensor_C)(real *data, int size, int height) {
   int length = 0;
   int currentlength = 0;
   unsigned char *buffer;
   int num_of_bytes = size*2; // each value is 2 bytes
   int tensor_pointer = 0;
-  int ii = 0;
+  int i;
+  int num_of_frames = 0;
 
-  // if carryover pointer != 0 it means that there is left over (carryover)
-  // data from the last call, add this carryover data to "data"
-//  if (0 < carryover_ptr) {
-//    memcpy((void*) data, (void*) carryover, carryover_ptr);
-//    length         = 2*carryover_ptr;
-//    tensor_pointer = carryover_ptr;
-//    carryover_ptr  = 0;
-//  }
+  // this is the tensor descriptor header
+  if (!neuflow_first_call) etherflow_receive_frame_C(NULL);
+  neuflow_first_call = 0;
+
+  // if not a multiple of 4 the streamToHost function
+  // will add an extra line to the stream
+  // we want to make sure to receive it here
+  if(num_of_bytes%4 != 0){
+    num_of_bytes += (size/height)*2;
+  }
 
   // receive tensor
   while (length < num_of_bytes){
-    // grab packet
-    buffer = receive_frame_C(&currentlength);
-    length += currentlength;
+    // Grab a packet
+    buffer = etherflow_receive_frame_C(&currentlength);
+    length += currentlength-ETH_HLEN;
+    num_of_frames++;
 
-    // unpack Ethernet payload to tensor data array
-    for (ii = 0; tensor_pointer < size && ii < currentlength; ii+=2){
-      short* val_short = (short*)&buffer[ii];
+    // Save data to tensor
+    for (i = ETH_HLEN; tensor_pointer < size && i < currentlength; i+=2){
+      short* val_short = (short*)&buffer[i];
       real val = (real)*val_short;
       val /= neuflow_one_encoding;
       data[tensor_pointer] = val;
@@ -491,33 +469,31 @@ int etherflow_(receive_tensor_C)(real *data, int size, int height) {
     }
   }
 
-  // if not all data from the Ethernet packet has been read out, carry it over
-  // to the next tensor
-//  while (ii < currentlength) {
-//    short* val_short = (short*)&buffer[ii];
-//    real val = (real)*val_short;
-//    val /= neuflow_one_encoding;
-//    carryover[carryover_ptr] = val;
-//    carryover_ptr++;
-//    ii+=2;
-//  }
-
   // send ack after each tensor
-  send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
-  usleep(100);
+  if (receive_ack)
+    etherflow_send_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678");
 
   return 0;
 }
 
+#ifndef _NO_LUA_
 /***********************************************************
  * Lua wrappers
  **********************************************************/
+static int etherflow_(Api_handshake_lua)(lua_State *L){
+  int handshake = lua_toboolean(L, 1);
+  if (handshake)
+    etherflow_enable_handshake();
+  else
+    etherflow_disable_handshake();
+}
+
 static int etherflow_(Api_receive_tensor_lua)(lua_State *L){
   /* get the arguments */
   THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
   real *data = THTensor_(data)(tensor);
   int size = THTensor_(nElement)(tensor);
-  etherflow_(receive_tensor_C)(data, size, tensor->size[0]);
+  etherflow_receive_(Tensor_C)(data, size, tensor->size[0]);
   return 0;
 }
 
@@ -526,15 +502,7 @@ static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
   THTensor *tensor = luaT_toudata(L, 1, torch_(Tensor_id));
   int size = THTensor_(nElement)(tensor);
   real *data = THTensor_(data)(tensor);
-  etherflow_(send_tensor_C)(data, size);
-  return 0;
-}
-
-static int etherflow_(Api_send_reset_lua)(lua_State *L) {
-  // resest packet
-  printf("<ethernet> send reset\n");
-  send_type_frame_C(64, (unsigned char *)"1234567812345678123456781234567812345678123456781234567812345678", 2);
-  usleep(1000000); // wait 1 sec for dev to come out of reset
+  etherflow_send_(Tensor_C)(data, size);
   return 0;
 }
 
@@ -543,7 +511,7 @@ static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
   THByteTensor *tensor = luaT_toudata(L, 1, luaT_checktypename2id(L, "torch.ByteTensor"));
   int size = THByteTensor_nElement(tensor);
   unsigned char *data = THByteTensor_data(tensor);
-  send_tensor_byte_C(data, size);
+  etherflow_send_ByteTensor_C(data, size);
   return 0;
 }
 
@@ -581,12 +549,12 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
   }
 
   // open socket
-  open_socket_C(dev, destmac, srcmac);
+  etherflow_open_socket_C(dev, destmac, srcmac);
   return 0;
 }
 
 static int etherflow_(Api_close_socket_lua)(lua_State *L) {
-  close_socket_C();
+  etherflow_close_socket_C();
   return 0;
 }
 
@@ -594,34 +562,32 @@ static int etherflow_(Api_send_frame_lua)(lua_State *L) {
   /* get the arguments */
   const char * data_p = lua_tostring(L, 1);
   int length = strlen(data_p);
-  return send_frame_C(length, (unsigned char *)data_p);
+  return etherflow_send_frame_C(length, (unsigned char *)data_p);
 }
 
 static int etherflow_(Api_receive_string_lua)(lua_State *L) {
   // receive frame
   int length;
-  unsigned char *buffer = receive_frame_C(&length);
+  unsigned char *buffer = etherflow_receive_frame_C(&length);
 
-  // Protection: Checks if null-terminated and if not, inserts a null
-  if ('\0' != buffer[length-1]) {
-    buffer[length] = '\0';
-  }
+  // Protection: insert a 0 in case
+  buffer[length] = 0;
 
   // Push string
-  lua_pushstring(L, (char *)(buffer));
+  lua_pushstring(L, (char *)(buffer+ETH_HLEN));
   return 1;
 }
 
 static int etherflow_(Api_receive_frame_lua)(lua_State *L) {
   /* get the arguments */
   int length;
-  unsigned char *buffer = receive_frame_C(&length);
+  unsigned char *buffer = etherflow_receive_frame_C(&length);
 
-  lua_pushnumber(L, length);
+  lua_pushnumber(L, length-ETH_HLEN);
   lua_newtable(L);
 
   int i;
-  for(i=0; i<length; i++){
+  for(i=ETH_HLEN; i<length; i++){
     lua_pushnumber(L, i);
     lua_pushnumber(L, buffer[i]);
     lua_settable(L, -3);
@@ -641,12 +607,12 @@ static int etherflow_(Api_set_first_call)(lua_State *L) {
  **********************************************************/
 static const struct luaL_Reg etherflow_(Api__) [] = {
   {"open_socket", etherflow_(Api_open_socket_lua)},
+  {"handshake", etherflow_(Api_handshake_lua)},
   {"receive_frame", etherflow_(Api_receive_frame_lua)},
   {"receive_string", etherflow_(Api_receive_string_lua)},
   {"send_frame", etherflow_(Api_send_frame_lua)},
   {"send_tensor", etherflow_(Api_send_tensor_lua)},
   {"send_bytetensor", etherflow_(Api_send_tensor_byte_lua)},
-  {"send_reset", etherflow_(Api_send_reset_lua)},
   {"receive_tensor", etherflow_(Api_receive_tensor_lua)},
   {"close_socket", etherflow_(Api_close_socket_lua)},
   {"set_first_call", etherflow_(Api_set_first_call)},
@@ -659,4 +625,5 @@ void etherflow_(Api_init)(lua_State *L)
   luaT_registeratname(L, etherflow_(Api__), "etherflow");
 }
 
+#endif
 #endif

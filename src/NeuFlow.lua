@@ -55,6 +55,7 @@ function NeuFlow:__init(args)
    self.profiler = neuflow.Profiler()
 
    -- ethernet socket (auto found for now)
+   self.handshake = false
    if self.use_ethernet then
       print '<neuflow.NeuFlow> loading ethernet driver'
       local l = xrequire 'etherflow'
@@ -72,9 +73,6 @@ function NeuFlow:__init(args)
 
    -- bytecode has a constant size (oFlower bios)
    self.bytecodesize = bootloader.load_size
-
-   -- stupid hack
-   self.first_time = true
 
    -- data ack
    self.ack_tensor = torch.Tensor(1,1,32)
@@ -264,47 +262,6 @@ function NeuFlow:copy(source, dest)
    return dest
 end
 
-
-function NeuFlow:copyFromHost_ack(source, dest)
-   print("DEPRECATED")
-
-   -- if no dest, create it
-   if not dest then
-      dest = self:allocHeap(source)
-   end
-   -- check if dest is a list of streams, or a stream
-   local ldest
-   if #dest == 0 then
-      ldest = {dest}
-   else
-      ldest = dest
-   end
-   -- if simulation, we replace this transfer by a plain copy
-   if self.mode == 'simulation' then
-      -- alloc in constant data:
-      source = self:allocData(source)
-      print('<neuflow.NeuFlow> copy host->dev [simul]: ' .. #ldest .. 'x' .. ldest[1].orig_h .. 'x' .. ldest[1].orig_w)
-      self:copy(source,ldest)
-   else
-      -- process list of streams
-      print('<neuflow.NeuFlow> copy host->dev: ' .. #ldest .. 'x' .. ldest[1].orig_h .. 'x' .. ldest[1].orig_w)
-      for i = 1,#ldest do
-         self.core:startProcess()
-         self.ethernet:streamFromHost_ack(ldest[i], 'default')
-         self.core:endProcess()
-      end
-   end
-   -- always print a dummy flag, useful for profiling
-   if self.mode ~= 'simulation' then
-      self.core:startProcess()
-      self.ethernet:printToEthernet('copy-done')
-      self.core:endProcess()
-   end
-   return dest
-end
-
-
-
 function NeuFlow:copyFromHost(source, dest)
    -- if no dest, create it
    if not dest then
@@ -336,12 +293,10 @@ function NeuFlow:copyFromHost(source, dest)
    return dest
 end
 
-
-
 function NeuFlow:copyToHost(source, dest)
    -- no ack in simulation
    local ack
-   if self.mode == 'simulation' then
+   if self.mode == 'simulation' or (not self.handshake) then
       ack = 'no-ack'
    end
 
@@ -360,14 +315,14 @@ function NeuFlow:copyToHost(source, dest)
 
    for i = 1, (#lsource-1) do
       self.core:startProcess()
-      self.ethernet:streamToHost(lsource[i], 'default')
+      self.ethernet:streamToHost(lsource[i], 'default', ack)
 
       self.ethernet:streamFromHost(self.ack_stream[1], 'ack_stream')
       self.core:endProcess()
    end
 
    self.core:startProcess()
-   self.ethernet:streamToHost(lsource[#lsource], 'default')
+   self.ethernet:streamToHost(lsource[#lsource], 'default', ack)
    self.core:endProcess()
 
    -- create/resize dest
@@ -377,47 +332,6 @@ function NeuFlow:copyToHost(source, dest)
    dest:resize(#lsource, orig_h, orig_w)
    return dest
 end
-
-
-function NeuFlow:copyToHost_ack(source, dest)
-   print("DEPRECATED")
-
-   -- no ack in simulation
-   local ack
-   if self.mode == 'simulation' then
-      ack = 'no-ack'
-   end
-   -- always print a dummy flag, useful for profiling
-   if self.mode ~= 'simulation' then
-      self.core:startProcess()
-      self.ethernet:printToEthernet('copy-starting')
-      self.core:endProcess()
-   end
-   -- check if source is a list of streams, or a stream
-   local lsource
-   if #source == 0 then
-      lsource = {source}
-   else
-      lsource = source
-   end
-   -- record original sizes
-   local orig_h = lsource[1].orig_h
-   local orig_w = lsource[1].orig_w
-   -- process list of streams
-   print('<neuflow.NeuFlow> copy dev->host: ' .. #lsource .. 'x' .. lsource[1].orig_h .. 'x' .. lsource[1].orig_w)
-   for i = 1,#lsource do
-      self.core:startProcess()
-      self.ethernet:streamToHost_ack(lsource[i], 'default', ack)
-      self.core:endProcess()
-   end
-   -- create/resize dest
-   if not dest then
-      dest = torch.Tensor()
-   end
-   dest:resize(#lsource, orig_h, orig_w)
-   return dest
-end
-
 
 ----------------------------------------------------------------------
 -- wrappers for compilers
@@ -599,6 +513,7 @@ end
 -- receive tensor
 --
 function NeuFlow:copyFromDev(tensor)
+   etherflow.handshake(self.handshake)
    profiler_neuflow = self.profiler:start('on-board-processing')
    self.profiler:setColor('on-board-processing', 'blue')
    self.profiler:lap('on-board-processing')
@@ -621,13 +536,10 @@ end
 --   parse_descriptor() parses the frame received
 --
 function NeuFlow:getFrame(tag, type)
+   print("DEPRECATED")
+
    local data
-   if not self.first_time then
-      data = etherflow.receivestring()
-   else
-      self.first_time = false
-      return true
-   end
+   data = etherflow.receivestring()
    if (data:sub(1,2) == type) then
       tag_received = parse_descriptor(data)
    end
