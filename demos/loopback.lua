@@ -1,3 +1,4 @@
+#!/usr/bin/env qlua
 ----------------------------------------------------------------------
 -- A simple loopback program for neuFlow: send images and receive
 -- them back from neuFlow, in a loop.
