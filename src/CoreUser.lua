@@ -813,8 +813,6 @@ function CoreUser:localNormalizeMeanBank(inputs, kernels, outputs, xN_coefs)
    for k,kernel in ipairs(kernels) do
       if (not kernel.mean) or (kernel.mean ~= 1) then
          local average = kernel.data:narrow(1,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(2,1,kernel.orig_h)
-         print(kernel.data)
-         print(average)
          self:normKernel(average)
          kernel.mean = 1
       end
