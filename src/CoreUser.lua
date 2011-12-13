@@ -825,7 +825,7 @@ function CoreUser:localNormalizeMeanBank(inputs, kernels, outputs, xN_coefs)
 
    -- (2) remove mean
    for i = 1,#inputs do
-      self:subtract(inputs[i], self.mem.buff[average_id], outputs[i])
+      self:subtract(inputs[i], summap[1], outputs[i])
    end
 end
 

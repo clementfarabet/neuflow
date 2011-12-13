@@ -453,12 +453,20 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
       for o = 1,sub_module.nInputPlane do
          -- allocate output
-         local item = self.core.mem.buff[inputs[1]]
-         local output_width = math.floor( (self.core.mem.buff[inputs[o]].orig_w-sub_module.kW)/sub_module.dW + 1)
-         local output_height = (self.core.mem.buff[inputs[o]].orig_h-sub_module.kH)/sub_module.dH + 1
+         local input = self.core.mem.buff[inputs[o]]
+         local output_width = math.floor( (input.orig_w-sub_module.kW)/sub_module.dW + 1)
+         local output_height = (input.orig_h-sub_module.kH)/sub_module.dH + 1
          if output_height ~= math.floor(output_height) then
-            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
-                  sub_module.kH .. ', out_h=' .. output_height)
+            output_height = math.floor(output_height)
+            local newinput = {y = input.y,
+                              x = input.x,
+                              data = input.data,
+                              orig_h = (output_height - 1)*sub_module.dH + sub_module.kH,
+                              orig_w = input.orig_w,
+                              w = 1,
+                              h = 1}
+            newinput.w = newinput.orig_w * newinput.orig_h
+            input = newinput
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
          outputs[o] = id_output
@@ -470,7 +478,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
                                                      kernel, bias)
 
          -- collect connections
-         table.insert(input_list, self.core.mem.buff[inputs[o]])
+         table.insert(input_list, input)
          table.insert(output_list, self.core.mem.buff[outputs[o]])
          table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
 
@@ -532,12 +540,20 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
 
       for o = 1,sub_module.nInputPlane do
          -- allocate output
-         local item = self.core.mem.buff[inputs[1]]
-         local output_width = math.floor( (self.core.mem.buff[inputs[o]].orig_w-sub_module.modules[2].kW)/sub_module.modules[2].dW + 1)
-         local output_height = (self.core.mem.buff[inputs[o]].orig_h-sub_module.modules[2].kH)/sub_module.modules[2].dH + 1
+         local input = self.core.mem.buff[inputs[o]]
+         local output_width = math.floor( (input.orig_w-sub_module.modules[2].kW)/sub_module.modules[2].dW + 1)
+         local output_height = (input.orig_h-sub_module.modules[2].kH)/sub_module.modules[2].dH + 1
          if output_height ~= math.floor(output_height) then
-            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
-                  sub_module.modules[2].kH .. ', out_h=' .. output_height)
+            output_height = math.floor(output_height)
+            local newinput = {y = input.y,
+                              x = input.x,
+                              data = input.data,
+                              orig_h = (output_height - 1)*sub_module.modules[2].dH + sub_module.modules[2].kH,
+                              orig_w = input.orig_w,
+                              w = 1,
+                              h = 1}
+            newinput.w = newinput.orig_w * newinput.orig_h
+            input = newinput
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
          outputs[o] = id_output
@@ -550,7 +566,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
                                                      kernel, bias)
 
          -- collect connections
-         table.insert(input_list, self.core.mem.buff[inputs[o]])
+         table.insert(input_list, input)
          table.insert(output_list, self.core.mem.buff[outputs[o]])
          table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
 
