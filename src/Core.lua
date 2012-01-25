@@ -1085,7 +1085,7 @@ function Core:configPort(args)
          error('<Core:configPort> a port index needs to be provided')
       elseif not (config.range and config.range == 'full') then
          -- N first ports are invisible to the grid
-         config.index = config.index + (dma.nb_ios + grid.nb_ios)
+         config.index = config.index + (dma.nb_ios + oFlower.nb_dmas)
       end
       -- switch to 0-based
       config.index = config.index - 1
