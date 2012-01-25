@@ -101,13 +101,13 @@ $ ./load-bitfile neuFlow-ml605-ethernetII.bit
 
 # run the simplest demo, a loopback client, to verify your setup **:
 $ cd ../demos
-$ sudo qlua loopback.lua
+$ sudo torch loopback.lua
 
 # before loading a new demo, you have to reset neuFlow: for
 # now it is done by pressing the SW10 button (cpu rst)
 
 # then you can run a typical convnet-based program, a face detector:
-$ sudo qlua face-detector.lua
+$ sudo torch face-detector.lua
 ```
 
 (*) the load-bitfile script assumes that you have properly installed

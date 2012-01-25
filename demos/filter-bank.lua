@@ -1,4 +1,4 @@
-#!/usr/bin/env qlua
+#!/usr/bin/env torch
 ----------------------------------------------------------------------
 -- This program demonstrates the computation of a bank of filters
 -- over a grayscale image. The image is grabbed from a webcam,
