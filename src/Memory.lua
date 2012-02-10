@@ -75,7 +75,7 @@ function Memory:allocKernel(h_, w_, data_, bias_)
    orig_w_ = data_:size(2)
    -- transpose kernel to go to inner dim last
    if((data_:size(2) < grid.kernel_width) or (data_:size(1) < grid.kernel_height)) then
-      data_ker_size = lab.zeros(grid.kernel_height, grid.kernel_width)
+      data_ker_size = torch.zeros(grid.kernel_height, grid.kernel_width)
       -- now need to save to bottom left corner!!!!!
       big_i = grid.kernel_width - h_ + 1 -- bottom
       for i=1,h_ do
@@ -138,7 +138,7 @@ function Memory:allocRawData(h_, w_, data_)
    orig_w_ = data_:size(2)
    -- transpose kernel to go to inner dim last
    if((data_:size(2) < grid.kernel_width) or (data_:size(1) < grid.kernel_height)) then
-      data_ker_size = lab.zeros(grid.kernel_height, grid.kernel_width)
+      data_ker_size = torch.zeros(grid.kernel_height, grid.kernel_width)
       -- now need to save to bottom left corner!!!!!
       big_i = grid.kernel_width - h_ + 1 -- bottom
       for i=1,h_ do
