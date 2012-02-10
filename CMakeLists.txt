@@ -1,0 +1,10 @@
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6 FATAL_ERROR)
+CMAKE_POLICY(VERSION 2.6)
+FIND_PACKAGE(Torch REQUIRED)
+
+ADD_SUBDIRECTORY (etherflow)
+
+SET(src)
+FILE(GLOB luasrc src/*.lua segments/*)
+ADD_TORCH_PACKAGE(neuflow "${src}" "${luasrc}" "neuFlow")
