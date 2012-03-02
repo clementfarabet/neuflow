@@ -17,21 +17,8 @@ interfaces Torch7's neural-network package natively.
 
 ## how to install
 
-The easiest route to install this package is to use
-[Luarocks](http://www.luarocks.org/), Lua's package
-manager. 
-The following instructions show you how to get
-Lua + Luarocks + Torch7 quickly installed:
-
-``` sh
-$ git clone https://github.com/clementfarabet/lua4torch
-$ cd lua4torch
-$ make install PREFIX=/usr/local
-```
-
-At this stage, Luarocks should be in your path. Before
-installing Torch7 and the neuFlow package, you will need
-to install a few dependencies.
+Before installing Torch7 and the neuFlow package, you will 
+need to install a few dependencies.
 
 On Linux (Ubuntu):
 
@@ -50,25 +37,35 @@ $ brew install qt
 $ brew install ffmpeg gnuplot
 ```
 
-Now you're ready to install Torch7, and our other packages if
-wanted:
+You're ready to install Torch7 (www.torch.ch):
 
 ``` sh
-$ luarocks install torch    # Torch7, an efficient numeric library for Lua
-$ luarocks install image    # an image library for Torch7
-$ luarocks install nnx      # lots of extra neural-net modules
-$ luarocks install camera   # a camera interface for Linux/MacOS
-$ luarocks install ffmpeg   # a video decoder for most formats
-$ luarocks install neuflow  # the neuFlow toolkit
+$ git clone https://github.com/andresy/torch
+$ cd torch
+$ mkdir build; cd build
+$ cmake ..
+$ make
+$ [sudo] make install
+```
+
+You will also need additional packages:
+
+``` sh
+$ torch-pkg install torch    # Torch7, an efficient numeric library for Lua
+$ torch-pkg install image    # an image library for Torch7
+$ torch-pkg install nnx      # lots of extra neural-net modules
+$ torch-pkg install camera   # a camera interface for Linux/MacOS
+$ torch-pkg install ffmpeg   # a video decoder for most formats
+$ torch-pkg install neuflow  # the neuFlow toolkit
 ```
 
 Alternatively, you can retrieve the source code and install it
 manually:
 
 ``` sh
-$ git clone https://github.com/clementfarabet/neuflow
+$ torck-pkg download neuflow
 $ cd neuflow
-$ luarocks make
+$ torch-pkg deploy
 ```
 
 ## how to run code on neuFlow
@@ -83,7 +80,7 @@ To run any of the demos, follow these instructions (tested on
 Ubuntu 9.04, 10.04 and Mac OS X 10.5, 10.6 and 10.7).
 
 ``` sh
-$ git clone https://github.com/clementfarabet/neuflow
+$ torch-pkg download neuflow
 $ cd neuflow
 
 # make Xilinx tools available (it implies you have them
