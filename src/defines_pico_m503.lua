@@ -149,7 +149,10 @@ oFlower = {
 
    -- clock
    clock_freq     = 100*MHz,
-   uart_freq      = 57600
+   uart_freq      = 57600,
+
+   -- nb of dmas (this includes instruction path)
+   nb_dmas = 2
 }
 do
    -- Cache
@@ -184,6 +187,16 @@ end
 
 
 ----------------------------------------------------------------------
+--- General DMAs
+--
+dma = {}
+do
+   -- global DMA IOs
+   dma.nb_ios = 2
+end
+
+
+----------------------------------------------------------------------
 --- Streamer parameters
 --
 -- Units:
@@ -196,7 +209,7 @@ end
 streamer = {}
 do
    -- physical params
-   streamer.nb_ports   = 4 + grid.nb_ios
+   streamer.nb_ports   = oFlower.nb_dmas + dma.nb_ios + grid.nb_ios
    -- geometry
    streamer.mem_bus_   = 256
    streamer.mem_bus_b  = 256 / 8

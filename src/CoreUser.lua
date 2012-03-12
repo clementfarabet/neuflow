@@ -713,11 +713,11 @@ function CoreUser:localNormalizeMean(input, kernel, output)
       local meanRemover = kernel.data
       meanRemover:div(meanRemover:sum())
       meanRemover:mul(-1)
-      meanRemover:narrow(2,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(1,math.ceil(kernel.orig_h/2),1):add(1)
+      meanRemover:narrow(1,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(2,math.ceil(kernel.orig_h/2),1):add(1)
 
       -- (1) make sure kernel would have perfect 0 mean after quantization
       meanRemover:mul(num.one):add(0.5):floor():div(num.one)
-      meanRemover:narrow(2,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(1,math.ceil(kernel.orig_h/2),1):add(-meanRemover:sum())
+      meanRemover:narrow(1,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(2,math.ceil(kernel.orig_h/2),1):add(-meanRemover:sum())
 
       -- mark kernel as being zero mean
       kernel.zero_mean = true
@@ -741,7 +741,7 @@ function CoreUser:localNormalizeStd(input, kernel, output, threshold)
       local average = kernel.data
       average:div(average:sum())
       average:mul(num.one):add(0.5):floor():div(num.one)
-      average:narrow(2,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(1,math.ceil(kernel.orig_h/2),1):add(1-average:sum())
+      average:narrow(1,kernel.data:size(2)-kernel.orig_w+math.ceil(kernel.orig_w/2),1):select(2,math.ceil(kernel.orig_h/2),1):add(1-average:sum())
 
       -- mark kernel as being one mean
       kernel.one_mean = true
@@ -812,20 +812,20 @@ function CoreUser:localNormalizeMeanBank(inputs, kernels, outputs, xN_coefs)
    -- (0) make sure kernels given are one-mean and have perfect 1 mean after quantization
    for k,kernel in ipairs(kernels) do
       if (not kernel.mean) or (kernel.mean ~= 1) then
-         local average = kernel.data:narrow(2,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(1,1,kernel.orig_h)
+         local average = kernel.data:narrow(1,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(2,1,kernel.orig_h)
          self:normKernel(average)
          kernel.mean = 1
       end
    end
 
-   -- (2) compute mean across inputs
-   local average_id = self.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w, {}, true)
+   -- (1) compute mean across inputs = convolution
+   local id = self.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w, {}, true)
+   local summap = {self.mem.buff[id]}
+   self:convolBank(inputs, kernels, summap, xN_coefs)
 
-   self:convolBank(inputs, kernels, {self.mem.buff[average_id]}, xN_coefs)
-
-   -- (2) remove mean == convolution
+   -- (2) remove mean
    for i = 1,#inputs do
-      self:subtract(inputs[i], self.mem.buff[average_id], outputs[i])
+      self:subtract(inputs[i], summap[1], outputs[i])
    end
 end
 
@@ -841,7 +841,7 @@ function CoreUser:localNormalizeStdBank(inputs, kernels, outputs, sqrtCoefs)
    -- (0) make sure kernels given are one-mean and have perfect 1 mean after quantization
    for k,kernel in ipairs(kernels) do
       if (not kernel.mean) or (kernel.mean ~= 1) then
-         local average = kernel.data:narrow(2,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(1,1,kernel.orig_h)
+         local average = kernel.data:narrow(1,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(2,1,kernel.orig_h)
          self:normKernel(average)
          kernel.mean = 1
       end
@@ -866,6 +866,73 @@ function CoreUser:localNormalizeStdBank(inputs, kernels, outputs, sqrtCoefs)
    for i = 1,#inputs do
       self:divide(inputs[i], sumSquares[1], outputs[i])
    end
+end
+
+function CoreUser:localNormalizeStdBank(inputs, kernels, outputs, sqrtCoefs)
+   if (self.msg_level ~= 'none') then
+      self:message('exec.std.norm.with.'..#inputs..'x'..inputs[1].orig_h..'x'..inputs[1].orig_w..'.image')
+   end
+
+   if (inputs[1].orig_w ~= outputs[1].orig_w) or (inputs[1].orig_h ~= outputs[1].orig_h) then
+      error('<CoreUser:localNormalizeMean> inputs and outputs should be the same size')
+   end
+
+   -- (0) make sure kernels given are one-mean and have perfect 1 mean after quantization
+   for k,kernel in ipairs(kernels) do
+      if (not kernel.mean) or (kernel.mean ~= 1) then
+         local average = kernel.data:narrow(1,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(2,1,kernel.orig_h)
+         self:normKernel(average)
+         kernel.mean = 1
+      end
+   end
+
+   -- (2) square all maps
+   local squares = {}
+   local newlayer = true
+   for i = 1,#kernels do
+      local square_id = self.mem:allocOnTheHeap(inputs[i].orig_h, inputs[i].orig_w, {}, newlayer)
+      table.insert(squares, self.mem.buff[square_id])
+      newlayer = false
+      self:square(inputs[i], squares[i])
+   end
+
+   -- (3) sum of squares, across features, plus sqrt
+   local sumsquare_id = self.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w, {}, false)
+   local sumSquares = {self.mem.buff[sumsquare_id]}
+   self:convolBank(squares, kernels, sumSquares, sqrtCoefs)
+
+   -- (4) divide
+   for i = 1,#inputs do
+      self:divide(inputs[i], sumSquares[1], outputs[i])
+   end
+end
+
+function CoreUser:l2pooling(inputs, kernels, outputs, sqrtCoefs)
+   if (self.msg_level ~= 'none') then
+      self:message('exec.l2pooling.with.'..#inputs..'x'..inputs[1].orig_h..'x'..inputs[1].orig_w..'.image')
+   end
+
+   -- (0) make sure kernels given are one-mean and have perfect 1 mean after quantization
+   for k,kernel in ipairs(kernels) do
+      if (not kernel.mean) or (kernel.mean ~= 1) then
+         local average = kernel.data:narrow(1,kernel.data:size(2)-kernel.orig_w+1,kernel.orig_w):narrow(2,1,kernel.orig_h)
+         self:normKernel(average)
+         kernel.mean = 1
+      end
+   end
+
+   -- (2) square all maps
+   local squares = {}
+   local newlayer = true
+   for i = 1,#kernels do
+      local square_id = self.mem:allocOnTheHeap(inputs[i].orig_h, inputs[i].orig_w, {}, newlayer)
+      table.insert(squares, self.mem.buff[square_id])
+      newlayer = false
+      self:square(inputs[i], squares[i])
+   end
+
+   -- (3) sum of squares, across features, plus sqrt
+   self:convolBank(squares, kernels, outputs, sqrtCoefs)
 end
 
 function CoreUser:stdOperator(input1, input2, input3, output, op)

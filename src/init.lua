@@ -65,7 +65,7 @@ os.execute('mkdir -p ' .. neuflow.coefpath)
 os.execute('chmod a+rw ' .. neuflow.coefpath)
 
 -- migrate all the coefficients
-os.execute('cp ' ..  sys.concat(sys.fpath(), 'segments/*') .. ' ' .. neuflow.coefpath)
+os.execute('cp ' ..  sys.concat(sys.fpath(), 'coef_*') .. ' ' .. neuflow.coefpath)
 os.execute('chmod a+rw ' .. neuflow.coefpath .. '/*')
 
 -- return table

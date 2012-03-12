@@ -682,9 +682,12 @@ function Core:configureStreamer(offset, length, stride, ports)
    end
 
    -- set timeouts
-   local timeouts = {1,64,1,1}
-   for i = 5,(#ports+1) do
-      timeouts[i] = 50
+   local timeouts = {1,64}
+   for i = 1,dma.nb_ios do
+      table.insert(timeouts, 1)
+   end
+   for i = 1,grid.nb_ios do
+      table.insert(timeouts, 50)
    end
    self:setPortTimeouts(timeouts)
 end
@@ -1074,8 +1077,8 @@ function Core:configPort(args)
       if not config.index then
          error('<Core:configPort> a port index needs to be provided')
       elseif not (config.range and config.range == 'full') then
-         -- 4 first ports are invisible to the grid
-         config.index = config.index + 4
+         -- N first ports are invisible to the grid
+         config.index = config.index + (dma.nb_ios + oFlower.nb_dmas)
       end
       -- switch to 0-based
       config.index = config.index - 1

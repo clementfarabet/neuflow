@@ -35,6 +35,11 @@ local layer = {
          return net_compiler:SpatialSubSampling(module, inputs, mapping)
       end,
 
+   ["nn.SpatialLPPooling"] =
+      function(net_compiler, module, inputs, mapping)
+         return net_compiler:SpatialLPPooling(module, inputs, mapping)
+      end,
+
    ["nn.SpatialConvolution"] =
       function(net_compiler, module, inputs, mapping)
          return net_compiler:SpatialConvolution(module, inputs, mapping)
@@ -53,6 +58,11 @@ local layer = {
    ["nn.SpatialNormalization"] =
       function(net_compiler, module, inputs)
          return net_compiler:SpatialNormalization(module, inputs)
+      end,
+
+   ["nn.SpatialSubtractiveNormalization"] =
+      function(net_compiler, module, inputs)
+         return net_compiler:SpatialSubtractiveNormalization(module, inputs)
       end,
 
    -- Non Linear mappings
@@ -443,12 +453,20 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
       for o = 1,sub_module.nInputPlane do
          -- allocate output
-         local item = self.core.mem.buff[inputs[1]]
-         local output_width = math.floor( (self.core.mem.buff[inputs[o]].orig_w-sub_module.kW)/sub_module.dW + 1)
-         local output_height = (self.core.mem.buff[inputs[o]].orig_h-sub_module.kH)/sub_module.dH + 1
+         local input = self.core.mem.buff[inputs[o]]
+         local output_width = math.floor( (input.orig_w-sub_module.kW)/sub_module.dW + 1)
+         local output_height = (input.orig_h-sub_module.kH)/sub_module.dH + 1
          if output_height ~= math.floor(output_height) then
-            error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
-                  sub_module.kH .. ', out_h=' .. output_height)
+            output_height = math.floor(output_height)
+            local newinput = {y = input.y,
+                              x = input.x,
+                              data = input.data,
+                              orig_h = (output_height - 1)*sub_module.dH + sub_module.kH,
+                              orig_w = input.orig_w,
+                              w = 1,
+                              h = 1}
+            newinput.w = newinput.orig_w * newinput.orig_h
+            input = newinput
          end
          local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
          outputs[o] = id_output
@@ -460,7 +478,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
                                                      kernel, bias)
 
          -- collect connections
-         table.insert(input_list, self.core.mem.buff[inputs[o]])
+         table.insert(input_list, input)
          table.insert(output_list, self.core.mem.buff[outputs[o]])
          table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
 
@@ -473,6 +491,94 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
       -- compute output
       self.core:convolBank(input_list, kernel_list, output_list, coefs)
+   end
+
+   -- timing info
+   if (self.msg_level == 'timing') then
+      self.core:startProcess()
+      self.core:getTime()
+      self.core:endProcess()
+   end
+
+   return outputs
+end
+
+function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
+   local outputs = {}
+   local new_layer = true
+
+   if torch.typename(sub_module.modules[1]) ~= 'nn.Square' then
+      error('<neuflow.Compiler> ERROR: LP Pooling only supported with L2 norm')
+   end
+
+   if (self.msg_level ~= 'none') then
+      self.core:startProcess()
+      if mapping then
+         self.core:message(string.format('SLP+M'))
+         error('<neuflow.Compiler> ERROR: unsupported spatial LP pooling + mapping')
+      else
+         self.core:message(string.format('SLP'))
+      end
+      self.core:endProcess()
+   end
+
+   -- timing info
+   if (self.msg_level == 'timing') then
+      self.core:startProcess()
+      self.core:resetTime()
+      self.core:endProcess()
+   end
+
+   -- generate coefs for sqrt
+   coefs = self:getCoefs('Sqrt')
+
+   -- generate code for pooling
+   do
+      local input_list = {}
+      local kernel_list = {}
+      local output_list = {}
+
+      for o = 1,sub_module.nInputPlane do
+         -- allocate output
+         local input = self.core.mem.buff[inputs[o]]
+         local output_width = math.floor( (input.orig_w-sub_module.modules[2].kW)/sub_module.modules[2].dW + 1)
+         local output_height = (input.orig_h-sub_module.modules[2].kH)/sub_module.modules[2].dH + 1
+         if output_height ~= math.floor(output_height) then
+            output_height = math.floor(output_height)
+            local newinput = {y = input.y,
+                              x = input.x,
+                              data = input.data,
+                              orig_h = (output_height - 1)*sub_module.modules[2].dH + sub_module.modules[2].kH,
+                              orig_w = input.orig_w,
+                              w = 1,
+                              h = 1}
+            newinput.w = newinput.orig_w * newinput.orig_h
+            input = newinput
+         end
+         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
+         outputs[o] = id_output
+
+         -- allocate kernel + bias
+         local kernel = sub_module.modules[2].weight[o]
+         local bias = sub_module.modules[2].bias:narrow(1,o,1)
+         local id_kernel = self.core.mem:allocKernel(sub_module.modules[2].kH, 
+                                                     sub_module.modules[2].kW,
+                                                     kernel, bias)
+
+         -- collect connections
+         table.insert(input_list, input)
+         table.insert(output_list, self.core.mem.buff[outputs[o]])
+         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+
+         -- for info, update the number of ops
+         self.ops = self.ops + output_width*output_height*sub_module.modules[2].kW*sub_module.modules[2].kH*2
+
+         -- next connex
+         new_layer = false
+      end
+
+      -- compute output
+      self.core:l2pooling(input_list, kernel_list, output_list, coefs)
    end
 
    -- timing info
@@ -583,6 +689,72 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    -- for info, update the number of ops
    self.ops = self.ops + (output_w*output_h*kernel_w*kernel_h*2
                           + zerom_w*zerom_h*(kernel_w*kernel_h*2 + 16)) * sub_module.nfeatures
+
+   -- timing info
+   if (self.msg_level == 'timing') then
+      self.core:startProcess()
+      self.core:getTime()
+      self.core:endProcess()
+   end
+
+   -- return output maps
+   return outputs
+end
+
+function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
+   -- verbose
+   if (self.msg_level ~= 'none') then
+      self.core:startProcess()
+      self.core:message(string.format('SNZ'))
+      self.core:endProcess()
+   end
+
+   -- timing info
+   if (self.msg_level == 'timing') then
+      self.core:startProcess()
+      self.core:resetTime()
+      self.core:endProcess()
+   end
+
+   -- alloc one kernel for the whole layer
+   local kernel = sub_module.kernel
+   local kernel_h = kernel:size(1)
+   local kernel_w = kernel:size(2)
+   local id_kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
+
+   -- alloc output maps
+   local output_w = self.core.mem.buff[inputs[1]].orig_w
+   local output_h = self.core.mem.buff[inputs[1]].orig_h
+   local outputs = {}
+   local new_layer = true
+   for i = 1,sub_module.nInputPlane do
+      outputs[i] = self.core.mem:allocOnTheHeap(output_h, output_w, {}, new_layer)
+      new_layer = false
+   end
+
+   -- collect inputs/outputs/kernels
+   local input_maps = {}
+   local output_maps = {}
+   local mean_kernels = {}
+   for i = 1,sub_module.nInputPlane do
+      table.insert(input_maps, self.core.mem.buff[inputs[i]])
+      table.insert(output_maps, self.core.mem.buff[outputs[i]])
+      table.insert(mean_kernels, self.core.mem.raw_data[id_kernel_mean])
+   end
+
+   -- get coefs for mapping
+   local xN = function (x)
+      return x / #mean_kernels
+   end
+   local xN_coefs = math.approx_line{mapping=xN, min=num.min, max=num.max, odd = true,
+                                     nbSegments=grid.mapper_segs, Q=num.frac_,
+                                     verbose=true, a = 1/#mean_kernels, b = 0}
+
+   -- local norm mean
+   self.core:localNormalizeMeanBank(input_maps, mean_kernels, output_maps, xN_coefs)
+
+   -- for info, update the number of ops
+   self.ops = self.ops + (output_w*output_h*kernel_w*kernel_h*2) * sub_module.nInputPlane
 
    -- timing info
    if (self.msg_level == 'timing') then
