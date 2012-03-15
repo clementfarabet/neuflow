@@ -259,6 +259,9 @@ int network_recv_packet() {
 
 int network_send_packet() {
 
+  // A delay to give the OS time to complete sending the last packet
+  usleep(10);
+
   memcpy( &send_buffer[0],            eth_addr_dest, ETH_ALEN);
   memcpy( &send_buffer[ETH_ALEN],     eth_addr_host, ETH_ALEN);
   memcpy( &send_buffer[(2*ETH_ALEN)], eth_type_tbsp, ethertype_length);
