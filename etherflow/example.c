@@ -29,7 +29,7 @@ int main() {
   // load code (binary) from file
   unsigned char *neuflow_bin = (unsigned char *)malloc(BINARY_SIZE);
   memset(neuflow_bin, BINARY_SIZE, 0);
-  FILE *f = fopen("loopback.bin", "rb");
+  FILE *f = fopen("neuflow.bin", "rb");
   int nread;
   if (f) nread = fread(neuflow_bin, 1, BINARY_SIZE, f);
   else {
