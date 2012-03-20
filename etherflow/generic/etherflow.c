@@ -176,7 +176,7 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
   int sockbufsize_rcv = 64*1024*1024;
   int set_res = setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE, (int *)&sockbufsize_rcv, sizeof(int));
 #else // _APPLE_
-  int sockbufsize_rcv = 4*1024*1024;
+  int sockbufsize_rcv = 3*1024*1024;
   int set_res = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (int *)&sockbufsize_rcv, sizeof(int));
 #endif
   int get_res = getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
@@ -192,7 +192,7 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
   int sockbufsize_snd = 64*1024*1024;
   set_res = setsockopt(sock, SOL_SOCKET, SO_SNDBUFFORCE, (int *)&sockbufsize_snd, sizeof(int));
 #else // _APPLE_
-  int sockbufsize_snd = 4*1024*1024;
+  int sockbufsize_snd = 3*1024*1024;
   set_res = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (int *)&sockbufsize_snd, sizeof(int));
 #endif
   get_res = getsockopt(sock, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
