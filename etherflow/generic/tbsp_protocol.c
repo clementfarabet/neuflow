@@ -529,6 +529,10 @@ void tbsp_send_stream(uint8_t *data, int length) {
       //current_send_seq_pos = tbsp_read_1st_seq_position(&recv_packet);
       current_send_seq_pos = tbsp_read_2nd_seq_position(&recv_packet);
       current_ptr = (current_send_seq_pos - start_pos);
+
+      if (current_ptr < length) {
+        printf("<send stream> total %d,\tsent %d,\tresend %d\n", length, current_ptr, (length-current_ptr));
+      }
     }
   }
 }
