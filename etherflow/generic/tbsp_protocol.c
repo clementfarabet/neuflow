@@ -621,7 +621,50 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 
 
 #endif // _ETHERFLOW_COMMON_
+/**
+ * C interface, template type funtions
+ */
 
+int etherflow_send_(Tensor_C)(real *data_real, int length_real) {
+  int length_byte = 2*length_real;
+  uint8_t data_byte[length_byte];
+
+  // convert real data to byte data
+  int xx;
+  for (xx = 0; xx < length_real; xx++) {
+    int16_t fixed_point = (int16_t) (data_real[xx]*neuflow_one_encoding);
+
+    data_byte[(2*xx)]   = (uint8_t) (fixed_point);
+    data_byte[(2*xx)+1] = (uint8_t) (fixed_point >> 8);
+  }
+
+  // A delay to give the data time to clear the last transfer and for the
+  // streamer port to close before the this transfer.
+  usleep(100);
+
+  tbsp_send_stream( &data_byte[0], length_byte);
+
+  return 0;
+}
+
+
+int etherflow_receive_(Tensor_C)(real *data_real, int length_real, int height) {
+  int length_byte = 2*length_real;
+  uint8_t data_byte[length_byte];
+  bzero(&data_byte, length_byte);
+
+  tbsp_recv_stream( &data_byte[0], length_byte);
+
+  //convert byte to real
+  int xx;
+  for (xx = 0; xx < length_real; xx++) {
+    int16_t fixed_point = (int16_t) (data_byte[(2*xx)+1]<<8) + data_byte[(2*xx)];
+
+    data_real[xx] = ((real) fixed_point) / neuflow_one_encoding;
+  }
+
+  return 0;
+}
 
 #ifndef _NO_LUA_
 /**
@@ -688,23 +731,7 @@ static int etherflow_(Api_send_tensor_lua)(lua_State *L) {
   int length_real = THTensor_(nElement)(tensor);
   real *data_real = THTensor_(data)(tensor);
 
-  int length_byte = 2*length_real;
-  uint8_t data_byte[length_byte];
-
-  // convert real data to byte data
-  int xx;
-  for (xx = 0; xx < length_real; xx++) {
-    int16_t fixed_point = (int16_t) (data_real[xx]*neuflow_one_encoding);
-
-    data_byte[(2*xx)]   = (uint8_t) (fixed_point);
-    data_byte[(2*xx)+1] = (uint8_t) (fixed_point >> 8);
-  }
-
-  // A delay to give the data time to clear the last transfer and for the
-  // streamer port to close before the this transfer.
-  usleep(100);
-
-  tbsp_send_stream( &data_byte[0], length_byte);
+  etherflow_send_(Tensor_C)(data_real, length_real);
 
   return 0;
 }
@@ -730,30 +757,7 @@ static int etherflow_(Api_receive_tensor_lua)(lua_State *L){
   int length_real = THTensor_(nElement)(tensor);
   real *data_real = THTensor_(data)(tensor);
 
-  int length_byte = 2*length_real;
-  uint8_t data_byte[length_byte];
-  bzero(&data_byte, length_byte);
-
-  tbsp_recv_stream( &data_byte[0], length_byte);
-
-  //convert byte to real
-  int xx;
-  for (xx = 0; xx < length_real; xx++) {
-    int16_t fixed_point = (int16_t) (data_byte[(2*xx)+1]<<8) + data_byte[(2*xx)];
-
-    data_real[xx] = ((real) fixed_point) / neuflow_one_encoding;
-  }
-
-  // send data ack after tensor
-//  tbsp_write_type(&send_packet, TBSP_DATA);
-//  tbsp_write_1st_seq_position(&send_packet, current_send_seq_pos);
-//  tbsp_write_2nd_seq_position(&send_packet, current_recv_seq_pos);
-//  tbsp_write_data_length(&send_packet, 64);
-//  bzero(send_packet.tbsp_data, 64);
-//  current_send_seq_pos += 64;
-//
-//  // send data ack packet
-//  network_send_packet();
+  etherflow_receive_(Tensor_C)(data_real, length_real, tensor->size[0]);
 
   return 0;
 }
