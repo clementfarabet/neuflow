@@ -659,6 +659,20 @@ int etherflow_close_socket_C() {
   return 0;
 }
 
+
+unsigned char recbuffer[ETH_FRAME_LEN+1];
+unsigned char * etherflow_receive_frame_C(int *lengthp) {
+  bzero(recbuffer, (ETH_FRAME_LEN+1));
+  return recbuffer;
+}
+
+
+int etherflow_send_frame_C(short int length, const unsigned char * data_p) {
+
+  return 0;
+}
+
+
 int etherflow_send_ByteTensor_C(unsigned char * data, int length) {
   // A delay to give the data time to clear the last transfer and for the
   // streamer port to close before the this transfer.
