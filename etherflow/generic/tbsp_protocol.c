@@ -620,6 +620,39 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 }
 
 
+/**
+ * C interface, common funtions
+ */
+
+int etherflow_open_socket_C(const char *dev, unsigned char *remote_mac, unsigned char *local_mac) {
+
+  if (remote_mac != NULL) {
+    int kk = 0;
+    for (kk = 0; kk < ETH_ALEN; kk++) {
+      eth_addr_remote[kk] = remote_mac[kk];
+    }
+  }
+
+  if (local_mac != NULL) {
+    int kk = 0;
+    for (kk = 0; kk < ETH_ALEN; kk++) {
+      eth_addr_local[kk] = local_mac[kk];
+    }
+  }
+
+  network_open_socket(dev);
+
+  // init send packet
+  bzero(send_buffer, send_buffer_length);
+  tbsp_packet_init(&send_packet, &send_buffer[ETH_HLEN]);
+
+  // init recv packet
+  bzero(recv_buffer, recv_buffer_length);
+  tbsp_packet_init(&recv_packet, &recv_buffer[ETH_HLEN]);
+
+  return 0;
+}
+
 int etherflow_send_ByteTensor_C(unsigned char * data, int length) {
   // A delay to give the data time to clear the last transfer and for the
   // streamer port to close before the this transfer.
@@ -709,15 +742,7 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
     }
   }
 
-  network_open_socket(dev);
-
-  // init send packet
-  bzero(send_buffer, send_buffer_length);
-  tbsp_packet_init(&send_packet, &send_buffer[ETH_HLEN]);
-
-  // init recv packet
-  bzero(recv_buffer, recv_buffer_length);
-  tbsp_packet_init(&recv_packet, &recv_buffer[ETH_HLEN]);
+  etherflow_open_socket_C(dev, eth_addr_remote, eth_addr_local);
 
   lua_pushnumber(L, sockfd);  /* push result */
   return 1;  /* number of results */
