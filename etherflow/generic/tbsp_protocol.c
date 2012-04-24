@@ -65,10 +65,10 @@ static struct sockaddr_ndrv sock_address;
 #endif // _LINUX_
 
 // ethernet packet parameters
-static uint8_t eth_addr_dest[6] = {0x00,0x80,0x10,0x64,0x00,0x00};
-static uint8_t eth_addr_host[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
-static uint8_t eth_type_tbsp[2] = {0x88, 0xb5};
-const int ethertype_length      = (ETH_HLEN-(2*ETH_ALEN));
+static uint8_t eth_addr_remote[6] = {0x00,0x80,0x10,0x64,0x00,0x00};
+static uint8_t eth_addr_local[6]  = {0xff,0xff,0xff,0xff,0xff,0xff};
+static uint8_t eth_type_tbsp[2]   = {0x88, 0xb5};
+const int ethertype_length        = (ETH_HLEN-(2*ETH_ALEN));
 
 uint8_t send_buffer[ETH_FRAME_LEN];
 const int send_buffer_length = ETH_FRAME_LEN;
@@ -211,12 +211,12 @@ int network_recv_packet() {
 
     // check dst MAC
     for (kk = 0; kk < ETH_ALEN; kk++) {
-      if (eth_addr_host[kk] != recv_buffer[ii++]) { bad_packet = 1; }
+      if (eth_addr_local[kk] != recv_buffer[ii++]) { bad_packet = 1; }
     }
 
     // check src MAC
     for (kk = 0; kk < ETH_ALEN; kk++) {
-      if (eth_addr_dest[kk] != recv_buffer[ii++]) { bad_packet = 1; }
+      if (eth_addr_remote[kk] != recv_buffer[ii++]) { bad_packet = 1; }
     }
 
     // check Ethertype
@@ -262,9 +262,9 @@ int network_send_packet() {
   // A delay to give the OS time to complete sending the last packet
   usleep(10);
 
-  memcpy( &send_buffer[0],            eth_addr_dest, ETH_ALEN);
-  memcpy( &send_buffer[ETH_ALEN],     eth_addr_host, ETH_ALEN);
-  memcpy( &send_buffer[(2*ETH_ALEN)], eth_type_tbsp, ethertype_length);
+  memcpy( &send_buffer[0],            eth_addr_remote, ETH_ALEN);
+  memcpy( &send_buffer[ETH_ALEN],     eth_addr_local,  ETH_ALEN);
+  memcpy( &send_buffer[(2*ETH_ALEN)], eth_type_tbsp,   ethertype_length);
 
   int frame_length = ETH_HLEN + tbsp_header_length + tbsp_read_data_length(&send_packet);
   if (ETH_ZLEN > frame_length) {
@@ -321,12 +321,12 @@ int network_open_socket(const char *dev) {
   sock_address.sll_hatype   = 0;//ARPHRD_ETHER;
   sock_address.sll_pkttype  = 0;//PACKET_OTHERHOST;
   sock_address.sll_halen    = ETH_ALEN;
-  sock_address.sll_addr[0]  = eth_addr_dest[0];
-  sock_address.sll_addr[1]  = eth_addr_dest[1];
-  sock_address.sll_addr[2]  = eth_addr_dest[2];
-  sock_address.sll_addr[3]  = eth_addr_dest[3];
-  sock_address.sll_addr[4]  = eth_addr_dest[4];
-  sock_address.sll_addr[5]  = eth_addr_dest[5];
+  sock_address.sll_addr[0]  = eth_addr_remote[0];
+  sock_address.sll_addr[1]  = eth_addr_remote[1];
+  sock_address.sll_addr[2]  = eth_addr_remote[2];
+  sock_address.sll_addr[3]  = eth_addr_remote[3];
+  sock_address.sll_addr[4]  = eth_addr_remote[4];
+  sock_address.sll_addr[5]  = eth_addr_remote[5];
   sock_address.sll_addr[6]  = 0x00;
   sock_address.sll_addr[7]  = 0x00;
 
@@ -696,7 +696,7 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
     int k;
     for (k=1; k<=ETH_ALEN; k++) {
       lua_rawgeti(L, 2, k);
-      eth_addr_dest[k-1] = (uint8_t) lua_tonumber(L, -1); lua_pop(L, 1);
+      eth_addr_remote[k-1] = (uint8_t) lua_tonumber(L, -1); lua_pop(L, 1);
     }
   }
 
@@ -705,7 +705,7 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
     int k;
     for (k=1; k<=ETH_ALEN; k++) {
       lua_rawgeti(L, 3, k);
-      eth_addr_host[k-1] = (uint8_t) lua_tonumber(L, -1); lua_pop(L, 1);
+      eth_addr_local[k-1] = (uint8_t) lua_tonumber(L, -1); lua_pop(L, 1);
     }
   }
 
