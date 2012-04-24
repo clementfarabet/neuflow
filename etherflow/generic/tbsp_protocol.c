@@ -653,6 +653,12 @@ int etherflow_open_socket_C(const char *dev, unsigned char *remote_mac, unsigned
   return 0;
 }
 
+
+int etherflow_close_socket_C() {
+  network_close_socket();
+  return 0;
+}
+
 int etherflow_send_ByteTensor_C(unsigned char * data, int length) {
   // A delay to give the data time to clear the last transfer and for the
   // streamer port to close before the this transfer.
@@ -750,7 +756,7 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
 
 
 static int etherflow_(Api_close_socket_lua)(lua_State *L) {
-  network_close_socket();
+  etherflow_close_socket_C();
   return 0;
 }
 
