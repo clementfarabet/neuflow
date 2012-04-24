@@ -620,6 +620,16 @@ void tbsp_recv_stream(uint8_t *data, int length) {
 }
 
 
+int etherflow_send_ByteTensor_C(unsigned char * data, int length) {
+  // A delay to give the data time to clear the last transfer and for the
+  // streamer port to close before the this transfer.
+  usleep(100);
+
+  tbsp_send_stream( &data[0], length);
+
+  return 0;
+}
+
 #endif // _ETHERFLOW_COMMON_
 /**
  * C interface, template type funtions
@@ -742,11 +752,7 @@ static int etherflow_(Api_send_tensor_byte_lua)(lua_State *L) {
   int length = THByteTensor_nElement(tensor);
   uint8_t *data = THByteTensor_data(tensor);
 
-  // A delay to give the data time to clear the last transfer and for the
-  // streamer port to close before the this transfer.
-  usleep(100);
-
-  tbsp_send_stream( &data[0], length);
+  etherflow_send_ByteTensor_C(data, length);
 
   return 0;
 }
