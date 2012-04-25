@@ -6,6 +6,8 @@
 -- 
 local Ethernet = torch.class('neuflow.Ethernet')
 
+xrequire 'etherflow'
+
 function Ethernet:__init(args)
    -- args:
    self.core = args.core
@@ -17,6 +19,65 @@ function Ethernet:__init(args)
       error('<neuflow.Ethernet> ERROR: requires a Dataflow Core')
    end
 end
+
+function Ethernet:open()
+   etherflow.open()
+end
+
+function Ethernet:close()
+   etherflow.close()
+end
+
+function Ethernet:sendReset()
+   -- empty
+end
+
+function Ethernet:dev_copyToHost(tensor, ack)
+   self.core:startProcess()
+   self:printToEthernet('copy-starting')
+   self.core:endProcess()
+
+   for i = 1,#tensor do
+      self.core:startProcess()
+      self:streamToHost(tensor[i], 'default', ack)
+      self.core:endProcess()
+   end
+end
+
+function Ethernet:dev_copyFromHost(tensor)
+   for i = 1,#tensor do
+      self.core:startProcess()
+      self:streamFromHost(tensor[i], 'default')
+      self.core:endProcess()
+   end
+
+   -- always print a dummy flag, useful for profiling
+   self.core:startProcess()
+   self:printToEthernet('copy-done')
+   self.core:endProcess()
+end
+
+function Ethernet:dev_receiveBytecode()
+   self:loadByteCode()
+end
+
+function Ethernet:host_copyToDev(tensor)
+   for i = 1,tensor:size(1) do
+      etherflow.sendtensor(tensor[i])
+   end
+end
+
+function Ethernet:host_copyFromDev(tensor, handshake)
+   etherflow.handshake(handshake)
+   for i = 1,tensor:size(1) do
+      etherflow.receivetensor(tensor[i])
+   end
+end
+
+function Ethernet:host_sendBytecode(bytecode)
+   etherflow.loadbytecode(bytecode)
+end
+
 
 function Ethernet:startCom()
    -- simple way of connecting to the host
