@@ -5,8 +5,11 @@
 --
 local DmaEthernet = torch.class('neuflow.DmaEthernet')
 
+xrequire 'etherflow'
+
 function DmaEthernet:__init(args)
    -- args:
+   self.nf = args.nf
    self.core = args.core
    self.msg_level = args.msg_level or 'none'  -- 'detailled' or 'none' or 'concise'
    self.max_packet_size = 1500 or args.max_packet_size
@@ -15,6 +18,68 @@ function DmaEthernet:__init(args)
    if (self.core == nil) then
       error('<neuflow.DmaEthernet> ERROR: requires a Dataflow Core')
    end
+
+   -- data ack
+   self.ack_tensor = torch.Tensor(1,1,32)
+   self.ack_stream = self.nf:allocHeap(self.ack_tensor)
+end
+
+function DmaEthernet:open()
+   etherflow.open()
+end
+
+function DmaEthernet:close()
+   etherflow.close()
+end
+
+function DmaEthernet:sendReset()
+   if (-1 == etherflow.sendreset()) then
+      print('<reset> fail')
+   end
+end
+
+function DmaEthernet:dev_copyToHost(tensor)
+   for i = 1, (#tensor-1) do
+      self.core:startProcess()
+      self:streamToHost(tensor[i], 'default')
+
+      self:streamFromHost(self.ack_stream[1], 'ack_stream')
+      self.core:endProcess()
+   end
+
+   self.core:startProcess()
+   self:streamToHost(tensor[#tensor], 'default')
+   self.core:endProcess()
+end
+
+function DmaEthernet:dev_copyFromHost(tensor)
+   for i = 1,#tensor do
+      self.core:startProcess()
+      self:streamFromHost(tensor[i], 'default')
+      self.core:endProcess()
+   end
+end
+
+function DmaEthernet:dev_receiveBytecode()
+   self:loadByteCode()
+end
+
+function DmaEthernet:host_copyToDev(tensor)
+   for i = 1,tensor:size(1) do
+      etherflow.sendtensor(tensor[i])
+   end
+end
+
+function DmaEthernet:host_copyFromDev(tensor)
+   etherflow.receivetensor(tensor[1])
+   for i = 2,tensor:size(1) do
+      etherflow.sendtensor(self.ack_tensor)
+      etherflow.receivetensor(tensor[i])
+   end
+end
+
+function DmaEthernet:host_sendBytecode(bytecode)
+   etherflow.loadbytecode(bytecode)
 end
 
 function DmaEthernet:printToEthernet(str)
