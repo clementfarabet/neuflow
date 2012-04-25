@@ -65,9 +65,11 @@ function Ethernet:host_copyToDev(tensor)
    for i = 1,tensor:size(1) do
       etherflow.sendtensor(tensor[i])
    end
+   self:getFrame('copy-done')
 end
 
 function Ethernet:host_copyFromDev(tensor, handshake)
+   self:getFrame('copy-starting')
    etherflow.handshake(handshake)
    for i = 1,tensor:size(1) do
       etherflow.receivetensor(tensor[i])
@@ -716,4 +718,26 @@ function Ethernet:loadByteCode()
 
    -- Jump to address 0 and execute 
    self.core:gotoGlobal(bootloader.entry_point)
+end
+
+----------------------------------------------------------------------
+-- helper functions:
+--   getFrame() receives a frame
+--   parse_descriptor() parses the frame received
+--
+function Ethernet:getFrame(tag, type)
+   local data
+   data = etherflow.receivestring()
+   if (data:sub(1,2) == type) then
+      tag_received = self:parse_descriptor(data)
+   end
+   return (tag_received == tag)
+end
+
+function Ethernet:parse_descriptor(s)
+   local reg_word = "%s*([-%w.+]+)%s*"
+   local reg_pipe = "|"
+   ni,j,type,tag,size,nb_frames = string.find(s, reg_word .. reg_pipe .. reg_word .. reg_pipe ..
+                                              reg_word .. reg_pipe .. reg_word)
+   return tag, type
 end
