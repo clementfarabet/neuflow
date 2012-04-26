@@ -64,11 +64,8 @@ function NeuFlow:__init(args)
    self.handshake = false
    if self.use_ethernet then
       print '<neuflow.NeuFlow> loading ethernet driver'
-      local l = xrequire 'etherflow'
-      if not l then
+      if self.ethernet:open() ~= 0 then
          self.use_ethernet = false
-      else
-         self.ethernet:open()
       end
    end
 

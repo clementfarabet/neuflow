@@ -762,9 +762,9 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
     }
   }
 
-  etherflow_open_socket_C(dev, eth_addr_remote, eth_addr_local);
+  int error = etherflow_open_socket_C(dev, eth_addr_remote, eth_addr_local);
 
-  lua_pushnumber(L, sockfd);  /* push result */
+  lua_pushnumber(L, error);  /* push result */
   return 1;  /* number of results */
 }
 

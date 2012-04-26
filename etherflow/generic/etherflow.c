@@ -549,8 +549,10 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
   }
 
   // open socket
-  etherflow_open_socket_C(dev, destmac, srcmac);
-  return 0;
+  int error = etherflow_open_socket_C(dev, destmac, srcmac);
+
+  lua_pushnumber(L, error);  /* push result */
+  return 1;
 }
 
 static int etherflow_(Api_close_socket_lua)(lua_State *L) {
