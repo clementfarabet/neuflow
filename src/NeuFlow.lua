@@ -441,9 +441,7 @@ end
 -- transmit reset
 --
 function NeuFlow:sendReset()
-   if (-1 == etherflow.sendreset()) then
-      print('<reset> fail')
-   end
+   self.ethernet:sendReset()
 end
 
 
