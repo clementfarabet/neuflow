@@ -5,7 +5,7 @@
 --
 local DmaEthernet = torch.class('neuflow.DmaEthernet')
 
-xrequire 'etherflow'
+xrequire 'ethertbsp'
 
 function DmaEthernet:__init(args)
    -- args:
@@ -25,15 +25,15 @@ function DmaEthernet:__init(args)
 end
 
 function DmaEthernet:open()
-   etherflow.open()
+   ethertbsp.open()
 end
 
 function DmaEthernet:close()
-   etherflow.close()
+   ethertbsp.close()
 end
 
 function DmaEthernet:sendReset()
-   if (-1 == etherflow.sendreset()) then
+   if (-1 == ethertbsp.sendreset()) then
       print('<reset> fail')
    end
 end
@@ -66,20 +66,20 @@ end
 
 function DmaEthernet:host_copyToDev(tensor)
    for i = 1,tensor:size(1) do
-      etherflow.sendtensor(tensor[i])
+      ethertbsp.sendtensor(tensor[i])
    end
 end
 
 function DmaEthernet:host_copyFromDev(tensor)
-   etherflow.receivetensor(tensor[1])
+   ethertbsp.receivetensor(tensor[1])
    for i = 2,tensor:size(1) do
-      etherflow.sendtensor(self.ack_tensor)
-      etherflow.receivetensor(tensor[i])
+      ethertbsp.sendtensor(self.ack_tensor)
+      ethertbsp.receivetensor(tensor[i])
    end
 end
 
 function DmaEthernet:host_sendBytecode(bytecode)
-   etherflow.loadbytecode(bytecode)
+   ethertbsp.loadbytecode(bytecode)
 end
 
 function DmaEthernet:printToEthernet(str)

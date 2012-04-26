@@ -4,6 +4,7 @@ CMAKE_POLICY(VERSION 2.6)
 FIND_PACKAGE(Torch REQUIRED)
 
 ADD_SUBDIRECTORY (etherflow)
+ADD_SUBDIRECTORY (ethertbsp)
 
 SET(src)
 FILE(GLOB luasrc src/*.lua segments/*)
