@@ -444,6 +444,19 @@ function NeuFlow:sendReset()
    self.ethernet:sendReset()
 end
 
+----------------------------------------------------------------------
+-- tell device to wait for the bytecode to be sent from the host
+--
+function NeuFlow:receiveBytecode()
+   self.ethernet:dev_receiveBytecode()
+end
+
+----------------------------------------------------------------------
+-- send bytecode to device
+--
+function NeuFlow:sendBytecode(bytecode)
+   self:loadBytecode(bytecode)
+end
 
 ----------------------------------------------------------------------
 -- transmit bytecode
