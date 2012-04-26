@@ -21,7 +21,7 @@ require 'qtwidget'
 --
 -- platform='xilinx_ml605' or platform='pico_m503'
 
-local platform = args[1] or 'xilinx_ml605'
+local platform = arg[1] or 'xilinx_ml605'
 nf = neuflow.init{platform=platform}
 
 ----------------------------------------------------------------------
