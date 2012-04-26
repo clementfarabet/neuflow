@@ -68,7 +68,7 @@ function NeuFlow:__init(args)
       if not l then
          self.use_ethernet = false
       else
-         etherflow.open()
+         self.ethernet:open()
       end
    end
 
@@ -94,7 +94,7 @@ end
 --
 function NeuFlow:cleanup()
    if self.use_ethernet then
-      etherflow.close()
+      self.ethernet:close()
    end
    if self.tty then
       self.tty:cleanup()
@@ -289,11 +289,8 @@ function NeuFlow:copyFromHost(source, dest)
    else
       -- process list of streams
       print('<neuflow.NeuFlow> copy host->dev: ' .. #ldest .. 'x' .. ldest[1].orig_h .. 'x' .. ldest[1].orig_w)
-      for i = 1,#ldest do
-         self.core:startProcess()
-         self.ethernet:streamFromHost(ldest[i], 'default')
-         self.core:endProcess()
-      end
+
+      self.ethernet:dev_copyFromHost(ldest)
    end
 
    return dest
@@ -313,23 +310,17 @@ function NeuFlow:copyToHost(source, dest)
    else
       lsource = source
    end
+
    -- record original sizes
    local orig_h = lsource[1].orig_h
    local orig_w = lsource[1].orig_w
+
    -- process list of streams
    print('<neuflow.NeuFlow> copy dev->host: ' .. #lsource .. 'x' .. lsource[1].orig_h .. 'x' .. lsource[1].orig_w)
 
-   for i = 1, (#lsource-1) do
-      self.core:startProcess()
-      self.ethernet:streamToHost(lsource[i], 'default', ack)
-
-      self.ethernet:streamFromHost(self.ack_stream[1], 'ack_stream')
-      self.core:endProcess()
+   if self.mode ~= 'simulation' then
+      self.ethernet:dev_copyToHost(lsource, ack)
    end
-
-   self.core:startProcess()
-   self.ethernet:streamToHost(lsource[#lsource], 'default', ack)
-   self.core:endProcess()
 
    -- create/resize dest
    if not dest then
@@ -467,7 +458,7 @@ function NeuFlow:loadBytecode(bytecode)
       -- then transmit bytecode
       print('<neuflow.NeuFlow> transmitting bytecode')
       self.profiler:start('load-bytecode')
-      etherflow.loadbytecode(bytecode)
+      self.ethernet:host_sendBytecode(bytecode)
       self.profiler:lap('load-bytecode')
       -- we are already transmitting the bytecode
       -- we can close the log file now
@@ -504,14 +495,7 @@ end
 --
 function NeuFlow:copyToDev(tensor)
    self.profiler:start('copy-to-dev')
-   local dims = tensor:nDimension()
-   if dims == 3 then
-      for i = 1,tensor:size(1) do
-         etherflow.sendtensor(tensor[i])
-      end
-   else
-      etherflow.sendtensor(tensor)
-   end
+   self.ethernet:host_copyToDev(tensor)
    self.profiler:lap('copy-to-dev')
 end
 
@@ -519,43 +503,10 @@ end
 -- receive tensor
 --
 function NeuFlow:copyFromDev(tensor)
-   etherflow.handshake(self.handshake)
    profiler_neuflow = self.profiler:start('on-board-processing')
    self.profiler:setColor('on-board-processing', 'blue')
    self.profiler:lap('on-board-processing')
    self.profiler:start('copy-from-dev')
-
-   local dims = tensor:nDimension()
-
-   etherflow.receivetensor(tensor[1])
-   for i = 2,tensor:size(1) do
-      etherflow.sendtensor(self.ack_tensor)
-      etherflow.receivetensor(tensor[i])
-   end
-
+   self.ethernet:host_copyFromDev(tensor, self.handshake)
    self.profiler:lap('copy-from-dev')
-end
-
-----------------------------------------------------------------------
--- helper functions:
---   getFrame() receives a frame
---   parse_descriptor() parses the frame received
---
-function NeuFlow:getFrame(tag, type)
-   print("DEPRECATED")
-
-   local data
-   data = etherflow.receivestring()
-   if (data:sub(1,2) == type) then
-      tag_received = parse_descriptor(data)
-   end
-   return (tag_received == tag)
-end
-
-function parse_descriptor(s)
-   local reg_word = "%s*([-%w.+]+)%s*"
-   local reg_pipe = "|"
-   ni,j,type,tag,size,nb_frames = string.find(s, reg_word .. reg_pipe .. reg_word .. reg_pipe ..
-                                              reg_word .. reg_pipe .. reg_word)
-   return tag, type
 end
