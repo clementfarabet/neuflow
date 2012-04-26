@@ -41,28 +41,28 @@ function etherflow.close(dev)
    etherflow.double.close_socket()
 end
 
-function etherflow.handshake(bool)
---   etherflow.double.handshake(bool)
+function etherflow.sendreset()
+   return 0
 end
 
---function etherflow.sendstring(str)
---   etherflow.double.send_frame(str)
---end
+function etherflow.handshake(bool)
+   etherflow.double.handshake(bool)
+end
 
---function etherflow.receivestring()
---   return etherflow.double.receive_string()
---end
+function etherflow.sendstring(str)
+   etherflow.double.send_frame(str)
+end
 
---function etherflow.receiveframe()
---   return etherflow.double.receive_frame()
---end
+function etherflow.receivestring()
+   return etherflow.double.receive_string()
+end
+
+function etherflow.receiveframe()
+   return etherflow.double.receive_frame()
+end
 
 function etherflow.sendtensor(tensor)
    tensor.etherflow.send_tensor(tensor)
-end
-
-function etherflow.sendreset()
-   return etherflow.double.send_reset()
 end
 
 function etherflow.receivetensor(tensor)
@@ -73,6 +73,6 @@ function etherflow.loadbytecode(bytetensor)
    etherflow.double.send_bytetensor(bytetensor)
 end
 
---function etherflow.setfirstcall(val)
---   etherflow.double.set_first_call(val)
---end
+function etherflow.setfirstcall(val)
+   etherflow.double.set_first_call(val)
+end

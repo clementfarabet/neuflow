@@ -19,6 +19,7 @@
 #define etherflow_receive_(NAME) TH_CONCAT_3(etherflow_receive_, Real, NAME)
 
 // load templated code
+#undef TH_GENERIC_FILE
 #include "generic/etherflow.c"
 
 // generate Float version
