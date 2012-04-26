@@ -45,8 +45,16 @@ function NeuFlow:__init(args)
                                     msg_level = args.compiler_msg_level or self.global_msg_level}
 
    -- instantiate the interface
-   self.ethernet = neuflow.Ethernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
-                                     core = self.core}
+   if self.core.platform == 'pico_m503' then
+      self.handshake = false
+      self.ethernet = neuflow.DmaEthernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
+                                          core = self.core,
+                                          nf = self}
+   else
+      self.handshake = true
+      self.ethernet = neuflow.Ethernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
+                                       core = self.core}
+   end
 
    -- for loops: this retains a list of jump locations
    self.loopTags = {}
@@ -55,14 +63,10 @@ function NeuFlow:__init(args)
    self.profiler = neuflow.Profiler()
 
    -- ethernet socket (auto found for now)
-   self.handshake = true
    if self.use_ethernet then
       print '<neuflow.NeuFlow> loading ethernet driver'
-      local l = xrequire 'etherflow'
-      if not l then
+      if self.ethernet:open() ~= 0 then
          self.use_ethernet = false
-      else
-         self.ethernet:open()
       end
    end
 
@@ -73,6 +77,10 @@ function NeuFlow:__init(args)
 
    -- bytecode has a constant size (oFlower bios)
    self.bytecodesize = bootloader.load_size
+
+   -- data ack
+   self.ack_tensor = torch.Tensor(1,1,32)
+   self.ack_stream = self:allocHeap(self.ack_tensor)
 
    -- and finally initialize hardware
    self:initialize()
@@ -428,6 +436,27 @@ function NeuFlow:execSimulation(args)
    local script = paths.basename(testbench)
    os.execute('cd ' .. path .. '; ./' .. script .. ' ' .. options.tb_args)
    print(c.none)
+end
+
+----------------------------------------------------------------------
+-- transmit reset
+--
+function NeuFlow:sendReset()
+   self.ethernet:sendReset()
+end
+
+----------------------------------------------------------------------
+-- tell device to wait for the bytecode to be sent from the host
+--
+function NeuFlow:receiveBytecode()
+   self.ethernet:dev_receiveBytecode()
+end
+
+----------------------------------------------------------------------
+-- send bytecode to device
+--
+function NeuFlow:sendBytecode(bytecode)
+   self:loadBytecode(bytecode)
 end
 
 ----------------------------------------------------------------------

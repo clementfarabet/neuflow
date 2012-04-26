@@ -14,13 +14,13 @@
 // define template macros
 #define TH_CONCAT_3(x,y,z) TH_CONCAT_3_EXPAND(x,y,z)
 #define TH_CONCAT_3_EXPAND(x,y,z) x ## y ## z
-#define etherflow_(NAME) TH_CONCAT_3(etherflow_, Real, NAME)
-#define etherflow_send_(NAME) TH_CONCAT_3(etherflow_send_, Real, NAME)
-#define etherflow_receive_(NAME) TH_CONCAT_3(etherflow_receive_, Real, NAME)
+#define ethertbsp_(NAME) TH_CONCAT_3(ethertbsp_, Real, NAME)
+#define ethertbsp_send_(NAME) TH_CONCAT_3(ethertbsp_send_, Real, NAME)
+#define ethertbsp_receive_(NAME) TH_CONCAT_3(ethertbsp_receive_, Real, NAME)
 
 // load templated code
 #undef TH_GENERIC_FILE
-#include "generic/etherflow.c"
+#include "generic/ethertbsp.c"
 
 // generate Float version
 #define real float
