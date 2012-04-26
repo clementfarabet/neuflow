@@ -46,10 +46,12 @@ function NeuFlow:__init(args)
 
    -- instantiate the interface
    if self.core.platform == 'pico_m503' then
+      self.handshake = false
       self.ethernet = neuflow.DmaEthernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
                                           core = self.core,
                                           nf = self}
    else
+      self.handshake = true
       self.ethernet = neuflow.Ethernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
                                        core = self.core}
    end
@@ -61,7 +63,6 @@ function NeuFlow:__init(args)
    self.profiler = neuflow.Profiler()
 
    -- ethernet socket (auto found for now)
-   self.handshake = false
    if self.use_ethernet then
       print '<neuflow.NeuFlow> loading ethernet driver'
       if self.ethernet:open() ~= 0 then
