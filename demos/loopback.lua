@@ -20,7 +20,9 @@ require 'qtwidget'
 -- a mem manager, the dataflow core, and the compiler
 --
 -- platform='xilinx_ml605' or platform='pico_m503'
-nf = neuflow.init{platform='pico_m503'}
+
+local platform = args[1] or 'xilinx_ml605'
+nf = neuflow.init{platform=platform}
 
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and 
