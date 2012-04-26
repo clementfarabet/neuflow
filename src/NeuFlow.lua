@@ -45,7 +45,7 @@ function NeuFlow:__init(args)
                                     msg_level = args.compiler_msg_level or self.global_msg_level}
 
    -- instantiate the interface
-   if self.core.platform == 'pico_m503' then
+   if (self.core.platform == 'pico_m503') or (self.core.platform == 'xilinx_ml605_tbsp') then
       self.handshake = false
       self.ethernet = neuflow.DmaEthernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
                                           core = self.core,
