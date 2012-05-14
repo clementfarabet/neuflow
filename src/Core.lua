@@ -69,6 +69,17 @@ function Core:__init(args)
                              image_offset  =  self.offset_data_2D,
                              heap_offset   =  self.offset_heap}
 
+   -- user reg allocator
+   self.alloc_ur = self:RegAllocator {
+      [oFlower.reg_A] = true,
+      [oFlower.reg_B] = true,
+      [oFlower.reg_C] = true,
+      [oFlower.reg_D] = true,
+      [oFlower.reg_E] = true,
+      [oFlower.reg_F] = true,
+   }
+
+
    -- ports state
    self.dvi_mode = 0
 
@@ -1600,4 +1611,46 @@ function Core:self_test()
    self:getTime()
    self:message('all tests passed :-)')
    self:endProcess()
+end
+
+--[[ Register Allocator:
+
+   Provides a simple way to administer CPU registers when they are used in
+   applications. A new allocator is created when the function is called, a
+   table of registers to administer and their current state is passed in. A
+   'true' state indicates the register is free to use while a 'false' state
+   indicates that it is currently in use.
+--]]
+function Core:RegAllocator(reg_table)
+   local allocator = {}
+   allocator._reg_table = reg_table
+
+   function allocator:claim(reg)
+      if self._reg_table[reg] then
+         self._reg_table[reg] = false
+      else
+         error('<neuflow.Core> ERROR: Trying to -claim- a reg that is not available')
+      end
+   end
+
+   function allocator:free(reg)
+      if self._reg_table[reg] then
+         error('<neuflow.Core> ERROR: Trying to -free- a reg that is already in free')
+      else
+         self._reg_table[reg] = true
+      end
+   end
+
+   function allocator:get()
+      for reg, state in pairs(self._reg_table) do
+         if state then
+            self._reg_table[reg] = false
+            return reg
+         end
+      end
+
+      error('<neuflow.Core> ERROR: Can not -get- reg as they are all in use')
+   end
+
+   return allocator
 end
