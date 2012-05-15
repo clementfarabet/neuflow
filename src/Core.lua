@@ -271,7 +271,11 @@ function Core:addDataPAD()
 end
 
 function Core:makeGotoTag()
-   return {ref = self.linker:getReference(), offset = (self.bytep/8), gaddr = ((self.linker.processp-1)/8)}
+   return {
+      ref = self.linker:getReference(),
+      offset = (self.bytep/8),
+      gaddr = ((self.linker.processp-1)/8)
+   }
 end
 
 -- returns current inner process address
