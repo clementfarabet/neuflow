@@ -745,20 +745,28 @@ function Core:readStringFromMem(stream)
    -- open port
    self:openPortRd(1, stream)
 
+   -- get cpu regs for use in operation
+   local reg_length = self.alloc_ur:get()
+   local reg_io_dma = self.alloc_ur:get()
+
    -- String length
    local length = stream.w*stream.h/2
 
    -- Get stream from DMA
-   self:setreg(oFlower.reg_A, length)
+   self:setreg(reg_length, length)
 
    local loop_start = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioWaitForReadData(oFlower.io_dma_status)
-   self:ioread(oFlower.io_dma, oFlower.reg_B)
-   self:printReg(oFlower.reg_B)
-   self:addi(oFlower.reg_A, -1, oFlower.reg_A)
-   self:gotoAbsoluteIfNonZero(loop_start, oFlower.reg_A, goto_tag)
+   self:ioread(oFlower.io_dma, reg_io_dma)
+   self:printReg(reg_io_dma)
+   self:addi(reg_length, -1, reg_length)
+   self:gotoAbsoluteIfNonZero(loop_start, reg_length, goto_tag)
+
+   -- free cpu regs
+   self.alloc_ur:free(reg_io_dma)
+   self.alloc_ur:free(reg_length)
 
    -- done...
    self:closePort(1)
