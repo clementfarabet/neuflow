@@ -52,9 +52,6 @@ function Core:__init(args)
    self.process = {byte = {}, metabyte = {}, goto_tags = {}}
    self.bytep = 1
 
-   -- variables
-   self.vars = {}
-
    -- for loops
    self.loop_start = 0
 
@@ -160,7 +157,6 @@ end
 function Core:startProcess()
    if not self.processLock then
       self.process = {byte = {}, metabyte = {}, goto_tags = {}}
-      self.vars = {}
       self.bytep = 1
       self.processLock = 1
    else
@@ -271,58 +267,6 @@ end
 -- returns current inner process address
 function Core:processAddress()
    return (self.bytep-1) / 8
-end
-
--- create variables
-function Core:defvar(name, val)
-   -- create new var
-   self.vars[#self.vars+1] = {name=name, reg=oFlower.reg_A, val=0}
-   -- find unused register to store variable
-   for empty_reg = oFlower.reg_A, oFlower.reg_F do
-      for var_idx = 1, #self.vars-1 do
-         if (self.vars[var_idx].reg == empty_reg) then
-            self.vars[#self.vars].reg = empty_reg+1
-            break
-         end
-      end
-   end
-   if (self.vars[#self.vars].reg > oFlower.reg_F) then
-      error(string.format('<neuflow.Core> ERROR: var [%s] couldnt be allocated', name))
-   end
-   -- set var
-   self:setvar(name, val)
-end
-
--- set variables
-function Core:setvar(name, val)
-   -- find var
-   local var_index = 0
-   for var_idx = 1, #self.vars do
-      if (self.vars[var_idx].name == name) then
-         var_index = var_idx
-         break
-      end
-   end
-   if (var_index == 0) then
-      error(string.format('<neuflow.Core> ERROR: trying to assign unexisting var [%s]',
-                          name))
-   end
-   -- store var
-   self.vars[var_index].val = val
-   -- store value in register
-   self:setreg(self.vars[var_index].reg, val)
-end
-
-function Core:var(name)
-   -- find var
-   local var_index = 0
-   for var_idx = 1, #self.vars do
-      if (self.vars[var_idx].name == name) then
-         return self.vars[var_idx].reg
-      end
-   end
-   error(string.format('<neuflow.Core> ERROR: trying to assign unexisting var [%s]',
-                       name))
 end
 
 -- ALU operations
@@ -1577,14 +1521,16 @@ function Core:self_test()
    self:startProcess()
    self:message('OpenFlower doing selftests')
 
-   self:messagebody('testing var declaration')
-   self:defvar('myvar', 0)
+   self:messagebody('testing reg allocation')
+   local reg_myvar = self.alloc_ur:get()
+   self:setreg(reg_myvar, 0)
 
    self:messagebody('testing I/O read')
-   self:ioread(oFlower.io_uart, self:var('myvar'))
+   self:ioread(oFlower.io_uart, reg_myvar)
 
    self:messagebody('testing alu (bitwise and)')
-   self:bitandi(self:var('myvar'), 0xFF0000FF, self:var('myvar'))
+   self:bitandi(reg_myvar, 0xFF0000FF, reg_myvar)
+   self.alloc_ur:free(reg_myvar)
 
    self:messagebody('testing loop x3')
    self:startLoop(3)
@@ -1592,8 +1538,10 @@ function Core:self_test()
    self:endLoop()
 
    self:messagebody('testing register readout (should print> abc)')
+   self.alloc_ur:claim(oFlower.reg_F)
    self:setreg(oFlower.reg_F, 0x0A636261)
    self:printReg(oFlower.reg_F)
+   self.alloc_ur:free(oFlower.reg_F)
 
    self:messagebody('testing timer')
    self:getTime()
