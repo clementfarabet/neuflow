@@ -56,15 +56,19 @@ function Core:__init(args)
    self.loop_start = 0
 
    -- linker
-   self.linker = neuflow.Linker{logfile     =  self.logfile,
-                                start_text  =  self.offset_code,
-                                disassemble =  self.disassemble}
+   self.linker = neuflow.Linker {
+      logfile     =  self.logfile,
+      start_text  =  self.offset_code,
+      disassemble =  self.disassemble
+   }
 
    -- memory manager
-   self.mem = neuflow.Memory{logfile       =  self.logfile,
-                             kernel_offset =  self.offset_data_1D,
-                             image_offset  =  self.offset_data_2D,
-                             heap_offset   =  self.offset_heap}
+   self.mem = neuflow.Memory {
+      logfile       =  self.logfile,
+      kernel_offset =  self.offset_data_1D,
+      image_offset  =  self.offset_data_2D,
+      heap_offset   =  self.offset_heap
+   }
 
    -- sys reg allocator
    self.alloc_sr = self:RegAllocator {
@@ -103,7 +107,7 @@ function Core:__init(args)
    print(string.format(' + NumericCoding:   Q%d.%d [%f:%f:%f]', num.int_, num.frac_,
                        num.min, num.res, num.max))
    print(string.format(' + NonLinMappers:   %dx%d [x%d MACs]', grid.nb_grids, grid.nb_mappers, grid.mapper_segs))
-   print(string.format(' + ConvGrids:       %dx%d [x%dx%d MACs]', grid.nb_grids, grid.nb_convs, 
+   print(string.format(' + ConvGrids:       %dx%d [x%dx%d MACs]', grid.nb_grids, grid.nb_convs,
                        grid.kernel_height, grid.kernel_width))
    print(string.format(' + StreamALUs:      %dx%d [x1 (MAC+DIV)]', grid.nb_grids, grid.nb_alus))
    print(string.format(' + GridPorts:       %d', grid.nb_ios))
@@ -277,31 +281,39 @@ end
 
 -- ALU operations
 function Core:bitor(arg1, arg2, result)
-   self:addInstruction{opcode = oFlower.op_or,
-                       arg8_1 = arg1,
-                       arg8_2 = arg2,
-                       arg8_3 = result}
+   self:addInstruction {
+      opcode = oFlower.op_or,
+      arg8_1 = arg1,
+      arg8_2 = arg2,
+      arg8_3 = result
+   }
 end
 
 function Core:bitand(arg1, arg2, result)
-   self:addInstruction{opcode = oFlower.op_and,
-                       arg8_1 = arg1,
-                       arg8_2 = arg2,
-                       arg8_3 = result}
+   self:addInstruction {
+      opcode = oFlower.op_and,
+      arg8_1 = arg1,
+      arg8_2 = arg2,
+      arg8_3 = result
+   }
 end
 
 function Core:add(arg1, arg2, result)
-   self:addInstruction{opcode = oFlower.op_add,
-                       arg8_1 = arg1,
-                       arg8_2 = arg2,
-                       arg8_3 = result}
+   self:addInstruction {
+      opcode = oFlower.op_add,
+      arg8_1 = arg1,
+      arg8_2 = arg2,
+      arg8_3 = result
+   }
 end
 
 function Core:comp(arg1, arg2, result)
-   self:addInstruction{opcode = oFlower.op_comp,
-                       arg8_1 = arg1,
-                       arg8_2 = arg2,
-                       arg8_3 = result}
+   self:addInstruction {
+      opcode = oFlower.op_comp,
+      arg8_1 = arg1,
+      arg8_2 = arg2,
+      arg8_3 = result
+   }
 end
 
 function Core:bitori(arg1, val, result)
@@ -368,25 +380,31 @@ function Core:shri(arg1, val, result, mode)
 
    if val == 1 then
       -- only one instruction
-      self:addInstruction{opcode = oFlower.op_shr,
-                          arg8_1 = arg1,
-                          arg8_2 = mode,
-                          arg8_3 = result}
+      self:addInstruction {
+         opcode = oFlower.op_shr,
+         arg8_1 = arg1,
+         arg8_2 = mode,
+         arg8_3 = result
+      }
    else
       -- first shift
-      self:addInstruction{opcode = oFlower.op_shr,
-                          arg8_1 = arg1,
-                          arg8_2 = mode,
-                          arg8_3 = result}
+      self:addInstruction {
+         opcode = oFlower.op_shr,
+         arg8_1 = arg1,
+         arg8_2 = mode,
+         arg8_3 = result
+      }
       -- create loop
       self:setreg(reg, val-1)
       local loopback = self:processAddress()
       local goto_tag = self:makeGotoTag()
       -- shift right
-      self:addInstruction{opcode = oFlower.op_shr,
-                          arg8_1 = result,
-                          arg8_2 = mode,
-                          arg8_3 = result}
+      self:addInstruction {
+         opcode = oFlower.op_shr,
+         arg8_1 = result,
+         arg8_2 = mode,
+         arg8_3 = result
+      }
       -- decrement counter and conditional goto
       self:addi(reg, -1, reg)
       self:gotoAbsoluteIfNonZero(loopback, reg, goto_tag)
@@ -406,22 +424,28 @@ function Core:nop(times)
 end
 
 function Core:iowrite(io, reg)
-   self:addInstruction{opcode = oFlower.op_writeWord,
-                       arg8_1 = io,
-                       arg8_2 = reg}
+   self:addInstruction {
+      opcode = oFlower.op_writeWord,
+      arg8_1 = io,
+      arg8_2 = reg
+   }
 end
 
 function Core:ioread(io, reg)
-   self:addInstruction{opcode = oFlower.op_readWord,
-                       arg8_1 = io,
-                       arg8_2 = reg}
+   self:addInstruction {
+      opcode = oFlower.op_readWord,
+      arg8_1 = io,
+      arg8_2 = reg
+   }
 end
 
 function Core:setreg(reg, val)
    -- store value in register
-   self:addInstruction{opcode = oFlower.op_setReg,
-                       arg8_2 = reg,
-                       arg32_1 = val}
+   self:addInstruction {
+      opcode = oFlower.op_setReg,
+      arg8_2 = reg,
+      arg32_1 = val
+   }
 end
 
 -- uncond goto
@@ -432,9 +456,11 @@ function Core:gotoAbsolute(absaddr)
    self:addMetaTag(self.bytep, absaddr - self:processAddress())
 
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 0,
-                       arg32_1 = 0}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 0,
+      arg32_1 = 0
+   }
 end
 
 function Core:gotoRelative(reladdr)
@@ -446,41 +472,51 @@ function Core:gotoRelative(reladdr)
    self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 0,
-                       arg32_1 = 0}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 0,
+      arg32_1 = 0
+   }
 end
 
 function Core:gotoTag(goto_tag)
    self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 0,
-                       arg32_1 = goto_tag.gaddr}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 0,
+      arg32_1 = goto_tag.gaddr
+   }
 end
 
 function Core:gotoGlobal(globaladdr)
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 0,
-                       arg32_1 = globaladdr}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 0,
+      arg32_1 = globaladdr
+   }
 end
 
 function Core:gotoGlobalIfNonZero(globaladdr, reg)
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 1,
-                       arg8_2 = reg,
-                       arg32_1 = globaladdr}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 1,
+      arg8_2 = reg,
+      arg32_1 = globaladdr
+   }
 end
 
 function Core:gotoGlobalIfZero(globaladdr, reg)
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 2,
-                       arg8_2 = reg,
-                       arg32_1 = globaladdr}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 2,
+      arg8_2 = reg,
+      arg32_1 = globaladdr
+   }
 end
 
 function Core:gotoRelativeIfNonZero(reladdr, reg)
@@ -492,10 +528,12 @@ function Core:gotoRelativeIfNonZero(reladdr, reg)
    self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 1,
-                       arg8_2 = reg,
-                       arg32_1 = 0}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 1,
+      arg8_2 = reg,
+      arg32_1 = 0
+   }
 end
 
 function Core:gotoRelativeIfZero(reladdr, reg)
@@ -507,10 +545,12 @@ function Core:gotoRelativeIfZero(reladdr, reg)
    self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 2,
-                       arg8_2 = reg,
-                       arg32_1 = 0}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 2,
+      arg8_2 = reg,
+      arg32_1 = 0
+   }
 end
 
 function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
@@ -520,10 +560,12 @@ function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
    self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 1,
-                       arg8_2 = reg,
-                       arg32_1 = 0}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 1,
+      arg8_2 = reg,
+      arg32_1 = 0
+   }
 end
 
 function Core:gotoAbsoluteIfZero(absaddr, reg, goto_tag)
@@ -533,10 +575,12 @@ function Core:gotoAbsoluteIfZero(absaddr, reg, goto_tag)
    self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
-   self:addInstruction{opcode = oFlower.op_goto,
-                       arg8_1 = 2,
-                       arg8_2 = reg,
-                       arg32_1 = 0}
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 2,
+      arg8_2 = reg,
+      arg32_1 = 0
+   }
 end
 
 function Core:openPortWr(port, data)
@@ -680,25 +724,31 @@ end
 
 function Core:pushConfig(configContent, configWord)
    -- Send config word
-   self:addInstruction{opcode = oFlower.op_writeConfig,
-                       arg8_1 = configContent,
-                       arg32_1 = configWord}
+   self:addInstruction {
+      opcode = oFlower.op_writeConfig,
+      arg8_1 = configContent,
+      arg32_1 = configWord
+   }
 end
 
 function Core:getStatus(statusToGet)
    -- is going to poll the status bus until it gets statusToGet
    -- arg 2 is an optional wait time before starting to read the status
-   self:addInstruction{opcode = oFlower.op_getStatus,
-                       arg8_1 = statusToGet,
-                       arg8_2 = 32}
+   self:addInstruction {
+      opcode = oFlower.op_getStatus,
+      arg8_1 = statusToGet,
+      arg8_2 = 32
+   }
 end
 
 function Core:messagebody(str)
    -- Printing a message is just a stream to the UART
-   self:addInstruction{opcode = oFlower.op_writeStream,
-                       arg8_1 = oFlower.io_uart,
-                       arg8_3 = oFlower.type_uint8,
-                       arg32_1 = string.len(str)+6}
+   self:addInstruction {
+      opcode = oFlower.op_writeStream,
+      arg8_1 = oFlower.io_uart,
+      arg8_3 = oFlower.type_uint8,
+      arg32_1 = string.len(str)+6
+   }
 
    -- Then push the text data
    self:addDataString('    ')
@@ -709,10 +759,12 @@ end
 
 function Core:message(str)
    -- Printing a message is just a stream to the UART
-   self:addInstruction{opcode = oFlower.op_writeStream,
-                       arg8_1 = oFlower.io_uart,
-                       arg8_3 = oFlower.type_uint8,
-                       arg32_1 = string.len(str)+6}
+   self:addInstruction {
+      opcode = oFlower.op_writeStream,
+      arg8_1 = oFlower.io_uart,
+      arg8_3 = oFlower.type_uint8,
+      arg32_1 = string.len(str)+6
+   }
 
    -- Then push the text data
    self:addDataString('--> ')
@@ -723,10 +775,12 @@ end
 
 function Core:print(str)
    -- Printing a message is just a stream to the UART
-   self:addInstruction{opcode = oFlower.op_writeStream,
-                       arg8_1 = oFlower.io_uart,
-                       arg8_3 = oFlower.type_uint8,
-                       arg32_1 = string.len(str)+2}
+   self:addInstruction {
+      opcode = oFlower.op_writeStream,
+      arg8_1 = oFlower.io_uart,
+      arg8_3 = oFlower.type_uint8,
+      arg32_1 = string.len(str)+2
+   }
 
    -- Then push the text data
    self:addDataString(str)
@@ -736,10 +790,12 @@ end
 
 function Core:printraw(str)
    -- Printing a message is just a stream to the UART
-   self:addInstruction{opcode = oFlower.op_writeStream,
-                       arg8_1 = oFlower.io_uart,
-                       arg8_3 = oFlower.type_uint8,
-                       arg32_1 = string.len(str)}
+   self:addInstruction {
+      opcode = oFlower.op_writeStream,
+      arg8_1 = oFlower.io_uart,
+      arg8_3 = oFlower.type_uint8,
+      arg32_1 = string.len(str)
+   }
 
    -- Then push the text data
    self:addDataString(str)
@@ -759,10 +815,12 @@ function Core:writeStringToMem(stream, str)
    end
 
    -- Printing a message is just a stream to the UART
-   self:addInstruction{opcode = oFlower.op_writeStream,
-                       arg8_1 = oFlower.io_dma,
-                       arg8_3 = oFlower.type_uint32,
-                       arg32_1 = length}
+   self:addInstruction {
+      opcode = oFlower.op_writeStream,
+      arg8_1 = oFlower.io_dma,
+      arg8_3 = oFlower.type_uint32,
+      arg32_1 = length
+   }
 
    -- Then push the text data
    self:addDataString(str)
@@ -935,11 +993,13 @@ function Core:getTime()
    -- print header
    self:printraw('--> CPU time = ')
    -- then print timer's result
-   self:addInstruction{opcode = oFlower.op_routeStream,
-                       arg8_1 = oFlower.io_timer,
-                       arg8_2 = oFlower.io_uart,
-                       arg8_3 = oFlower.type_uint8,
-                       arg32_1 = 9}  -- nb of digits (depends on the hardware)
+   self:addInstruction {
+      opcode = oFlower.op_routeStream,
+      arg8_1 = oFlower.io_timer,
+      arg8_2 = oFlower.io_uart,
+      arg8_3 = oFlower.type_uint8,
+      arg32_1 = 9
+   }  -- nb of digits (depends on the hardware)
    self:printraw(string.format(' x %0dns\n\r', self.period_ns))
    self.alloc_sr:free(reg)
 end
