@@ -18,6 +18,11 @@ function Ethernet:__init(args)
    if (self.core == nil) then
       error('<neuflow.Ethernet> ERROR: requires a Dataflow Core')
    end
+
+   -- Both user reg A and B are used within this interface. They need to be
+   -- claimed so they cannot be used elsewhere.
+   self.core.alloc_ur:claim(oFlower.reg_A)
+   self.core.alloc_ur:claim(oFlower.reg_B)
 end
 
 function Ethernet:open()
