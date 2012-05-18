@@ -241,6 +241,8 @@ function Core:addInstruction(args)
 
    self.process.instr[self.instrp] = args
    self.instrp = self.instrp + 1
+
+   self.linker:appendInstruction(args)
 end
 
 function Core:addDataUINT8(uint8)

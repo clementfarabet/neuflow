@@ -73,6 +73,10 @@ function Linker:__init(args)
    self.counter_bytes = 0
 end
 
+function Linker:getLastReference()
+   return self.instruction_list.end_node
+end
+
 function Linker:getReference()
    return self.instruction_list.end_sentinel
 end
@@ -639,6 +643,7 @@ end
 
 function Linker:addProcess(new_process)
 
+--[=[
 --[[
    local instrp = 1
    for ii, opcode in  ipairs(new_process.instr) do
@@ -671,6 +676,13 @@ function Linker:addProcess(new_process)
 
       self:appendInstruction(instruction)
    end
+--]=]
+
+   local nnode = self.instruction_list.end_sentinel
+   while nnode.next do
+      nnode = nnode.next
+      nnode.bytes = self:newInstructionBytes(nnode)
+   end
 
    -- add goto tag to nodes
    local node = self.instruction_list.end_node
@@ -681,6 +693,22 @@ function Linker:addProcess(new_process)
 
       if (ii%8) == 1 then node = node.prev end
    end
+
+--[[
+   local test_node = self.instruction_list.end_sentinel.next
+   for xx=0, (#new_process.byte-1), 8 do
+
+      for i, b in ipairs(test_node.bytes) do
+         if new_process.byte[xx+i] ~= b then
+            print(xx .. ' ' .. i .. "\tWRONG  " .. "\t" .. new_process.byte[xx+i] .. "\t" ..  b)
+         else
+            print(xx .. ' ' .. i .. "\tTRUE   " .. "\t" .. new_process.byte[xx+i] .. "\t" ..  b)
+         end
+      end
+
+      test_node = test_node.next
+   end
+--]]
 
    self:appendSentinel()
 end
