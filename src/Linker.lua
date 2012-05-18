@@ -37,15 +37,6 @@ function Linker:__init(args)
    -- only if we start NOT from page zero
    if(self.start_text ~= 1) then
       -- init with default code
---[[
-      self.process = bootloader.content
-
-      -- pad the array with instructions
-      for i = #bootloader.content+1,self.start_text do
-         self.process[i] = 0
-      end
-      self.processp = self.start_text
---]]
 
       local ii = 0
       while ii < (#bootloader.content-1) do
@@ -602,34 +593,6 @@ function Linker:alignProcessWithPages()
    end
 end
 
---[[
-function Linker:addInstruction(args)
-   -- parse args
-   local opcode = args.opcode or oFlower.op_nop
-   local arg8_1 = args.arg8_1 or 0
-   local arg8_2 = args.arg8_2 or 0
-   local arg8_3 = args.arg8_3 or 0
-   local arg32_1 = args.arg32_1 or 0
-
-   -- serialize opcode + args
-   self.process[self.processp] = math.floor(arg32_1/256^0) % 256; self.processp = self.processp + 1
-   self.process[self.processp] = math.floor(arg32_1/256^1) % 256; self.processp = self.processp + 1
-   self.process[self.processp] = math.floor(arg32_1/256^2) % 256; self.processp = self.processp + 1
-   self.process[self.processp] = math.floor(arg32_1/256^3) % 256; self.processp = self.processp + 1
-   self.process[self.processp] = arg8_3;                          self.processp = self.processp + 1
-   self.process[self.processp] = arg8_2;                          self.processp = self.processp + 1
-   self.process[self.processp] = arg8_1;                          self.processp = self.processp + 1
-   self.process[self.processp] = opcode;                          self.processp = self.processp + 1
-end
-
-function Linker:addDataUINT32(uint32)
-   self.process[self.processp] = math.floor(uint32/256^0) % 256;  self.processp = self.processp + 1
-   self.process[self.processp] = math.floor(uint32/256^1) % 256;  self.processp = self.processp + 1
-   self.process[self.processp] = math.floor(uint32/256^2) % 256;  self.processp = self.processp + 1
-   self.process[self.processp] = math.floor(uint32/256^3) % 256;  self.processp = self.processp + 1
-end
---]]
-
 function Linker:newInstructionBytes(args)
    -- parse args
    local opcode = args.opcode or oFlower.op_nop
@@ -660,53 +623,6 @@ function Linker:rewriteARG32(instr_bytes, uint32)
 end
 
 function Linker:addProcess(new_process)
---[[
-   bytes_curr = (self.processp-1)
-   bytes_coming = #new_process.byte
-   cur_page = math.floor(bytes_curr/oFlower.page_size_b)
-   new_page = math.floor((bytes_curr + bytes_coming)/oFlower.page_size_b)
-
-   self.logfile:write("***in Linker:addProcess\n")
-   self.logfile:write(string.format("bytes currently: %d, bytes coming: %d\n",
-                                    bytes_curr, bytes_coming))
-
-   local c = sys.COLORS
-   if bytes_coming > oFlower.page_size_b then
-      print(c.Red .. 'WARNING' .. c.red .. ' inserting a process that is larger than a cache page')
-      print('\tthis might result in unpredictable execution' .. c.none)
-   end
-
-   if (cur_page < new_page) then
-      bytes_left = oFlower.page_size_b - (bytes_curr % oFlower.page_size_b)
-      -- insert goto instruction to realign
-      if (bytes_left > 0) then
-         self:addInstruction{opcode = oFlower.op_goto, arg32_1 = (bytes_curr+bytes_left)/8}
-      end
-      bytes_left = oFlower.page_size_b - ((self.processp-1) % oFlower.page_size_b)
-      self.logfile:write(string.format("bytes padding: %d\n",bytes_left))
-
-      for i = 1,bytes_left do
-         self.process[self.processp] = 0
-         self.processp = self.processp + 1
-      end
-   end
-
-   bytes_curr = self.processp
-   for i = 1,#new_process.byte do
-      self.process[self.processp] = new_process.byte[i]
-      self.processp = self.processp + 1
-   end
-
-   -- resolve relative addresses (for gotos)
-   local saved_pointer = self.processp
-   for i=1,#new_process.byte do
-      if new_process.metabyte[i] ~= nil then
-         self.processp = bytes_curr + i - 1 -- this address needs to be replaced
-         self:addDataUINT32( (bytes_curr + i - 2)/8 + new_process.metabyte[i]) -- insert new address
-      end
-   end
-   self.processp = saved_pointer
---]]
 
    for ii=0, (#new_process.byte-1), 8 do
       local instruction = {bytes = {new_process.byte[ii+1],
@@ -741,18 +657,6 @@ function Linker:dump(info, mem)
    self:alignProcessWithPages()
    self:resolveGotos()
    self:genBytecode()
-
---[[
-   print("****************instructions****************")
-   for i=1,(self.processp-1) do
-      if self.process[i] ~= self.instruction_output[i] then
-         print(i .. "\tWRONG  " .. "\t" .. self.process[i] .. "\t" ..  self.instruction_output[i])
-      --else
-      --   print(i .. "\tTRUE   " .. "\t" .. self.process[i] .. "\t" ..  self.instruction_output[i])
-      end
-   end
-   print("****************....DONE....****************")
---]]
 
    self.process = self.instruction_output
    self.processp = #self.instruction_output + 1
