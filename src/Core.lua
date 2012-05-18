@@ -49,8 +49,10 @@ function Core:__init(args)
    oFlower.cache_size_b = args.cache_size or oFlower.cache_size_b
 
    -- instruction array.
-   self.process = {byte = {}, goto_tags = {}}
+   self.process = {byte = {}, goto_tags = {}, instr = {}}
+   self.binary = {}
    self.bytep = 1
+   self.instrp = 1
 
    -- for loops
    self.loop_start = 0
@@ -166,8 +168,10 @@ end
 
 function Core:startProcess()
    if not self.processLock then
-      self.process = {byte = {}, goto_tags = {}}
+      self.process = {byte = {}, goto_tags = {}, instr = {}}
+      self.binary = {}
       self.bytep = 1
+      self.instrp = 1
       self.processLock = 1
    else
       print(sys.COLORS.Red .. 'WARNING'
@@ -217,30 +221,40 @@ function Core:addGotoTag(index, goto_tag)
 end
 
 function Core:addInstruction(args)
-   -- parse args
-   local opcode = args.opcode or oFlower.op_nop
-   local arg8_1 = args.arg8_1 or 0
-   local arg8_2 = args.arg8_2 or 0
-   local arg8_3 = args.arg8_3 or 0
-   local arg32_1 = args.arg32_1 or 0
+   if not args.binary then
+      -- parse args
+      local opcode = args.opcode or oFlower.op_nop
+      local arg8_1 = args.arg8_1 or 0
+      local arg8_2 = args.arg8_2 or 0
+      local arg8_3 = args.arg8_3 or 0
+      local arg32_1 = args.arg32_1 or 0
 
-   self.process.byte[self.bytep] = math.floor(arg32_1/256^0) % 256;  self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(arg32_1/256^1) % 256;  self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(arg32_1/256^2) % 256;  self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(arg32_1/256^3) % 256;  self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = arg8_3;                           self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = arg8_2;                           self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = arg8_1;                           self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = opcode;                           self.bytep = self.bytep + 1
+      self.process.byte[self.bytep] = math.floor(arg32_1/256^0) % 256;  self.bytep = self.bytep + 1
+      self.process.byte[self.bytep] = math.floor(arg32_1/256^1) % 256;  self.bytep = self.bytep + 1
+      self.process.byte[self.bytep] = math.floor(arg32_1/256^2) % 256;  self.bytep = self.bytep + 1
+      self.process.byte[self.bytep] = math.floor(arg32_1/256^3) % 256;  self.bytep = self.bytep + 1
+      self.process.byte[self.bytep] = arg8_3;                           self.bytep = self.bytep + 1
+      self.process.byte[self.bytep] = arg8_2;                           self.bytep = self.bytep + 1
+      self.process.byte[self.bytep] = arg8_1;                           self.bytep = self.bytep + 1
+      self.process.byte[self.bytep] = opcode;                           self.bytep = self.bytep + 1
+   end
+
+   self.process.instr[self.instrp] = args
+   self.instrp = self.instrp + 1
 end
 
 function Core:addDataUINT8(uint8)
    self.process.byte[self.bytep] = uint8;                            self.bytep = self.bytep + 1
+
+   self.binary[#self.binary+1] = uint8
 end
 
 function Core:addDataUINT16(uint16)
    self.process.byte[self.bytep] = math.floor(uint16/256^0) % 256;   self.bytep = self.bytep + 1
    self.process.byte[self.bytep] = math.floor(uint16/256^1) % 256;   self.bytep = self.bytep + 1
+
+   self.binary[#self.binary+1] = math.floor(uint16/256^0) % 256
+   self.binary[#self.binary+1] = math.floor(uint16/256^1) % 256
 end
 
 function Core:addDataUINT32(uint32)
@@ -248,6 +262,11 @@ function Core:addDataUINT32(uint32)
    self.process.byte[self.bytep] = math.floor(uint32/256^1) % 256;   self.bytep = self.bytep + 1
    self.process.byte[self.bytep] = math.floor(uint32/256^2) % 256;   self.bytep = self.bytep + 1
    self.process.byte[self.bytep] = math.floor(uint32/256^3) % 256;   self.bytep = self.bytep + 1
+
+   self.binary[#self.binary+1] = math.floor(uint32/256^0) % 256
+   self.binary[#self.binary+1] = math.floor(uint32/256^1) % 256
+   self.binary[#self.binary+1] = math.floor(uint32/256^2) % 256
+   self.binary[#self.binary+1] = math.floor(uint32/256^3) % 256
 end
 
 function Core:addDataString(str)
@@ -264,6 +283,34 @@ function Core:addDataPAD()
          self.bytep = self.bytep + 1
       end
    end
+
+   -- pad the end of binary array to align with instruction size
+   local bin_padding = 8 - (#self.binary % 8)
+   if (bin_padding ~= 8) then
+      for i=1, bin_padding do
+         self.binary[#self.binary+1] = 0
+      end
+   end
+
+   local ii = 0
+   while ii < (#self.binary-1) do
+      self:addInstruction {
+         binary = {
+            self.binary[ii+1],
+            self.binary[ii+2],
+            self.binary[ii+3],
+            self.binary[ii+4],
+            self.binary[ii+5],
+            self.binary[ii+6],
+            self.binary[ii+7],
+            self.binary[ii+8]
+         }
+      }
+
+      ii = ii + 8
+   end
+
+   self.binary = {}
 end
 
 function Core:makeGotoTag()

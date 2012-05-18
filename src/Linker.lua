@@ -605,6 +605,10 @@ function Linker:alignProcessWithPages()
 end
 
 function Linker:newInstructionBytes(args)
+   if args.binary then
+      return args.binary
+   end
+
    -- parse args
    local opcode = args.opcode or oFlower.op_nop
    local arg8_1 = args.arg8_1 or 0
@@ -634,6 +638,22 @@ function Linker:rewriteARG32(instr_bytes, uint32)
 end
 
 function Linker:addProcess(new_process)
+
+--[[
+   local instrp = 1
+   for ii, opcode in  ipairs(new_process.instr) do
+
+      for i, b in ipairs(self:newInstructionBytes(opcode)) do
+
+         if new_process.byte[instrp] ~= b then
+            print(ii .. ' ' .. i .. "\tWRONG  " .. "\t" .. new_process.byte[instrp] .. "\t" ..  b)
+         else
+            print(ii .. ' ' .. i .. "\tTRUE   " .. "\t" .. new_process.byte[instrp] .. "\t" ..  b)
+         end
+         instrp = instrp + 1
+      end
+   end
+--]]
 
    for ii=0, (#new_process.byte-1), 8 do
       local instruction = {
