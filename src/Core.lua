@@ -48,8 +48,8 @@ function Core:__init(args)
    memory.size_r = memory.size_b / streamer.stride_b
    oFlower.cache_size_b = args.cache_size or oFlower.cache_size_b
 
-   -- instruction array. metabyte[] contains extra info about the bytecodes gotos.
-   self.process = {byte = {}, metabyte = {}, goto_tags = {}}
+   -- instruction array.
+   self.process = {byte = {}, goto_tags = {}}
    self.bytep = 1
 
    -- for loops
@@ -166,7 +166,7 @@ end
 
 function Core:startProcess()
    if not self.processLock then
-      self.process = {byte = {}, metabyte = {}, goto_tags = {}}
+      self.process = {byte = {}, goto_tags = {}}
       self.bytep = 1
       self.processLock = 1
    else
@@ -214,10 +214,6 @@ end
 
 function Core:addGotoTag(index, goto_tag)
    self.process.goto_tags[index] = goto_tag
-end
-
-function Core:addMetaTag(pointer, tag)
-   self.process.metabyte[pointer] = tag
 end
 
 function Core:addInstruction(args)
@@ -456,9 +452,6 @@ end
 function Core:gotoAbsolute(absaddr)
    error('# ERROR <Core.gotoAbsolute> : not supported yet')
 
-   -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, absaddr - self:processAddress())
-
    -- goto instruction
    self:addInstruction {
       opcode = oFlower.op_goto,
@@ -469,8 +462,6 @@ end
 
 function Core:gotoRelative(reladdr)
    -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, reladdr)
-
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
    self:addGotoTag(self.bytep, goto_tag)
@@ -525,8 +516,6 @@ end
 
 function Core:gotoRelativeIfNonZero(reladdr, reg)
    -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, reladdr)
-
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
    self:addGotoTag(self.bytep, goto_tag)
@@ -542,8 +531,6 @@ end
 
 function Core:gotoRelativeIfZero(reladdr, reg)
    -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, reladdr)
-
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
    self:addGotoTag(self.bytep, goto_tag)
@@ -559,8 +546,6 @@ end
 
 function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
    -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, absaddr - self:processAddress())
-
    self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
@@ -574,8 +559,6 @@ end
 
 function Core:gotoAbsoluteIfZero(absaddr, reg, goto_tag)
    -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, absaddr - self:processAddress())
-
    self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
