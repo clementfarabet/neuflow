@@ -16,11 +16,12 @@ function Linker:__init(args)
 
    -- the bytecode array
    local sentinel_node = {}
-   self.instruction_list = {start_node    = sentinel_node,
-                           end_node       = sentinel_node,
-                           start_sentinel = sentinel_node,
-                           end_sentinel   = sentinel_node}
-
+   self.instruction_list = {
+      start_node    = sentinel_node,
+      end_node       = sentinel_node,
+      start_sentinel = sentinel_node,
+      end_sentinel   = sentinel_node
+   }
 
    self.goto_table = {}
    self.instruction_output = {}
@@ -40,14 +41,18 @@ function Linker:__init(args)
 
       local ii = 0
       while ii < (#bootloader.content-1) do
-         local instruction = {bytes = {bootloader.content[ii+1],
-                                       bootloader.content[ii+2],
-                                       bootloader.content[ii+3],
-                                       bootloader.content[ii+4],
-                                       bootloader.content[ii+5],
-                                       bootloader.content[ii+6],
-                                       bootloader.content[ii+7],
-                                       bootloader.content[ii+8]}}
+         local instruction = {
+            bytes = {
+               bootloader.content[ii+1],
+               bootloader.content[ii+2],
+               bootloader.content[ii+3],
+               bootloader.content[ii+4],
+               bootloader.content[ii+5],
+               bootloader.content[ii+6],
+               bootloader.content[ii+7],
+               bootloader.content[ii+8]
+            }
+         }
 
          self:appendInstruction(instruction)
          ii = ii + 8
@@ -382,17 +387,21 @@ function Linker:cacheConfigOptimization()
    end
 
    local function makeCacheSetInstr()
-      local instr_bytes = self:newInstructionBytes{opcode = oFlower.op_writeConfig,
-                                                   arg8_1 = blast_bus.content_instruc,
-                                                   arg32_1 = blast_bus.instruc_cacheStart}
+      local instr_bytes = self:newInstructionBytes {
+         opcode = oFlower.op_writeConfig,
+         arg8_1 = blast_bus.content_instruc,
+         arg32_1 = blast_bus.instruc_cacheStart
+      }
 
       return {bytes = instr_bytes}
    end
 
    local function makeCacheUnsetInstr()
-      local instr_bytes = self:newInstructionBytes{opcode = oFlower.op_writeConfig,
-                                                   arg8_1 = blast_bus.content_instruc,
-                                                   arg32_1 = blast_bus.instruc_cacheFinish}
+      local instr_bytes = self:newInstructionBytes {
+         opcode = oFlower.op_writeConfig,
+         arg8_1 = blast_bus.content_instruc,
+         arg32_1 = blast_bus.instruc_cacheFinish
+      }
 
       return {bytes = instr_bytes}
    end
@@ -401,9 +410,11 @@ function Linker:cacheConfigOptimization()
       submod = submod or 0
       local configWord = blast_bus.area_streamer*(2^28) + addr*(2^16) + submod*(2^8)
 
-      local instr_bytes = self:newInstructionBytes{opcode = oFlower.op_writeConfig,
-                                                   arg8_1 = blast_bus.content_command,
-                                                   arg32_1 = configWord}
+      local instr_bytes = self:newInstructionBytes {
+         opcode = oFlower.op_writeConfig,
+         arg8_1 = blast_bus.content_command,
+         arg32_1 = configWord
+      }
 
       return {bytes = instr_bytes}
    end
@@ -625,14 +636,18 @@ end
 function Linker:addProcess(new_process)
 
    for ii=0, (#new_process.byte-1), 8 do
-      local instruction = {bytes = {new_process.byte[ii+1],
-                                    new_process.byte[ii+2],
-                                    new_process.byte[ii+3],
-                                    new_process.byte[ii+4],
-                                    new_process.byte[ii+5],
-                                    new_process.byte[ii+6],
-                                    new_process.byte[ii+7],
-                                    new_process.byte[ii+8]}}
+      local instruction = {
+         bytes = {
+            new_process.byte[ii+1],
+            new_process.byte[ii+2],
+            new_process.byte[ii+3],
+            new_process.byte[ii+4],
+            new_process.byte[ii+5],
+            new_process.byte[ii+6],
+            new_process.byte[ii+7],
+            new_process.byte[ii+8]
+         }
+      }
 
       self:appendInstruction(instruction)
    end
