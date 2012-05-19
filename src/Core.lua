@@ -54,9 +54,6 @@ function Core:__init(args)
    self.bytep = 1
    self.instrp = 1
 
-   -- for loops
-   self.loop_start = 0
-
    -- linker
    self.linker = neuflow.Linker {
       logfile     =  self.logfile,
@@ -196,24 +193,23 @@ end
 function Core:startLoop(times)
    -- Set loop register to given 'times'
    self:setreg(oFlower.reg_loops, times)
-   self.loop_start = self:processAddress()
    self.loop_tag = self:makeGotoTag()
 end
 
 function Core:endLoop()
    -- decrement counter and conditional goto
    self:addi(oFlower.reg_loops, -1, oFlower.reg_loops)
-   self:gotoAbsoluteIfNonZero(self.loop_start, oFlower.reg_loops, self.loop_tag)
+   self:gotoTagIfNonZero(self.loop_tag, oFlower.reg_loops)
 end
 
 function Core:endLoopIfRegZero(reg)
    -- exit loop if reg == 0
-   self:gotoAbsoluteIfNonZero(self.loop_start, reg, self.loop_tag)
+   self:gotoTagIfNonZero(self.loop_tag, reg)
 end
 
 function Core:endLoopIfRegNonZero(reg)
    -- exit loop if reg != 0
-   self:gotoAbsoluteIfZero(self.loop_start, reg, self.loop_tag)
+   self:gotoTagIfZero(self.loop_tag, reg)
 end
 
 function Core:addInstruction(args)
@@ -317,11 +313,6 @@ function Core:makeGotoTag()
       offset = (self.bytep/8),
       gaddr = ((self.linker.processp-1)/8)
    }
-end
-
--- returns current inner process address
-function Core:processAddress()
-   return (self.bytep-1) / 8
 end
 
 -- ALU operations
@@ -441,8 +432,8 @@ function Core:shri(arg1, val, result, mode)
       }
       -- create loop
       self:setreg(reg, val-1)
-      local loopback = self:processAddress()
       local goto_tag = self:makeGotoTag()
+
       -- shift right
       self:addInstruction {
          opcode = oFlower.op_shr,
@@ -452,7 +443,7 @@ function Core:shri(arg1, val, result, mode)
       }
       -- decrement counter and conditional goto
       self:addi(reg, -1, reg)
-      self:gotoAbsoluteIfNonZero(loopback, reg, goto_tag)
+      self:gotoTagIfNonZero(goto_tag, reg)
    end
 
    self.alloc_sr:free(reg)
@@ -892,15 +883,13 @@ function Core:readStringFromMem(stream)
 
    -- Get stream from DMA
    self:setreg(reg_length, length)
-
-   local loop_start = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioWaitForReadData(oFlower.io_dma_status)
    self:ioread(oFlower.io_dma, reg_io_dma)
    self:printReg(reg_io_dma)
    self:addi(reg_length, -1, reg_length)
-   self:gotoAbsoluteIfNonZero(loop_start, reg_length, goto_tag)
+   self:gotoTagIfNonZero(goto_tag, reg_length)
 
    -- free cpu regs
    self.alloc_ur:free(reg_io_dma)
@@ -912,26 +901,22 @@ end
 
 function Core:ioWaitForReadData(ioCtrl)
    local reg = self.alloc_sr:get()
-
-   local start_again = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000001, reg)
-   self:gotoAbsoluteIfZero(start_again, reg, goto_tag)
+   self:gotoTagIfZero(goto_tag, reg)
 
    self.alloc_sr:free(reg)
 end
 
 function Core:ioWaitForWriteData(ioCtrl)
    local reg = self.alloc_sr:get()
-
-   local start_again = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000002, reg)
-   self:gotoAbsoluteIfZero(start_again, reg, goto_tag)
+   self:gotoTagIfZero(goto_tag, reg)
 
    self.alloc_sr:free(reg)
 end
@@ -939,15 +924,13 @@ end
 function Core:printReg(reg)
    local reg_loop = self.alloc_sr:get()
    self:setreg(reg_loop, 4)
-
-   local start_again = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioWaitForWriteData(oFlower.io_uart_status)
    self:iowrite(oFlower.io_uart, reg)
    self:shri(reg, 8, reg, 'logic')
    self:addi(reg_loop, -1, reg_loop)
-   self:gotoAbsoluteIfNonZero(start_again, reg_loop, goto_tag)
+   self:gotoTagIfNonZero(goto_tag, reg_loop)
    self.alloc_sr:free(reg_loop)
 end
 
@@ -963,8 +946,6 @@ end
 
 function Core:getCharNonBlocking(reg, tries)
    self:setreg(reg, -1)
-
-   local start_again = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    local reg_loop = self.alloc_sr:get()
@@ -975,7 +956,7 @@ function Core:getCharNonBlocking(reg, tries)
    self:bitandi(reg_stat, 0x00000001, reg_stat)
    self:addi(reg_loop, -1, reg_loop)
    self:gotoRelativeIfZero(2, reg_loop)
-   self:gotoAbsoluteIfZero(start_again, reg_stat, goto_tag)
+   self:gotoTagIfZero(goto_tag, reg_stat)
    self:ioread(oFlower.io_uart, reg)
 
    self.alloc_sr:free(reg_stat)
