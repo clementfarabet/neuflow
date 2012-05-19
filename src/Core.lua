@@ -83,9 +83,6 @@ function Core:__init(args)
       [oFlower.reg_F] = true,
    }
 
-   -- ports state
-   self.dvi_mode = 0
-
    -- convolver state
    self.nb_kernels_loaded = {} for i=1,grid.nb_convs do self.nb_kernels_loaded[i] = 0 end
 
@@ -262,13 +259,6 @@ function Core:addDataPAD()
    self.binary = {}
 end
 
-function Core:makeGotoTag()
-   return {
-      ref = self.linker:getLastReference(),
-      offset = 1
-   }
-end
-
 -- ALU operations
 function Core:bitor(arg1, arg2, result)
    self:addInstruction {
@@ -435,6 +425,14 @@ function Core:setreg(reg, val)
       opcode = oFlower.op_setReg,
       arg8_2 = reg,
       arg32_1 = val
+   }
+end
+
+function Core:makeGotoTag()
+   -- the tag points to next instruction after this function is called
+   return {
+      ref = self.linker:getLastReference(),
+      offset = 1
    }
 end
 
