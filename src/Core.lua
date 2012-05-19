@@ -309,9 +309,8 @@ end
 
 function Core:makeGotoTag()
    return {
-      ref = self.linker:getReference(),
-      offset = (self.bytep/8),
-      gaddr = ((self.linker.processp-1)/8)
+      ref = self.linker:getLastReference(),
+      offset = 1
    }
 end
 
@@ -490,7 +489,7 @@ function Core:gotoTag(goto_tag)
       goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 0,
-      arg32_1 = goto_tag.gaddr
+      arg32_1 = 0
    }
 end
 

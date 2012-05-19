@@ -77,7 +77,7 @@ function Linker:getLastReference()
 end
 
 function Linker:getReference()
-   return self.instruction_list.end_sentinel
+   error('# ERROR <Linker:getReference> : Deprecated')
 end
 
 function Linker:linkGotos()
