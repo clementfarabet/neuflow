@@ -49,7 +49,7 @@ function Core:__init(args)
    oFlower.cache_size_b = args.cache_size or oFlower.cache_size_b
 
    -- instruction array.
-   self.process = {byte = {}, goto_tags = {}, instr = {}}
+   self.process = {byte = {}, instr = {}}
    self.binary = {}
    self.bytep = 1
    self.instrp = 1
@@ -168,7 +168,7 @@ end
 
 function Core:startProcess()
    if not self.processLock then
-      self.process = {byte = {}, goto_tags = {}, instr = {}}
+      self.process = {byte = {}, instr = {}}
       self.binary = {}
       self.bytep = 1
       self.instrp = 1
@@ -214,10 +214,6 @@ end
 function Core:endLoopIfRegNonZero(reg)
    -- exit loop if reg != 0
    self:gotoAbsoluteIfZero(self.loop_start, reg, self.loop_tag)
-end
-
-function Core:addGotoTag(index, goto_tag)
-   self.process.goto_tags[index] = goto_tag
 end
 
 function Core:addInstruction(args)
@@ -513,7 +509,6 @@ function Core:gotoRelative(reladdr)
    -- add a tag, to be resolved later
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
-   self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
    self:addInstruction {
@@ -525,8 +520,6 @@ function Core:gotoRelative(reladdr)
 end
 
 function Core:gotoTag(goto_tag)
-   self:addGotoTag(self.bytep, goto_tag)
-
    -- goto instruction
    self:addInstruction {
       goto_tag = goto_tag,
@@ -569,7 +562,6 @@ function Core:gotoRelativeIfNonZero(reladdr, reg)
    -- add a tag, to be resolved later
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
-   self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
    self:addInstruction {
@@ -585,7 +577,6 @@ function Core:gotoRelativeIfZero(reladdr, reg)
    -- add a tag, to be resolved later
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
-   self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
    self:addInstruction {
@@ -598,9 +589,6 @@ function Core:gotoRelativeIfZero(reladdr, reg)
 end
 
 function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
-   -- add a tag, to be resolved later
-   self:addGotoTag(self.bytep, goto_tag)
-
    -- goto instruction
    self:addInstruction {
       goto_tag = goto_tag,
@@ -612,9 +600,6 @@ function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
 end
 
 function Core:gotoAbsoluteIfZero(absaddr, reg, goto_tag)
-   -- add a tag, to be resolved later
-   self:addGotoTag(self.bytep, goto_tag)
-
    -- goto instruction
    self:addInstruction {
       goto_tag = goto_tag,
