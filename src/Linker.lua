@@ -682,17 +682,29 @@ function Linker:addProcess(new_process)
    while nnode.next do
       nnode = nnode.next
       nnode.bytes = self:newInstructionBytes(nnode)
+
+      if nnode.goto_tag then
+         self.goto_table[nnode] = nnode.goto_tag
+      end
    end
 
+--[[
    -- add goto tag to nodes
    local node = self.instruction_list.end_node
    for ii = #new_process.byte, 1, -1 do
       if new_process.goto_tags[ii] ~= nil then
-         self.goto_table[node] = new_process.goto_tags[ii]
+         --self.goto_table[node] = new_process.goto_tags[ii]
+
+         if self.goto_table[node] ==  new_process.goto_tags[ii] then
+            print('goto tag SAME')
+         else
+            print('goto tag DIFFERENT')
+         end
       end
 
       if (ii%8) == 1 then node = node.prev end
    end
+--]]
 
 --[[
    local test_node = self.instruction_list.end_sentinel.next

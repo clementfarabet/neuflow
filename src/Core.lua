@@ -517,6 +517,7 @@ function Core:gotoRelative(reladdr)
 
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 0,
       arg32_1 = 0
@@ -528,6 +529,7 @@ function Core:gotoTag(goto_tag)
 
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 0,
       arg32_1 = goto_tag.gaddr
@@ -571,6 +573,7 @@ function Core:gotoRelativeIfNonZero(reladdr, reg)
 
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 1,
       arg8_2 = reg,
@@ -586,6 +589,7 @@ function Core:gotoRelativeIfZero(reladdr, reg)
 
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 2,
       arg8_2 = reg,
@@ -599,6 +603,7 @@ function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
 
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 1,
       arg8_2 = reg,
@@ -612,6 +617,7 @@ function Core:gotoAbsoluteIfZero(absaddr, reg, goto_tag)
 
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 2,
       arg8_2 = reg,
