@@ -493,32 +493,6 @@ function Core:setreg(reg, val)
    }
 end
 
--- uncond goto
-function Core:gotoAbsolute(absaddr)
-   error('# ERROR <Core.gotoAbsolute> : not supported yet')
-
-   -- goto instruction
-   self:addInstruction {
-      opcode = oFlower.op_goto,
-      arg8_1 = 0,
-      arg32_1 = 0
-   }
-end
-
-function Core:gotoRelative(reladdr)
-   -- add a tag, to be resolved later
-   local goto_tag = self:makeGotoTag()
-   goto_tag.offset = goto_tag.offset + reladdr
-
-   -- goto instruction
-   self:addInstruction {
-      goto_tag = goto_tag,
-      opcode = oFlower.op_goto,
-      arg8_1 = 0,
-      arg32_1 = 0
-   }
-end
-
 function Core:gotoTag(goto_tag)
    -- goto instruction
    self:addInstruction {
@@ -526,6 +500,28 @@ function Core:gotoTag(goto_tag)
       opcode = oFlower.op_goto,
       arg8_1 = 0,
       arg32_1 = goto_tag.gaddr
+   }
+end
+
+function Core:gotoTagIfNonZero(goto_tag, reg)
+   -- goto instruction
+   self:addInstruction {
+      goto_tag = goto_tag,
+      opcode = oFlower.op_goto,
+      arg8_1 = 1,
+      arg8_2 = reg,
+      arg32_1 = 0
+   }
+end
+
+function Core:gotoTagIfZero(goto_tag, reg)
+   -- goto instruction
+   self:addInstruction {
+      goto_tag = goto_tag,
+      opcode = oFlower.op_goto,
+      arg8_1 = 2,
+      arg8_2 = reg,
+      arg32_1 = 0
    }
 end
 
@@ -558,6 +554,20 @@ function Core:gotoGlobalIfZero(globaladdr, reg)
    }
 end
 
+function Core:gotoRelative(reladdr)
+   -- add a tag, to be resolved later
+   local goto_tag = self:makeGotoTag()
+   goto_tag.offset = goto_tag.offset + reladdr
+
+   -- goto instruction
+   self:addInstruction {
+      goto_tag = goto_tag,
+      opcode = oFlower.op_goto,
+      arg8_1 = 0,
+      arg32_1 = 0
+   }
+end
+
 function Core:gotoRelativeIfNonZero(reladdr, reg)
    -- add a tag, to be resolved later
    local goto_tag = self:makeGotoTag()
@@ -584,6 +594,18 @@ function Core:gotoRelativeIfZero(reladdr, reg)
       opcode = oFlower.op_goto,
       arg8_1 = 2,
       arg8_2 = reg,
+      arg32_1 = 0
+   }
+end
+
+-- uncond goto
+function Core:gotoAbsolute(absaddr)
+   error('# ERROR <Core.gotoAbsolute> : not supported yet')
+
+   -- goto instruction
+   self:addInstruction {
+      opcode = oFlower.op_goto,
+      arg8_1 = 0,
       arg32_1 = 0
    }
 end
