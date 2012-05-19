@@ -48,11 +48,8 @@ function Core:__init(args)
    memory.size_r = memory.size_b / streamer.stride_b
    oFlower.cache_size_b = args.cache_size or oFlower.cache_size_b
 
-   -- instruction array.
-   self.process = {byte = {}, instr = {}}
+   -- binary data array.
    self.binary = {}
-   self.bytep = 1
-   self.instrp = 1
 
    -- linker
    self.linker = neuflow.Linker {
@@ -165,10 +162,7 @@ end
 
 function Core:startProcess()
    if not self.processLock then
-      self.process = {byte = {}, instr = {}}
       self.binary = {}
-      self.bytep = 1
-      self.instrp = 1
       self.processLock = 1
    else
       print(sys.COLORS.Red .. 'WARNING'
@@ -213,50 +207,19 @@ function Core:endLoopIfRegNonZero(reg)
 end
 
 function Core:addInstruction(args)
-   if not args.binary then
-      -- parse args
-      local opcode = args.opcode or oFlower.op_nop
-      local arg8_1 = args.arg8_1 or 0
-      local arg8_2 = args.arg8_2 or 0
-      local arg8_3 = args.arg8_3 or 0
-      local arg32_1 = args.arg32_1 or 0
-
-      self.process.byte[self.bytep] = math.floor(arg32_1/256^0) % 256;  self.bytep = self.bytep + 1
-      self.process.byte[self.bytep] = math.floor(arg32_1/256^1) % 256;  self.bytep = self.bytep + 1
-      self.process.byte[self.bytep] = math.floor(arg32_1/256^2) % 256;  self.bytep = self.bytep + 1
-      self.process.byte[self.bytep] = math.floor(arg32_1/256^3) % 256;  self.bytep = self.bytep + 1
-      self.process.byte[self.bytep] = arg8_3;                           self.bytep = self.bytep + 1
-      self.process.byte[self.bytep] = arg8_2;                           self.bytep = self.bytep + 1
-      self.process.byte[self.bytep] = arg8_1;                           self.bytep = self.bytep + 1
-      self.process.byte[self.bytep] = opcode;                           self.bytep = self.bytep + 1
-   end
-
-   self.process.instr[self.instrp] = args
-   self.instrp = self.instrp + 1
-
    self.linker:appendInstruction(args)
 end
 
 function Core:addDataUINT8(uint8)
-   self.process.byte[self.bytep] = uint8;                            self.bytep = self.bytep + 1
-
    self.binary[#self.binary+1] = uint8
 end
 
 function Core:addDataUINT16(uint16)
-   self.process.byte[self.bytep] = math.floor(uint16/256^0) % 256;   self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(uint16/256^1) % 256;   self.bytep = self.bytep + 1
-
    self.binary[#self.binary+1] = math.floor(uint16/256^0) % 256
    self.binary[#self.binary+1] = math.floor(uint16/256^1) % 256
 end
 
 function Core:addDataUINT32(uint32)
-   self.process.byte[self.bytep] = math.floor(uint32/256^0) % 256;   self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(uint32/256^1) % 256;   self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(uint32/256^2) % 256;   self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(uint32/256^3) % 256;   self.bytep = self.bytep + 1
-
    self.binary[#self.binary+1] = math.floor(uint32/256^0) % 256
    self.binary[#self.binary+1] = math.floor(uint32/256^1) % 256
    self.binary[#self.binary+1] = math.floor(uint32/256^2) % 256
@@ -270,14 +233,6 @@ function Core:addDataString(str)
 end
 
 function Core:addDataPAD()
-   local padding = 8 - ((self.bytep-1) % 8)
-   if (padding ~= 8) then
-      for i=1,padding do
-         self.process.byte[self.bytep] = 0
-         self.bytep = self.bytep + 1
-      end
-   end
-
    -- pad the end of binary array to align with instruction size
    local bin_padding = 8 - (#self.binary % 8)
    if (bin_padding ~= 8) then
