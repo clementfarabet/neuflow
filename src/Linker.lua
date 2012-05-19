@@ -23,7 +23,6 @@ function Linker:__init(args)
       end_sentinel   = sentinel_node
    }
 
-   self.goto_table = {}
    self.instruction_output = {}
    self.process = {}
    self.processp = 1
@@ -83,9 +82,19 @@ end
 
 function Linker:linkGotos()
 
-   for node in pairs(self.goto_table) do
-      local ref_node = self.goto_table[node].ref
-      local offset = self.goto_table[node].offset
+   local goto_table = {}
+   local node = self.instruction_list.start_node
+   while node do
+      if node.goto_tag then
+         goto_table[node] = node.goto_tag
+      end
+
+      node = node.next
+   end
+
+   for node in pairs(goto_table) do
+      local ref_node = goto_table[node].ref
+      local offset = goto_table[node].offset
 
       if offset <= 0 then
          local ii = 0
@@ -119,7 +128,7 @@ function Linker:linkGotos()
       end
 
       -- remove just processed goto tab from table
-      self.goto_table[node] = nil
+      goto_table[node] = nil
 
       -- ref_node is destination instr
       node.goto_instr = ref_node
@@ -682,29 +691,7 @@ function Linker:addProcess(new_process)
    while nnode.next do
       nnode = nnode.next
       nnode.bytes = self:newInstructionBytes(nnode)
-
-      if nnode.goto_tag then
-         self.goto_table[nnode] = nnode.goto_tag
-      end
    end
-
---[[
-   -- add goto tag to nodes
-   local node = self.instruction_list.end_node
-   for ii = #new_process.byte, 1, -1 do
-      if new_process.goto_tags[ii] ~= nil then
-         --self.goto_table[node] = new_process.goto_tags[ii]
-
-         if self.goto_table[node] ==  new_process.goto_tags[ii] then
-            print('goto tag SAME')
-         else
-            print('goto tag DIFFERENT')
-         end
-      end
-
-      if (ii%8) == 1 then node = node.prev end
-   end
---]]
 
 --[[
    local test_node = self.instruction_list.end_sentinel.next
