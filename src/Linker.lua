@@ -655,59 +655,7 @@ function Linker:rewriteARG32(instr_bytes, uint32)
    instr_bytes[4] = math.floor(uint32/256^3) % 256
 end
 
-function Linker:addProcess(new_process)
-
---[=[
---[[
-   local instrp = 1
-   for ii, opcode in  ipairs(new_process.instr) do
-
-      for i, b in ipairs(self:newInstructionBytes(opcode)) do
-
-         if new_process.byte[instrp] ~= b then
-            print(ii .. ' ' .. i .. "\tWRONG  " .. "\t" .. new_process.byte[instrp] .. "\t" ..  b)
-         else
-            print(ii .. ' ' .. i .. "\tTRUE   " .. "\t" .. new_process.byte[instrp] .. "\t" ..  b)
-         end
-         instrp = instrp + 1
-      end
-   end
---]]
-
-   for ii=0, (#new_process.byte-1), 8 do
-      local instruction = {
-         bytes = {
-            new_process.byte[ii+1],
-            new_process.byte[ii+2],
-            new_process.byte[ii+3],
-            new_process.byte[ii+4],
-            new_process.byte[ii+5],
-            new_process.byte[ii+6],
-            new_process.byte[ii+7],
-            new_process.byte[ii+8]
-         }
-      }
-
-      self:appendInstruction(instruction)
-   end
---]=]
-
---[[
-   local test_node = self.instruction_list.end_sentinel.next
-   for xx=0, (#new_process.byte-1), 8 do
-
-      for i, b in ipairs(test_node.bytes) do
-         if new_process.byte[xx+i] ~= b then
-            print(xx .. ' ' .. i .. "\tWRONG  " .. "\t" .. new_process.byte[xx+i] .. "\t" ..  b)
-         else
-            print(xx .. ' ' .. i .. "\tTRUE   " .. "\t" .. new_process.byte[xx+i] .. "\t" ..  b)
-         end
-      end
-
-      test_node = test_node.next
-   end
---]]
-
+function Linker:addProcess()
    self:appendSentinel()
 end
 

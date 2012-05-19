@@ -181,7 +181,7 @@ function Core:endProcess()
    if self.processLock then
       self.processLock = self.processLock - 1
       if self.processLock == 0 then
-         self.linker:addProcess(self.process)
+         self.linker:addProcess()
          self.processLock = nil
       end
    else
