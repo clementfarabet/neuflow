@@ -196,6 +196,11 @@ function Linker:appendSentinel()
 end
 
 function Linker:appendInstruction(instruction)
+
+   if not instruction.bytes then
+      instruction.bytes = self:newInstructionBytes(instruction)
+   end
+
    local node = self.instruction_list.end_node
 
    node.next = instruction
@@ -686,12 +691,6 @@ function Linker:addProcess(new_process)
       self:appendInstruction(instruction)
    end
 --]=]
-
-   local nnode = self.instruction_list.end_sentinel
-   while nnode.next do
-      nnode = nnode.next
-      nnode.bytes = self:newInstructionBytes(nnode)
-   end
 
 --[[
    local test_node = self.instruction_list.end_sentinel.next
