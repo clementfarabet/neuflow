@@ -589,38 +589,16 @@ function Core:gotoRelativeIfZero(reladdr, reg)
    }
 end
 
--- uncond goto
 function Core:gotoAbsolute(absaddr)
-   error('# ERROR <Core.gotoAbsolute> : not supported yet')
-
-   -- goto instruction
-   self:addInstruction {
-      opcode = oFlower.op_goto,
-      arg8_1 = 0,
-      arg32_1 = 0
-   }
+   error('# ERROR <Core.gotoAbsolute> : Deprecated')
 end
 
 function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
-   -- goto instruction
-   self:addInstruction {
-      goto_tag = goto_tag,
-      opcode = oFlower.op_goto,
-      arg8_1 = 1,
-      arg8_2 = reg,
-      arg32_1 = 0
-   }
+   error('# ERROR <Core.gotoAbsoluteIfNonZero> : Deprecated')
 end
 
 function Core:gotoAbsoluteIfZero(absaddr, reg, goto_tag)
-   -- goto instruction
-   self:addInstruction {
-      goto_tag = goto_tag,
-      opcode = oFlower.op_goto,
-      arg8_1 = 2,
-      arg8_2 = reg,
-      arg32_1 = 0
-   }
+   error('# ERROR <Core.gotoAbsoluteIfZero> : Deprecated')
 end
 
 function Core:openPortWr(port, data)
