@@ -369,8 +369,6 @@ function Core:compi(arg1, val, result)
 end
 
 function Core:shri(arg1, val, result, mode)
-   local reg = self.alloc_sr:get()
-
    -- mode:
    if mode == 'arith' then
       mode = 1
@@ -395,8 +393,7 @@ function Core:shri(arg1, val, result, mode)
          arg8_3 = result
       }
       -- create loop
-      self:setreg(reg, val-1)
-      local goto_tag = self:makeGotoTag()
+      self:loopRepeatStart(val-1)
 
       -- shift right
       self:addInstruction {
@@ -405,12 +402,9 @@ function Core:shri(arg1, val, result, mode)
          arg8_2 = mode,
          arg8_3 = result
       }
-      -- decrement counter and conditional goto
-      self:addi(reg, -1, reg)
-      self:gotoTagIfNonZero(goto_tag, reg)
-   end
 
-   self.alloc_sr:free(reg)
+      self:loopRepeatEnd()
+   end
 end
 
 function Core:nop(times)
@@ -824,26 +818,22 @@ function Core:readStringFromMem(stream)
    -- open port
    self:openPortRd(1, stream)
 
-   -- get cpu regs for use in operation
-   local reg_length = self.alloc_ur:get()
+   -- get cpu reg for use in operation
    local reg_io_dma = self.alloc_ur:get()
 
    -- String length
    local length = stream.w*stream.h/2
 
-   -- Get stream from DMA
-   self:setreg(reg_length, length)
-   local goto_tag = self:makeGotoTag()
+   self:loopRepeatStart(length)
 
    self:ioWaitForReadData(oFlower.io_dma_status)
    self:ioread(oFlower.io_dma, reg_io_dma)
    self:printReg(reg_io_dma)
-   self:addi(reg_length, -1, reg_length)
-   self:gotoTagIfNonZero(goto_tag, reg_length)
 
-   -- free cpu regs
+   self:loopRepeatEnd()
+
+   -- free cpu reg
    self.alloc_ur:free(reg_io_dma)
-   self.alloc_ur:free(reg_length)
 
    -- done...
    self:closePort(1)
@@ -872,16 +862,13 @@ function Core:ioWaitForWriteData(ioCtrl)
 end
 
 function Core:printReg(reg)
-   local reg_loop = self.alloc_sr:get()
-   self:setreg(reg_loop, 4)
-   local goto_tag = self:makeGotoTag()
+   self:loopRepeatStart(4)
 
    self:ioWaitForWriteData(oFlower.io_uart_status)
    self:iowrite(oFlower.io_uart, reg)
    self:shri(reg, 8, reg, 'logic')
-   self:addi(reg_loop, -1, reg_loop)
-   self:gotoTagIfNonZero(goto_tag, reg_loop)
-   self.alloc_sr:free(reg_loop)
+
+   self:loopRepeatEnd()
 end
 
 function Core:putChar(reg)
@@ -895,22 +882,19 @@ function Core:getCharBlocking(reg)
 end
 
 function Core:getCharNonBlocking(reg, tries)
-   self:setreg(reg, -1)
-   local goto_tag = self:makeGotoTag()
-
-   local reg_loop = self.alloc_sr:get()
    local reg_stat = self.alloc_sr:get()
 
-   self:setreg(reg_loop, tries)
+   self:setreg(reg, -1)
+   self:loopRepeatStart(tries)
+
    self:ioread(oFlower.io_uart_status, reg_stat)
    self:bitandi(reg_stat, 0x00000001, reg_stat)
-   self:addi(reg_loop, -1, reg_loop)
-   self:gotoRelativeIfZero(2, reg_loop)
-   self:gotoTagIfZero(goto_tag, reg_stat)
+   self:loopBreakIfNonZero(reg_stat)
+
+   self:loopRepeatEnd()
    self:ioread(oFlower.io_uart, reg)
 
    self.alloc_sr:free(reg_stat)
-   self.alloc_sr:free(reg_loop)
 end
 
 function Core:flushKernel(convolver)
