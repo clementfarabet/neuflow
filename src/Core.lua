@@ -48,12 +48,8 @@ function Core:__init(args)
    memory.size_r = memory.size_b / streamer.stride_b
    oFlower.cache_size_b = args.cache_size or oFlower.cache_size_b
 
-   -- instruction array. metabyte[] contains extra info about the bytecodes gotos.
-   self.process = {byte = {}, metabyte = {}, goto_tags = {}}
-   self.bytep = 1
-
-   -- for loops
-   self.loop_start = 0
+   -- binary data array.
+   self.binary = {}
 
    -- linker
    self.linker = neuflow.Linker {
@@ -86,9 +82,6 @@ function Core:__init(args)
       [oFlower.reg_E] = true,
       [oFlower.reg_F] = true,
    }
-
-   -- ports state
-   self.dvi_mode = 0
 
    -- convolver state
    self.nb_kernels_loaded = {} for i=1,grid.nb_convs do self.nb_kernels_loaded[i] = 0 end
@@ -166,8 +159,7 @@ end
 
 function Core:startProcess()
    if not self.processLock then
-      self.process = {byte = {}, metabyte = {}, goto_tags = {}}
-      self.bytep = 1
+      self.binary = {}
       self.processLock = 1
    else
       print(sys.COLORS.Red .. 'WARNING'
@@ -180,7 +172,7 @@ function Core:endProcess()
    if self.processLock then
       self.processLock = self.processLock - 1
       if self.processLock == 0 then
-         self.linker:addProcess(self.process)
+         self.linker:addProcess()
          self.processLock = nil
       end
    else
@@ -192,66 +184,43 @@ end
 function Core:startLoop(times)
    -- Set loop register to given 'times'
    self:setreg(oFlower.reg_loops, times)
-   self.loop_start = self:processAddress()
    self.loop_tag = self:makeGotoTag()
 end
 
 function Core:endLoop()
    -- decrement counter and conditional goto
    self:addi(oFlower.reg_loops, -1, oFlower.reg_loops)
-   self:gotoAbsoluteIfNonZero(self.loop_start, oFlower.reg_loops, self.loop_tag)
+   self:gotoTagIfNonZero(self.loop_tag, oFlower.reg_loops)
 end
 
 function Core:endLoopIfRegZero(reg)
    -- exit loop if reg == 0
-   self:gotoAbsoluteIfNonZero(self.loop_start, reg, self.loop_tag)
+   self:gotoTagIfNonZero(self.loop_tag, reg)
 end
 
 function Core:endLoopIfRegNonZero(reg)
    -- exit loop if reg != 0
-   self:gotoAbsoluteIfZero(self.loop_start, reg, self.loop_tag)
-end
-
-function Core:addGotoTag(index, goto_tag)
-   self.process.goto_tags[index] = goto_tag
-end
-
-function Core:addMetaTag(pointer, tag)
-   self.process.metabyte[pointer] = tag
+   self:gotoTagIfZero(self.loop_tag, reg)
 end
 
 function Core:addInstruction(args)
-   -- parse args
-   local opcode = args.opcode or oFlower.op_nop
-   local arg8_1 = args.arg8_1 or 0
-   local arg8_2 = args.arg8_2 or 0
-   local arg8_3 = args.arg8_3 or 0
-   local arg32_1 = args.arg32_1 or 0
-
-   self.process.byte[self.bytep] = math.floor(arg32_1/256^0) % 256;  self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(arg32_1/256^1) % 256;  self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(arg32_1/256^2) % 256;  self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(arg32_1/256^3) % 256;  self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = arg8_3;                           self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = arg8_2;                           self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = arg8_1;                           self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = opcode;                           self.bytep = self.bytep + 1
+   self.linker:appendInstruction(args)
 end
 
 function Core:addDataUINT8(uint8)
-   self.process.byte[self.bytep] = uint8;                            self.bytep = self.bytep + 1
+   self.binary[#self.binary+1] = uint8
 end
 
 function Core:addDataUINT16(uint16)
-   self.process.byte[self.bytep] = math.floor(uint16/256^0) % 256;   self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(uint16/256^1) % 256;   self.bytep = self.bytep + 1
+   self.binary[#self.binary+1] = math.floor(uint16/256^0) % 256
+   self.binary[#self.binary+1] = math.floor(uint16/256^1) % 256
 end
 
 function Core:addDataUINT32(uint32)
-   self.process.byte[self.bytep] = math.floor(uint32/256^0) % 256;   self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(uint32/256^1) % 256;   self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(uint32/256^2) % 256;   self.bytep = self.bytep + 1
-   self.process.byte[self.bytep] = math.floor(uint32/256^3) % 256;   self.bytep = self.bytep + 1
+   self.binary[#self.binary+1] = math.floor(uint32/256^0) % 256
+   self.binary[#self.binary+1] = math.floor(uint32/256^1) % 256
+   self.binary[#self.binary+1] = math.floor(uint32/256^2) % 256
+   self.binary[#self.binary+1] = math.floor(uint32/256^3) % 256
 end
 
 function Core:addDataString(str)
@@ -261,26 +230,33 @@ function Core:addDataString(str)
 end
 
 function Core:addDataPAD()
-   local padding = 8 - ((self.bytep-1) % 8)
-   if (padding ~= 8) then
-      for i=1,padding do
-         self.process.byte[self.bytep] = 0
-         self.bytep = self.bytep + 1
+   -- pad the end of binary array to align with instruction size
+   local bin_padding = 8 - (#self.binary % 8)
+   if (bin_padding ~= 8) then
+      for i=1, bin_padding do
+         self.binary[#self.binary+1] = 0
       end
    end
-end
 
-function Core:makeGotoTag()
-   return {
-      ref = self.linker:getReference(),
-      offset = (self.bytep/8),
-      gaddr = ((self.linker.processp-1)/8)
-   }
-end
+   local ii = 0
+   while ii < (#self.binary-1) do
+      self:addInstruction {
+         binary = {
+            self.binary[ii+1],
+            self.binary[ii+2],
+            self.binary[ii+3],
+            self.binary[ii+4],
+            self.binary[ii+5],
+            self.binary[ii+6],
+            self.binary[ii+7],
+            self.binary[ii+8]
+         }
+      }
 
--- returns current inner process address
-function Core:processAddress()
-   return (self.bytep-1) / 8
+      ii = ii + 8
+   end
+
+   self.binary = {}
 end
 
 -- ALU operations
@@ -400,8 +376,8 @@ function Core:shri(arg1, val, result, mode)
       }
       -- create loop
       self:setreg(reg, val-1)
-      local loopback = self:processAddress()
       local goto_tag = self:makeGotoTag()
+
       -- shift right
       self:addInstruction {
          opcode = oFlower.op_shr,
@@ -411,7 +387,7 @@ function Core:shri(arg1, val, result, mode)
       }
       -- decrement counter and conditional goto
       self:addi(reg, -1, reg)
-      self:gotoAbsoluteIfNonZero(loopback, reg, goto_tag)
+      self:gotoTagIfNonZero(goto_tag, reg)
    end
 
    self.alloc_sr:free(reg)
@@ -452,45 +428,43 @@ function Core:setreg(reg, val)
    }
 end
 
--- uncond goto
-function Core:gotoAbsolute(absaddr)
-   error('# ERROR <Core.gotoAbsolute> : not supported yet')
-
-   -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, absaddr - self:processAddress())
-
-   -- goto instruction
-   self:addInstruction {
-      opcode = oFlower.op_goto,
-      arg8_1 = 0,
-      arg32_1 = 0
-   }
-end
-
-function Core:gotoRelative(reladdr)
-   -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, reladdr)
-
-   local goto_tag = self:makeGotoTag()
-   goto_tag.offset = goto_tag.offset + reladdr
-   self:addGotoTag(self.bytep, goto_tag)
-
-   -- goto instruction
-   self:addInstruction {
-      opcode = oFlower.op_goto,
-      arg8_1 = 0,
-      arg32_1 = 0
+function Core:makeGotoTag()
+   -- the tag points to next instruction after this function is called
+   return {
+      ref = self.linker:getLastReference(),
+      offset = 1
    }
 end
 
 function Core:gotoTag(goto_tag)
-   self:addGotoTag(self.bytep, goto_tag)
-
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 0,
-      arg32_1 = goto_tag.gaddr
+      arg32_1 = 0
+   }
+end
+
+function Core:gotoTagIfNonZero(goto_tag, reg)
+   -- goto instruction
+   self:addInstruction {
+      goto_tag = goto_tag,
+      opcode = oFlower.op_goto,
+      arg8_1 = 1,
+      arg8_2 = reg,
+      arg32_1 = 0
+   }
+end
+
+function Core:gotoTagIfZero(goto_tag, reg)
+   -- goto instruction
+   self:addInstruction {
+      goto_tag = goto_tag,
+      opcode = oFlower.op_goto,
+      arg8_1 = 2,
+      arg8_2 = reg,
+      arg32_1 = 0
    }
 end
 
@@ -523,16 +497,28 @@ function Core:gotoGlobalIfZero(globaladdr, reg)
    }
 end
 
-function Core:gotoRelativeIfNonZero(reladdr, reg)
+function Core:gotoRelative(reladdr)
    -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, reladdr)
-
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
-   self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
+      opcode = oFlower.op_goto,
+      arg8_1 = 0,
+      arg32_1 = 0
+   }
+end
+
+function Core:gotoRelativeIfNonZero(reladdr, reg)
+   -- add a tag, to be resolved later
+   local goto_tag = self:makeGotoTag()
+   goto_tag.offset = goto_tag.offset + reladdr
+
+   -- goto instruction
+   self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 1,
       arg8_2 = reg,
@@ -542,49 +528,29 @@ end
 
 function Core:gotoRelativeIfZero(reladdr, reg)
    -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, reladdr)
-
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
-   self:addGotoTag(self.bytep, goto_tag)
 
    -- goto instruction
    self:addInstruction {
+      goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 2,
       arg8_2 = reg,
       arg32_1 = 0
    }
+end
+
+function Core:gotoAbsolute(absaddr)
+   error('# ERROR <Core.gotoAbsolute> : Deprecated')
 end
 
 function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
-   -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, absaddr - self:processAddress())
-
-   self:addGotoTag(self.bytep, goto_tag)
-
-   -- goto instruction
-   self:addInstruction {
-      opcode = oFlower.op_goto,
-      arg8_1 = 1,
-      arg8_2 = reg,
-      arg32_1 = 0
-   }
+   error('# ERROR <Core.gotoAbsoluteIfNonZero> : Deprecated')
 end
 
 function Core:gotoAbsoluteIfZero(absaddr, reg, goto_tag)
-   -- add a tag, to be resolved later
-   self:addMetaTag(self.bytep, absaddr - self:processAddress())
-
-   self:addGotoTag(self.bytep, goto_tag)
-
-   -- goto instruction
-   self:addInstruction {
-      opcode = oFlower.op_goto,
-      arg8_1 = 2,
-      arg8_2 = reg,
-      arg32_1 = 0
-   }
+   error('# ERROR <Core.gotoAbsoluteIfZero> : Deprecated')
 end
 
 function Core:openPortWr(port, data)
@@ -847,15 +813,13 @@ function Core:readStringFromMem(stream)
 
    -- Get stream from DMA
    self:setreg(reg_length, length)
-
-   local loop_start = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioWaitForReadData(oFlower.io_dma_status)
    self:ioread(oFlower.io_dma, reg_io_dma)
    self:printReg(reg_io_dma)
    self:addi(reg_length, -1, reg_length)
-   self:gotoAbsoluteIfNonZero(loop_start, reg_length, goto_tag)
+   self:gotoTagIfNonZero(goto_tag, reg_length)
 
    -- free cpu regs
    self.alloc_ur:free(reg_io_dma)
@@ -867,26 +831,22 @@ end
 
 function Core:ioWaitForReadData(ioCtrl)
    local reg = self.alloc_sr:get()
-
-   local start_again = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000001, reg)
-   self:gotoAbsoluteIfZero(start_again, reg, goto_tag)
+   self:gotoTagIfZero(goto_tag, reg)
 
    self.alloc_sr:free(reg)
 end
 
 function Core:ioWaitForWriteData(ioCtrl)
    local reg = self.alloc_sr:get()
-
-   local start_again = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000002, reg)
-   self:gotoAbsoluteIfZero(start_again, reg, goto_tag)
+   self:gotoTagIfZero(goto_tag, reg)
 
    self.alloc_sr:free(reg)
 end
@@ -894,15 +854,13 @@ end
 function Core:printReg(reg)
    local reg_loop = self.alloc_sr:get()
    self:setreg(reg_loop, 4)
-
-   local start_again = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    self:ioWaitForWriteData(oFlower.io_uart_status)
    self:iowrite(oFlower.io_uart, reg)
    self:shri(reg, 8, reg, 'logic')
    self:addi(reg_loop, -1, reg_loop)
-   self:gotoAbsoluteIfNonZero(start_again, reg_loop, goto_tag)
+   self:gotoTagIfNonZero(goto_tag, reg_loop)
    self.alloc_sr:free(reg_loop)
 end
 
@@ -918,8 +876,6 @@ end
 
 function Core:getCharNonBlocking(reg, tries)
    self:setreg(reg, -1)
-
-   local start_again = self:processAddress()
    local goto_tag = self:makeGotoTag()
 
    local reg_loop = self.alloc_sr:get()
@@ -930,7 +886,7 @@ function Core:getCharNonBlocking(reg, tries)
    self:bitandi(reg_stat, 0x00000001, reg_stat)
    self:addi(reg_loop, -1, reg_loop)
    self:gotoRelativeIfZero(2, reg_loop)
-   self:gotoAbsoluteIfZero(start_again, reg_stat, goto_tag)
+   self:gotoTagIfZero(goto_tag, reg_stat)
    self:ioread(oFlower.io_uart, reg)
 
    self.alloc_sr:free(reg_stat)
