@@ -75,12 +75,13 @@ function Core:__init(args)
 
    -- user reg allocator
    self.alloc_ur = self:RegAllocator {
-      [oFlower.reg_A] = true,
-      [oFlower.reg_B] = true,
-      [oFlower.reg_C] = true,
-      [oFlower.reg_D] = true,
-      [oFlower.reg_E] = true,
-      [oFlower.reg_F] = true,
+      [oFlower.reg_loops] = true,
+      [oFlower.reg_A]     = true,
+      [oFlower.reg_B]     = true,
+      [oFlower.reg_C]     = true,
+      [oFlower.reg_D]     = true,
+      [oFlower.reg_E]     = true,
+      [oFlower.reg_F]     = true,
    }
 
    -- loop data structure
@@ -184,26 +185,42 @@ function Core:endProcess()
    end
 end
 
-function Core:startLoop(times)
-   -- Set loop register to given 'times'
-   self:setreg(oFlower.reg_loops, times)
-   self.loop_tag = self:makeGotoTag()
+function Core:loopRepeatStart(times)
+   local loop = {}
+
+   loop.reg = self.alloc_ur:get()
+   self:setreg(loop.reg, times)
+
+   loop.tag = self:makeGotoTag()
+   self:nop()
+
+   self.ladmin:push(loop)
 end
 
-function Core:endLoop()
-   -- decrement counter and conditional goto
-   self:addi(oFlower.reg_loops, -1, oFlower.reg_loops)
-   self:gotoTagIfNonZero(self.loop_tag, oFlower.reg_loops)
+function Core:loopRepeatEnd()
+   local breaks = self.ladmin:getBreaks()
+   local loop = self.ladmin:pop()
+
+   self:addi(loop.reg, -1, loop.reg)
+   self:gotoTagIfNonZero(loop.tag, loop.reg)
+   self.alloc_ur:free(loop.reg)
+
+   local end_tag = self:makeGotoTag()
+   self:nop()
+
+   for break_instr in pairs(breaks) do
+      break_instr.goto_tag = end_tag
+   end
 end
 
-function Core:endLoopIfRegZero(reg)
-   -- exit loop if reg == 0
-   self:gotoTagIfNonZero(self.loop_tag, reg)
+function Core:loopBreakIfNonZero(reg)
+   self:gotoTagIfNonZero(nil, reg)
+   self.ladmin:addBreak(self.linker:getLastReference())
 end
 
-function Core:endLoopIfRegNonZero(reg)
-   -- exit loop if reg != 0
-   self:gotoTagIfZero(self.loop_tag, reg)
+function Core:loopBreakIfZero(reg)
+   self:gotoTagIfZero(nil, reg)
+   self.ladmin:addBreak(self.linker:getLastReference())
 end
 
 function Core:addInstruction(args)
@@ -970,8 +987,8 @@ end
 function Core:sleep(sec)
    --self:startProcess()
    local ticks = math.floor( (sec / (self.period_ns * 1e-9)) / 8 )
-   self:startLoop(ticks)
-   self:endLoop()
+   self:loopRepeatStart(ticks)
+   self:loopRepeatEnd()
    --self:endProcess()
 end
 
@@ -1612,9 +1629,9 @@ function Core:self_test()
    self.alloc_ur:free(reg_myvar)
 
    self:messagebody('testing loop x3')
-   self:startLoop(3)
+   self:loopRepeatStart(3)
    self:messagebody('...in loop')
-   self:endLoop()
+   self:loopRepeatEnd()
 
    self:messagebody('testing register readout (should print> abc)')
    self.alloc_ur:claim(oFlower.reg_F)
