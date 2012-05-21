@@ -75,13 +75,17 @@ function Core:__init(args)
 
    -- user reg allocator
    self.alloc_ur = self:RegAllocator {
-      [oFlower.reg_A] = true,
-      [oFlower.reg_B] = true,
-      [oFlower.reg_C] = true,
-      [oFlower.reg_D] = true,
-      [oFlower.reg_E] = true,
-      [oFlower.reg_F] = true,
+      [oFlower.reg_loops] = true,
+      [oFlower.reg_A]     = true,
+      [oFlower.reg_B]     = true,
+      [oFlower.reg_C]     = true,
+      [oFlower.reg_D]     = true,
+      [oFlower.reg_E]     = true,
+      [oFlower.reg_F]     = true,
    }
+
+   -- loop data structure
+   self.ladmin = self:LoopAdministrator()
 
    -- convolver state
    self.nb_kernels_loaded = {} for i=1,grid.nb_convs do self.nb_kernels_loaded[i] = 0 end
@@ -181,26 +185,78 @@ function Core:endProcess()
    end
 end
 
-function Core:startLoop(times)
-   -- Set loop register to given 'times'
-   self:setreg(oFlower.reg_loops, times)
-   self.loop_tag = self:makeGotoTag()
+function Core:loopRepeatStart(times)
+   local loop = {}
+
+   loop.reg = self.alloc_ur:get()
+   self:setreg(loop.reg, times)
+
+   loop.tag = self:makeGotoTag()
+   self:nop()
+
+   self.ladmin:push(loop)
 end
 
-function Core:endLoop()
-   -- decrement counter and conditional goto
-   self:addi(oFlower.reg_loops, -1, oFlower.reg_loops)
-   self:gotoTagIfNonZero(self.loop_tag, oFlower.reg_loops)
+function Core:loopRepeatEnd()
+   local breaks = self.ladmin:getBreaks()
+   local loop = self.ladmin:pop()
+
+   self:addi(loop.reg, -1, loop.reg)
+   self:gotoTagIfNonZero(loop.tag, loop.reg)
+   self.alloc_ur:free(loop.reg)
+
+   local end_tag = self:makeGotoTag()
+   self:nop()
+
+   for break_instr in pairs(breaks) do
+      break_instr.goto_tag = end_tag
+   end
 end
 
-function Core:endLoopIfRegZero(reg)
-   -- exit loop if reg == 0
-   self:gotoTagIfNonZero(self.loop_tag, reg)
+function Core:loopUntilStart()
+   local loop = {}
+   loop.tag = self:makeGotoTag()
+   self:nop()
+
+   self.ladmin:push(loop)
 end
 
-function Core:endLoopIfRegNonZero(reg)
-   -- exit loop if reg != 0
-   self:gotoTagIfZero(self.loop_tag, reg)
+function Core:loopUntilEndIfNonZero(reg)
+   local breaks = self.ladmin:getBreaks()
+   local loop = self.ladmin:pop()
+
+   self:gotoTagIfNonZero(loop.tag, reg)
+
+   local end_tag = self:makeGotoTag()
+   self:nop()
+
+   for break_instr in pairs(breaks) do
+      break_instr.goto_tag = end_tag
+   end
+end
+
+function Core:loopUntilEndIfZero(reg)
+   local breaks = self.ladmin:getBreaks()
+   local loop = self.ladmin:pop()
+
+   self:gotoTagIfZero(loop.tag, reg)
+
+   local end_tag = self:makeGotoTag()
+   self:nop()
+
+   for break_instr in pairs(breaks) do
+      break_instr.goto_tag = end_tag
+   end
+end
+
+function Core:loopBreakIfNonZero(reg)
+   self:gotoTagIfNonZero(nil, reg)
+   self.ladmin:addBreak(self.linker:getLastReference())
+end
+
+function Core:loopBreakIfZero(reg)
+   self:gotoTagIfZero(nil, reg)
+   self.ladmin:addBreak(self.linker:getLastReference())
 end
 
 function Core:addInstruction(args)
@@ -349,8 +405,6 @@ function Core:compi(arg1, val, result)
 end
 
 function Core:shri(arg1, val, result, mode)
-   local reg = self.alloc_sr:get()
-
    -- mode:
    if mode == 'arith' then
       mode = 1
@@ -375,8 +429,7 @@ function Core:shri(arg1, val, result, mode)
          arg8_3 = result
       }
       -- create loop
-      self:setreg(reg, val-1)
-      local goto_tag = self:makeGotoTag()
+      self:loopRepeatStart(val-1)
 
       -- shift right
       self:addInstruction {
@@ -385,12 +438,9 @@ function Core:shri(arg1, val, result, mode)
          arg8_2 = mode,
          arg8_3 = result
       }
-      -- decrement counter and conditional goto
-      self:addi(reg, -1, reg)
-      self:gotoTagIfNonZero(goto_tag, reg)
-   end
 
-   self.alloc_sr:free(reg)
+      self:loopRepeatEnd()
+   end
 end
 
 function Core:nop(times)
@@ -804,26 +854,22 @@ function Core:readStringFromMem(stream)
    -- open port
    self:openPortRd(1, stream)
 
-   -- get cpu regs for use in operation
-   local reg_length = self.alloc_ur:get()
+   -- get cpu reg for use in operation
    local reg_io_dma = self.alloc_ur:get()
 
    -- String length
    local length = stream.w*stream.h/2
 
-   -- Get stream from DMA
-   self:setreg(reg_length, length)
-   local goto_tag = self:makeGotoTag()
+   self:loopRepeatStart(length)
 
    self:ioWaitForReadData(oFlower.io_dma_status)
    self:ioread(oFlower.io_dma, reg_io_dma)
    self:printReg(reg_io_dma)
-   self:addi(reg_length, -1, reg_length)
-   self:gotoTagIfNonZero(goto_tag, reg_length)
 
-   -- free cpu regs
+   self:loopRepeatEnd()
+
+   -- free cpu reg
    self.alloc_ur:free(reg_io_dma)
-   self.alloc_ur:free(reg_length)
 
    -- done...
    self:closePort(1)
@@ -831,37 +877,36 @@ end
 
 function Core:ioWaitForReadData(ioCtrl)
    local reg = self.alloc_sr:get()
-   local goto_tag = self:makeGotoTag()
+   self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000001, reg)
-   self:gotoTagIfZero(goto_tag, reg)
+
+   self:loopUntilEndIfZero(reg)
 
    self.alloc_sr:free(reg)
 end
 
 function Core:ioWaitForWriteData(ioCtrl)
    local reg = self.alloc_sr:get()
-   local goto_tag = self:makeGotoTag()
+   self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000002, reg)
-   self:gotoTagIfZero(goto_tag, reg)
+
+   self:loopUntilEndIfZero(reg)
 
    self.alloc_sr:free(reg)
 end
 
 function Core:printReg(reg)
-   local reg_loop = self.alloc_sr:get()
-   self:setreg(reg_loop, 4)
-   local goto_tag = self:makeGotoTag()
+   self:loopRepeatStart(4)
 
    self:ioWaitForWriteData(oFlower.io_uart_status)
    self:iowrite(oFlower.io_uart, reg)
    self:shri(reg, 8, reg, 'logic')
-   self:addi(reg_loop, -1, reg_loop)
-   self:gotoTagIfNonZero(goto_tag, reg_loop)
-   self.alloc_sr:free(reg_loop)
+
+   self:loopRepeatEnd()
 end
 
 function Core:putChar(reg)
@@ -875,22 +920,19 @@ function Core:getCharBlocking(reg)
 end
 
 function Core:getCharNonBlocking(reg, tries)
-   self:setreg(reg, -1)
-   local goto_tag = self:makeGotoTag()
-
-   local reg_loop = self.alloc_sr:get()
    local reg_stat = self.alloc_sr:get()
 
-   self:setreg(reg_loop, tries)
+   self:setreg(reg, -1)
+   self:loopRepeatStart(tries)
+
    self:ioread(oFlower.io_uart_status, reg_stat)
    self:bitandi(reg_stat, 0x00000001, reg_stat)
-   self:addi(reg_loop, -1, reg_loop)
-   self:gotoRelativeIfZero(2, reg_loop)
-   self:gotoTagIfZero(goto_tag, reg_stat)
+   self:loopBreakIfNonZero(reg_stat)
+
+   self:loopRepeatEnd()
    self:ioread(oFlower.io_uart, reg)
 
    self.alloc_sr:free(reg_stat)
-   self.alloc_sr:free(reg_loop)
 end
 
 function Core:flushKernel(convolver)
@@ -967,8 +1009,8 @@ end
 function Core:sleep(sec)
    --self:startProcess()
    local ticks = math.floor( (sec / (self.period_ns * 1e-9)) / 8 )
-   self:startLoop(ticks)
-   self:endLoop()
+   self:loopRepeatStart(ticks)
+   self:loopRepeatEnd()
    --self:endProcess()
 end
 
@@ -1609,9 +1651,9 @@ function Core:self_test()
    self.alloc_ur:free(reg_myvar)
 
    self:messagebody('testing loop x3')
-   self:startLoop(3)
+   self:loopRepeatStart(3)
    self:messagebody('...in loop')
-   self:endLoop()
+   self:loopRepeatEnd()
 
    self:messagebody('testing register readout (should print> abc)')
    self.alloc_ur:claim(oFlower.reg_F)
@@ -1677,4 +1719,46 @@ function Core:RegAllocator(reg_table)
    end
 
    return allocator
+end
+
+--[[ Loop Administrator:
+
+   Keeps tracks of the goto_tags for loops, this helps with nested loops etc.
+--]]
+function Core:LoopAdministrator()
+   local admin = {}
+   admin._stack = {}
+   admin._break = {}
+
+   function admin:push(loop)
+      self._stack[#self._stack+1] = loop
+   end
+
+   function admin:pop()
+      local loop = self._stack[#self._stack]
+      self._stack[#self._stack] = nil
+
+      return loop
+   end
+
+   function admin:peek()
+      return self._stack[#self._stack]
+   end
+
+   function admin:addBreak(break_instr)
+      local loop = self:peek()
+      local breaks_in_loop = self._break[loop] or {}
+      breaks_in_loop[#breaks_in_loop+1] = break_instr
+      self._break[loop] = breaks_in_loop
+   end
+
+   function admin:getBreaks()
+      local loop = self:peek()
+      local breaks_in_loop = self._break[loop] or {}
+      self._break[loop] = nil
+
+      return breaks_in_loop
+   end
+
+   return admin
 end
