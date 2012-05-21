@@ -213,6 +213,42 @@ function Core:loopRepeatEnd()
    end
 end
 
+function Core:loopUntilStart()
+   local loop = {}
+   loop.tag = self:makeGotoTag()
+   self:nop()
+
+   self.ladmin:push(loop)
+end
+
+function Core:loopUntilEndIfNonZero(reg)
+   local breaks = self.ladmin:getBreaks()
+   local loop = self.ladmin:pop()
+
+   self:gotoTagIfNonZero(loop.tag, reg)
+
+   local end_tag = self:makeGotoTag()
+   self:nop()
+
+   for break_instr in pairs(breaks) do
+      break_instr.goto_tag = end_tag
+   end
+end
+
+function Core:loopUntilEndIfZero(reg)
+   local breaks = self.ladmin:getBreaks()
+   local loop = self.ladmin:pop()
+
+   self:gotoTagIfZero(loop.tag, reg)
+
+   local end_tag = self:makeGotoTag()
+   self:nop()
+
+   for break_instr in pairs(breaks) do
+      break_instr.goto_tag = end_tag
+   end
+end
+
 function Core:loopBreakIfNonZero(reg)
    self:gotoTagIfNonZero(nil, reg)
    self.ladmin:addBreak(self.linker:getLastReference())
