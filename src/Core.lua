@@ -83,6 +83,9 @@ function Core:__init(args)
       [oFlower.reg_F] = true,
    }
 
+   -- loop data structure
+   self.ladmin = self:LoopAdministrator()
+
    -- convolver state
    self.nb_kernels_loaded = {} for i=1,grid.nb_convs do self.nb_kernels_loaded[i] = 0 end
 
@@ -1677,4 +1680,46 @@ function Core:RegAllocator(reg_table)
    end
 
    return allocator
+end
+
+--[[ Loop Administrator:
+
+   Keeps tracks of the goto_tags for loops, this helps with nested loops etc.
+--]]
+function Core:LoopAdministrator()
+   local admin = {}
+   admin._stack = {}
+   admin._break = {}
+
+   function admin:push(loop)
+      self._stack[#self._stack+1] = loop
+   end
+
+   function admin:pop()
+      local loop = self._stack[#self._stack]
+      self._stack[#self._stack] = nil
+
+      return loop
+   end
+
+   function admin:peek()
+      return self._stack[#self._stack]
+   end
+
+   function admin:addBreak(break_instr)
+      local loop = self:peek()
+      local breaks_in_loop = self._break[loop] or {}
+      breaks_in_loop[#breaks_in_loop+1] = break_instr
+      self._break[loop] = breaks_in_loop
+   end
+
+   function admin:getBreaks()
+      local loop = self:peek()
+      local breaks_in_loop = self._break[loop] or {}
+      self._break[loop] = nil
+
+      return breaks_in_loop
+   end
+
+   return admin
 end
