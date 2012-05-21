@@ -877,22 +877,24 @@ end
 
 function Core:ioWaitForReadData(ioCtrl)
    local reg = self.alloc_sr:get()
-   local goto_tag = self:makeGotoTag()
+   self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000001, reg)
-   self:gotoTagIfZero(goto_tag, reg)
+
+   self:loopUntilEndIfZero(reg)
 
    self.alloc_sr:free(reg)
 end
 
 function Core:ioWaitForWriteData(ioCtrl)
    local reg = self.alloc_sr:get()
-   local goto_tag = self:makeGotoTag()
+   self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000002, reg)
-   self:gotoTagIfZero(goto_tag, reg)
+
+   self:loopUntilEndIfZero(reg)
 
    self.alloc_sr:free(reg)
 end
