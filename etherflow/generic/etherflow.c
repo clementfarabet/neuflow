@@ -220,6 +220,31 @@ int etherflow_close_socket_C() {
 }
 
 /***********************************************************
+ * etherflow_send_reset_C()
+ * what: send a reset Ethernet frame
+ * params:
+ *    none
+ * returns:
+ *    return sendto error code
+ **********************************************************/
+int etherflow_send_reset_C() {
+  // reset mac addr
+  unsigned char rst_mac[6] = {0x00,0x00,0x36,0x26,0x00,0x01};
+  // buffer to send:
+  unsigned char send_buffer[ETH_FRAME_LEN];
+
+  // zero frame
+  bzero(send_buffer, ETH_FRAME_LEN);
+
+  // prepare send_buffer with DEST and SRC addresses
+  memcpy((void*)send_buffer, (void*)rst_mac, ETH_ALEN);
+  memcpy((void*)(send_buffer+ETH_ALEN), (void*)host_mac, ETH_ALEN);
+
+  // send packet return error sendto error code
+  return sendto(sock, send_buffer, ETH_FRAME_LEN, 0, (struct sockaddr*)&sock_address, socklen);
+}
+
+/***********************************************************
  * receive_frame_C()
  * what: receives an ethernet frame
  * params:
@@ -555,6 +580,12 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
   return 1;
 }
 
+static int etherflow_(Api_send_reset_lua)(lua_State *L) {
+  lua_pushnumber(L, etherflow_send_reset_C());
+  return 1;
+}
+
+
 static int etherflow_(Api_close_socket_lua)(lua_State *L) {
   etherflow_close_socket_C();
   return 0;
@@ -609,6 +640,7 @@ static int etherflow_(Api_set_first_call)(lua_State *L) {
  **********************************************************/
 static const struct luaL_Reg etherflow_(Api__) [] = {
   {"open_socket", etherflow_(Api_open_socket_lua)},
+  {"send_reset",      etherflow_(Api_send_reset_lua)},
   {"handshake", etherflow_(Api_handshake_lua)},
   {"receive_frame", etherflow_(Api_receive_frame_lua)},
   {"receive_string", etherflow_(Api_receive_string_lua)},

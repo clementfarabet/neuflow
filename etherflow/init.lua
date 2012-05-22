@@ -42,7 +42,7 @@ function etherflow.close(dev)
 end
 
 function etherflow.sendreset()
-   return 0
+   return etherflow.double.send_reset()
 end
 
 function etherflow.handshake(bool)

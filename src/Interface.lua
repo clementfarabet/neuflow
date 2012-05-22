@@ -18,11 +18,6 @@ function Ethernet:__init(args)
    if (self.core == nil) then
       error('<neuflow.Ethernet> ERROR: requires a Dataflow Core')
    end
-
-   -- Both user reg A and B are used within this interface. They need to be
-   -- claimed so they cannot be used elsewhere.
-   self.core.alloc_ur:claim(oFlower.reg_A)
-   self.core.alloc_ur:claim(oFlower.reg_B)
 end
 
 function Ethernet:open()
@@ -34,7 +29,9 @@ function Ethernet:close()
 end
 
 function Ethernet:sendReset()
-   -- empty
+   if (-1 == etherflow.sendreset()) then
+      print('<reset> fail')
+   end
 end
 
 function Ethernet:dev_copyToHost(tensor, ack)
@@ -92,37 +89,46 @@ function Ethernet:startCom()
 end
 
 function Ethernet:ethernetBlockOnBusy()
-   local start_again = self.core:processAddress()
+   local reg = self.core.alloc_ur:get()
    local goto_tag = self.core:makeGotoTag()
 
-   self.core:ioread(oFlower.io_ethernet_status, oFlower.reg_A)
-   self.core:bitandi(oFlower.reg_A, 0x00000001, oFlower.reg_A)
-   self.core:gotoAbsoluteIfNonZero(start_again, oFlower.reg_A, goto_tag)
+   self.core:ioread(oFlower.io_ethernet_status, reg)
+   self.core:bitandi(reg, 0x00000001, reg)
+   self.core:gotoTagIfNonZero(goto_tag, reg)
+
+   self.core.alloc_ur:free(reg)
 end
 
 function Ethernet:ethernetBlockOnIdle()
-   local start_again = self.core:processAddress()
+   local reg = self.core.alloc_ur:get()
    local goto_tag = self.core:makeGotoTag()
 
-   self.core:ioread(oFlower.io_ethernet_status, oFlower.reg_A)
-   self.core:bitandi(oFlower.reg_A, 0x00000001, oFlower.reg_A)
-   self.core:gotoAbsoluteIfZero(start_again, oFlower.reg_A, goto_tag)
+   self.core:ioread(oFlower.io_ethernet_status, reg)
+   self.core:bitandi(reg, 0x00000001, reg)
+   self.core:gotoTagIfZero(goto_tag, reg)
+
+   self.core.alloc_ur:free(reg)
 end
 
 function Ethernet:ethernetWaitForPacket()
-   local start_again = self.core:processAddress()
+   local reg = self.core.alloc_ur:get()
    local goto_tag = self.core:makeGotoTag()
 
-   self.core:ioread(oFlower.io_ethernet_status, oFlower.reg_A)
-   self.core:bitandi(oFlower.reg_A, 0x00000002, oFlower.reg_A)
-   self.core:gotoAbsoluteIfZero(start_again, oFlower.reg_A, goto_tag)
+   self.core:ioread(oFlower.io_ethernet_status, reg)
+   self.core:bitandi(reg, 0x00000002, reg)
+   self.core:gotoTagIfZero(goto_tag, reg)
+
+   self.core.alloc_ur:free(reg)
 end
 
 function Ethernet:ethernetStartTransfer(size)
+   local reg = self.core.alloc_ur:get()
    local status = bit.lshift(size, 16)
    status = bit.bor(status, 0x00000001)
-   self.core:setreg(oFlower.reg_A, status)
-   self.core:iowrite(oFlower.io_ethernet_status, oFlower.reg_A)
+   self.core:setreg(reg, status)
+   self.core:iowrite(oFlower.io_ethernet_status, reg)
+
+   self.core.alloc_ur:free(reg)
 end
 
 function Ethernet:printToEthernet(str)
@@ -207,8 +213,8 @@ function Ethernet:streamToHost(stream, tag, mode)
    self.core:openPortRd(1, stream)
    -- (3) stream packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
-      self.core:setreg( oFlower.reg_B, nb_packets)
-      local stay_in_loop = self.core:processAddress()
+      local reg = self.core.alloc_ur:get()
+      self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       
       local packet_size = self.max_packet_size
@@ -225,8 +231,10 @@ function Ethernet:streamToHost(stream, tag, mode)
       self:ethernetStartTransfer(packet_size)
       -- (d) wait for transfer started
       self:ethernetBlockOnIdle()
-      self.core:addi(oFlower.reg_B, -1, oFlower.reg_B)
-      self.core:gotoAbsoluteIfNonZero(stay_in_loop, oFlower.reg_B, goto_tag)
+      self.core:addi(reg, -1, reg)
+      self.core:gotoTagIfNonZero(goto_tag, reg)
+
+      self.core.alloc_ur:free(reg)
    end
    
    if(last_packet ~= 0) then
@@ -339,8 +347,9 @@ function Ethernet:streamToHost_ack(stream, tag, mode)
    local count = 1
    -- (3) stream packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
-      self.core:setreg( oFlower.reg_B, nb_packets)
-      local stay_in_loop = self.core:processAddress()
+      local reg = self.core.alloc_ur:get()
+      self.core:setreg(reg, nb_packets)
+      local goto_tag = self.core:makeGotoTag()
       
       local packet_size = self.max_packet_size
       
@@ -373,9 +382,11 @@ function Ethernet:streamToHost_ack(stream, tag, mode)
 	 error('ERROR <Ethernet> : mode can be one of: with-ack | no-ack')
       end 
       
-      self.core:addi(oFlower.reg_B, -1, oFlower.reg_B)
-      self.core:gotoAbsoluteIfNonZero(stay_in_loop, oFlower.reg_B)
+      self.core:addi(reg, -1, reg)
+      self.core:gotoTagIfNonZero(goto_tag, reg)
       count = count + 1
+
+      self.core.alloc_ur:free(reg)
    end
    
    if(last_packet ~= 0) then
@@ -493,8 +504,8 @@ function Ethernet:streamFromHost_legacy(stream, tag)
    
    -- (3) request packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
-      self.core:setreg( oFlower.reg_B, nb_packets)
-      local stay_in_loop = self.core:processAddress()
+      local reg = self.core.alloc_ur:get()
+      self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       local packet_size = self.max_packet_size
       
@@ -512,8 +523,10 @@ function Ethernet:streamFromHost_legacy(stream, tag)
 	 self.core:messagebody('.')
       end
       -- (d) loopback
-      self.core:addi(oFlower.reg_B, -1, oFlower.reg_B)
-      self.core:gotoAbsoluteIfNonZero(stay_in_loop, oFlower.reg_B, goto_tag)
+      self.core:addi(reg, -1, reg)
+      self.core:gotoTagIfNonZero(goto_tag, reg)
+
+      self.core.alloc_ur:free(reg)
    end
    
    if(last_packet ~= 0) then
@@ -654,8 +667,9 @@ function Ethernet:streamFromHost_ack(stream, tag)
 
     -- (3) request packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
-      self.core:setreg( oFlower.reg_B, nb_packets)
-      local stay_in_loop = self.core:processAddress()
+      local reg = self.core.alloc_ur:get()
+      self.core:setreg(reg, nb_packets)
+      local goto_tag = self.core:makeGotoTag()
       local packet_size = self.max_packet_size
       
       -- (a) request a particular nb of bytes from the host
@@ -672,8 +686,10 @@ function Ethernet:streamFromHost_ack(stream, tag)
 	 self.core:messagebody('.')
       end
       -- (d) loopback
-      self.core:addi(oFlower.reg_B, -1, oFlower.reg_B)
-      self.core:gotoAbsoluteIfNonZero(stay_in_loop, oFlower.reg_B)
+      self.core:addi(reg, -1, reg)
+      self.core:gotoTagIfNonZero(goto_tag, reg)
+
+      self.core.alloc_ur:free(reg)
    end
 
 
