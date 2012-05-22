@@ -23,6 +23,16 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
 int etherflow_close_socket_C();
 
 /***********************************************************
+ * etherflow_send_reset_C()
+ * what: send a reset Ethernet frame
+ * params:
+ *    none
+ * returns:
+ *    return sendto error code
+ **********************************************************/
+int etherflow_send_reset_C()
+
+/***********************************************************
  * receive_frame_C()
  * what: receives an ethernet frame
  * params:

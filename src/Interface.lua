@@ -29,7 +29,9 @@ function Ethernet:close()
 end
 
 function Ethernet:sendReset()
-   -- empty
+   if (-1 == etherflow.sendreset()) then
+      print('<reset> fail')
+   end
 end
 
 function Ethernet:dev_copyToHost(tensor, ack)
