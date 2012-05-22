@@ -95,6 +95,11 @@ local layer = {
       function(net_compiler, module, inputs)
          return net_compiler:Mapping(module,inputs,'TanhAbs')
       end,
+   
+   ["nn.Threshold"] =
+      function(net_compiler, module, inputs)
+         return net_compiler:Mapping(module,inputs,'Threshold')
+      end,
 
    -- Component-wise operators
    ["nn.CCSub"] =
@@ -960,16 +965,27 @@ function Compiler:SpatialLinear(linear_module, inputs)
    return outputs
 end
 
-function Compiler:getCoefs(mapping)
+function Compiler:getCoefs(mapping,params)
    local type = mapping
 
    -- generate coefs for this non-linear mapping
+   local coefs
    if type == 'Tanh' then
       coefs=math.approx{mapping=math.tanh, min=-5, max=5, odd=true,
                         nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, epsilon = 11.7/256, error_type = 0,
+                        verbose=true, error_type = 0,
                         name = type}
-
+   elseif type == 'Threshold' then
+      local val = params.val
+      local threshold = params.threshold
+      local mapping = function (x)
+         if x < threshold then return val
+         else return x end
+      end
+      coefs = math.approx{mapping=mapping, min=num.min, max=num.max,
+                          nbSegments=grid.mapper_segs, Q=num.frac_,
+                          verbose=true, epsilon=25/256,error_type = 0,
+                          name = type .. '-' .. threshold .. '-' .. val}
    elseif type == 'Abs' then
       coefs=math.approx{mapping=math.abs, min=num.min, max=num.max, even=true,
                         nbSegments=grid.mapper_segs, Q=num.frac_,
@@ -1017,7 +1033,7 @@ function Compiler:Mapping(module, inputs, type)
    end
 
    -- generate coefs for this non-linear mapping
-   coefs = self:getCoefs(type)
+   coefs = self:getCoefs(type, module)
 
    -- generate code
    for i = 1,#inputs do
