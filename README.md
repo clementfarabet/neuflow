@@ -57,13 +57,16 @@ $ torch-pkg install nnx      # lots of extra neural-net modules
 $ torch-pkg install camera   # a camera interface for Linux/MacOS
 $ torch-pkg install ffmpeg   # a video decoder for most formats
 $ torch-pkg install neuflow  # the neuFlow toolkit
+$ torch-pkg install inline   # inline C capability
+$ torch-pkg install debugger # useful debugger to use breakpoints
 ```
 
-Alternatively, you can retrieve the source code and install it
-manually:
+Instead of blindly installing the neuflow package, you might
+want to download the source code, and install it from there.
+It'll give you access to some demos, to get started:
 
 ``` sh
-$ torck-pkg download neuflow
+$ torch-pkg download neuflow
 $ cd neuflow
 $ torch-pkg deploy
 ```
