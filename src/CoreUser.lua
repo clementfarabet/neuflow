@@ -682,16 +682,16 @@ function CoreUser:copy(input, output)
    self:send_route__0_through_1()
 
    -- then stream images in and out
-   self:openPortWr(5, output)
-   self:openPortRd(4, input)
+   self:openPortWr(7, output)
+   self:openPortRd(6, input)
 
    -- wait for status done
-   self:send_selectModule(blast_bus.area_streamer, blast_bus.addr_mem_streamer_0+5, 0)
+   self:send_selectModule(blast_bus.area_streamer, blast_bus.addr_mem_streamer_0+7, 0)
    self:getStatus(blast_bus.status_done)
 
    -- and close them all
-   self:closePort(4)
-   self:closePort(5)
+   self:closePort(6)
+   self:closePort(7)
 
    -- unconnect IO router
    self:send_selectModule(blast_bus.area_tile, blast_bus.addr_mapp_0, blast_bus.subAddr_IO)
