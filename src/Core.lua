@@ -453,18 +453,17 @@ function Core:shri(arg1, val, result, mode)
          arg8_2 = mode,
          arg8_3 = result
       }
+
       -- create loop
-      self:loopRepeatStart(val-1)
-
-      -- shift right
-      self:addInstruction {
-         opcode = oFlower.op_shr,
-         arg8_1 = result,
-         arg8_2 = mode,
-         arg8_3 = result
-      }
-
-      self:loopRepeatEnd()
+      self:loopRepeat(val-1, function()
+         -- shift right
+         self:addInstruction {
+            opcode = oFlower.op_shr,
+            arg8_1 = result,
+            arg8_2 = mode,
+            arg8_3 = result
+         }
+      end);
    end
 end
 
@@ -885,13 +884,11 @@ function Core:readStringFromMem(stream)
    -- String length
    local length = stream.w*stream.h/2
 
-   self:loopRepeatStart(length)
-
-   self:ioWaitForReadData(oFlower.io_dma_status)
-   self:ioread(oFlower.io_dma, reg_io_dma)
-   self:printReg(reg_io_dma)
-
-   self:loopRepeatEnd()
+   self:loopRepeat(length, function(reg_io_dma)
+      self:ioWaitForReadData(oFlower.io_dma_status)
+      self:ioread(oFlower.io_dma, reg_io_dma)
+      self:printReg(reg_io_dma)
+   end);
 
    -- free cpu reg
    self.alloc_ur:free(reg_io_dma)
@@ -925,13 +922,11 @@ function Core:ioWaitForWriteData(ioCtrl)
 end
 
 function Core:printReg(reg)
-   self:loopRepeatStart(4)
-
-   self:ioWaitForWriteData(oFlower.io_uart_status)
-   self:iowrite(oFlower.io_uart, reg)
-   self:shri(reg, 8, reg, 'logic')
-
-   self:loopRepeatEnd()
+   self:loopRepeat(4, function(reg)
+      self:ioWaitForWriteData(oFlower.io_uart_status)
+      self:iowrite(oFlower.io_uart, reg)
+      self:shri(reg, 8, reg, 'logic')
+   end);
 end
 
 function Core:putChar(reg)
@@ -948,13 +943,13 @@ function Core:getCharNonBlocking(reg, tries)
    local reg_stat = self.alloc_sr:get()
 
    self:setreg(reg, -1)
-   self:loopRepeatStart(tries)
 
-   self:ioread(oFlower.io_uart_status, reg_stat)
-   self:bitandi(reg_stat, 0x00000001, reg_stat)
-   self:loopBreakIfNonZero(reg_stat)
+   self:loopRepeat(tries, function(reg_stat)
+      self:ioread(oFlower.io_uart_status, reg_stat)
+      self:bitandi(reg_stat, 0x00000001, reg_stat)
+      self:loopBreakIfNonZero(reg_stat)
+   end);
 
-   self:loopRepeatEnd()
    self:ioread(oFlower.io_uart, reg)
 
    self.alloc_sr:free(reg_stat)
@@ -1034,8 +1029,7 @@ end
 function Core:sleep(sec)
    --self:startProcess()
    local ticks = math.floor( (sec / (self.period_ns * 1e-9)) / 8 )
-   self:loopRepeatStart(ticks)
-   self:loopRepeatEnd()
+   self:loopRepeat(ticks)
    --self:endProcess()
 end
 
@@ -1676,9 +1670,10 @@ function Core:self_test()
    self.alloc_ur:free(reg_myvar)
 
    self:messagebody('testing loop x3')
-   self:loopRepeatStart(3)
-   self:messagebody('...in loop')
-   self:loopRepeatEnd()
+
+   self:loopRepeat(3, function()
+      self:messagebody('...in loop')
+   end);
 
    self:messagebody('testing register readout (should print> abc)')
    self.alloc_ur:claim(oFlower.reg_F)
