@@ -215,30 +215,6 @@ function Core:loopRepeat(times, code)
    end
 end
 
-
-function Core:loopRepeatStart(times)
-   local loop = {}
-
-   loop.reg = self.alloc_ur:get()
-   self:setreg(loop.reg, times)
-
-   loop.tag = self:makeGotoTag()
-   self:nop()
-
-   self.ladmin:push(loop)
-end
-
-function Core:loopRepeatEnd()
-   local breaks = self.ladmin:getBreaks()
-   local loop = self.ladmin:pop()
-
-   self:addi(loop.reg, -1, loop.reg)
-   self:gotoTagIfNonZero(loop.tag, loop.reg)
-   self.alloc_ur:free(loop.reg)
-
-   self:loopBreakResolve(breaks)
-end
-
 function Core:loopUntilStart()
    local loop = {}
    loop.tag = self:makeGotoTag()
