@@ -185,6 +185,37 @@ function Core:endProcess()
    end
 end
 
+function Core:loopRepeat(times, code)
+   if times ~=  0 then
+
+      -- start loop
+      local loop = {}
+      if times > 0 then
+         loop.reg = self.alloc_ur:get()
+         self:setreg(loop.reg, times)
+      end
+      loop.tag = self:makeGotoTag()
+      self:nop()
+      self.ladmin:push(loop)
+
+      -- if there is code execute it
+      if code then code() end
+
+      -- end loop
+      local breaks = self.ladmin:getBreaks()
+      local loop = self.ladmin:pop()
+      if times > 0 then
+         self:addi(loop.reg, -1, loop.reg)
+         self:gotoTagIfNonZero(loop.tag, loop.reg)
+         self.alloc_ur:free(loop.reg)
+      else
+         self:gotoTag(loop.tag)
+      end
+      self:loopBreakResolve(breaks)
+   end
+end
+
+
 function Core:loopRepeatStart(times)
    local loop = {}
 
@@ -205,12 +236,7 @@ function Core:loopRepeatEnd()
    self:gotoTagIfNonZero(loop.tag, loop.reg)
    self.alloc_ur:free(loop.reg)
 
-   local end_tag = self:makeGotoTag()
-   self:nop()
-
-   for break_instr in pairs(breaks) do
-      break_instr.goto_tag = end_tag
-   end
+   self:loopBreakResolve(breaks)
 end
 
 function Core:loopUntilStart()
@@ -227,12 +253,7 @@ function Core:loopUntilEndIfNonZero(reg)
 
    self:gotoTagIfNonZero(loop.tag, reg)
 
-   local end_tag = self:makeGotoTag()
-   self:nop()
-
-   for break_instr in pairs(breaks) do
-      break_instr.goto_tag = end_tag
-   end
+   self:loopBreakResolve(breaks)
 end
 
 function Core:loopUntilEndIfZero(reg)
@@ -241,12 +262,7 @@ function Core:loopUntilEndIfZero(reg)
 
    self:gotoTagIfZero(loop.tag, reg)
 
-   local end_tag = self:makeGotoTag()
-   self:nop()
-
-   for break_instr in pairs(breaks) do
-      break_instr.goto_tag = end_tag
-   end
+   self:loopBreakResolve(breaks)
 end
 
 function Core:loopBreakIfNonZero(reg)
@@ -257,6 +273,15 @@ end
 function Core:loopBreakIfZero(reg)
    self:gotoTagIfZero(nil, reg)
    self.ladmin:addBreak(self.linker:getLastReference())
+end
+
+function Core:loopBreakResolve(breaks)
+   local end_tag = self:makeGotoTag()
+   self:nop()
+
+   for break_instr in pairs(breaks) do
+      break_instr.goto_tag = end_tag
+   end
 end
 
 function Core:addInstruction(args)
