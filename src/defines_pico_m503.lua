@@ -169,6 +169,10 @@ dma = {}
 do
    -- global DMA IOs
    dma.nb_ios = 4
+   dma.ethernet_write_port_id = 2
+   dma.ethernet_read_port_id = 3
+   dma.camera_A_port_id = 4
+   dma.camera_B_port_id = 5
 end
 
 ----------------------------------------------------------------------

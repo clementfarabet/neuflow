@@ -353,22 +353,29 @@ function NeuFlow:enableCameras()
    self.core:endProcess()
 end
 
-function NeuFlow:getCameraFrame(cameraID)
-
-   self.core:startProcess()
-   output = self.camera:captureOneFrame(cameraID)
-   self.core:endProcess()
-
-   return output
-end
-
 function NeuFlow:captureOneFrame(cameraID)
 
    self.core:startProcess()
    output = self.camera:captureOneFrame(cameraID)
    self.core:endProcess()
 
+end
+
+function NeuFlow:getLastFrame(cameraID)
+
+   self.core:startProcess()
+   output = self.camera:getLastFrame(cameraID)
+   self.core:endProcess()
+
    return output
+end
+
+function NeuFlow:wait(msec)
+
+   self.core:startProcess()
+   self.core:loopRepeatStart(msec*9500)
+   self.core:loopRepeatEnd()
+   self.core:endProcess()
 end
 
 

@@ -36,10 +36,16 @@ nf:beginLoop('main') do
 
 
    -- send data to device
-   input_dev = nf:getCameraFrame('A')
+   nf:captureOneFrame({'B','A'})
+
+   -- slow down for slow host computer
+   --nf:wait(50)
+   input_dev = nf:getLastFrame({'B','A'})
 
    -- get it back
    outputs = nf:copyToHost(input_dev)
+
+   -- nf:wait(4000)
 
 end nf:endLoop('main')
 
@@ -60,29 +66,28 @@ local framecnt = 0
 -- process loop
 function process()
    --if framecnt % 2 == 0 then
-      p:start('whole-loop','fps')
+   p:start('whole-loop','fps')
    --end
-   --local toto = io.read(1)
    nf:copyFromDev(outputs)
+
    --if framecnt % 2 == 0 then
-      win:gbegin()
-      win:showpage()
-      p:start('display')
-      image.display{image=outputs[1], win=win, x=0, min=0, max=1}
-      image.display{image=outputs[2], win=win, x=650, min=0, max=1}
-      p:lap('display')
-
-
-      p:lap('whole-loop')
-      p:displayAll{painter=win, x=10, y=300, font=12}
-      win:gend()
+   p:start('display')
+   win:gbegin()
+   win:showpage()
+   image.display{image=outputs, win=win, x=0, min=0, max=1}
+   p:lap('display')
+   p:lap('whole-loop')
+   p:displayAll{painter=win, x=10, y=300, font=12}
+   win:gend()
    --end
-   --framecnt = framecnt + 1
+   framecnt = framecnt + 1
 end
 
 ----------------------------------------------------------------------
 -- GUI: setup user interface / display
 --
+
+torch.setdefaulttensortype('torch.FloatTensor')
 
 if not win then
    win = qtwidget.newwindow(1300,480,'Loopback Camera Test')

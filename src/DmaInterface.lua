@@ -104,7 +104,11 @@ function DmaEthernet:printToEthernet(str)
    local fake_string = {x = 0, y = 0, w = math.ceil(data_size/2), h = 1}
 
    -- stream data to DMA ethernet interface
-   self.core:configPort{index = -2, action = 'fetch+read+sync+close', data = fake_string}
+   self.core:configPort{index = dma.ethernet_read_port_id,
+      action = 'fetch+read+sync+close',
+      data = fake_string,
+      range = 'full'
+   }
 end
 
 function DmaEthernet:streamToHost(stream, tag, mode)
@@ -120,7 +124,10 @@ function DmaEthernet:streamToHost(stream, tag, mode)
 
    -- stream data (tensor) out with a write ack
 --   self.core:configPort{index = -1, action = 'write', data = {x=0, y=0, w=32, h=1}}
-   self.core:configPort{index = -2, action = 'fetch+read+sync+close', data = stream}
+   self.core:configPort{index = dma.ethernet_read_port_id,
+      action = 'fetch+read+sync+close',
+      data = stream,
+      range = 'full'}
 --   self.core:configPort{index = -1, action = 'sync+close'}
 
 end
@@ -141,8 +148,13 @@ function DmaEthernet:streamFromHost(stream, tag)
    end
 
    -- stream data in
-   self.core:configPort{index = -3, action = 'write', data = stream}
-   self.core:configPort{index = -3, action = 'sync+close'}
+   self.core:configPort{index = dma.ethernet_write_port_id,
+      action = 'write',
+      data = stream,
+      range = 'full'}
+   self.core:configPort{index = dma.ethernet_write_port_id,
+      action = 'sync+close',
+      range = 'full'}
 end
 
 function DmaEthernet:loadByteCode()
