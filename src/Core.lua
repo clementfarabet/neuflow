@@ -185,7 +185,7 @@ function Core:endProcess()
    end
 end
 
-function Core:loopRepeat(times, code)
+function Core:loopRepeat(times, code, ...)
    if times ~=  0 then
 
       -- start loop
@@ -199,7 +199,7 @@ function Core:loopRepeat(times, code)
       self.ladmin:push(loop)
 
       -- if there is code execute it
-      if code then code() end
+      if code then code(...) end
 
       -- end loop
       local breaks = self.ladmin:getBreaks()
@@ -864,7 +864,7 @@ function Core:readStringFromMem(stream)
       self:ioWaitForReadData(oFlower.io_dma_status)
       self:ioread(oFlower.io_dma, reg_io_dma)
       self:printReg(reg_io_dma)
-   end);
+   end, reg_io_dma);
 
    -- free cpu reg
    self.alloc_ur:free(reg_io_dma)
@@ -902,7 +902,7 @@ function Core:printReg(reg)
       self:ioWaitForWriteData(oFlower.io_uart_status)
       self:iowrite(oFlower.io_uart, reg)
       self:shri(reg, 8, reg, 'logic')
-   end);
+   end, reg);
 end
 
 function Core:putChar(reg)
@@ -924,7 +924,7 @@ function Core:getCharNonBlocking(reg, tries)
       self:ioread(oFlower.io_uart_status, reg_stat)
       self:bitandi(reg_stat, 0x00000001, reg_stat)
       self:loopBreakIfNonZero(reg_stat)
-   end);
+   end, reg_stat);
 
    self:ioread(oFlower.io_uart, reg)
 
