@@ -215,6 +215,23 @@ function Core:loopRepeat(times, code, ...)
    end
 end
 
+--[[ loopUntilZero
+
+   *mode* is true or false depending on if it loops until reg is zero or until
+   it is not zero. *code* is the loop body to be executed/looped over in the
+   form of a function.  The code MUST return the register that is going to be
+   tested.
+--]]
+function Core:loopUntilZero(mode, code, ...)
+   self:loopUntilStart()
+
+   if mode then
+      self:loopUntilEndIfZero(code(...))
+   else
+      self:loopUntilEndIfNonZero(code(...))
+   end
+end
+
 function Core:loopUntilStart()
    local loop = {}
    loop.tag = self:makeGotoTag()
