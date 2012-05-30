@@ -94,7 +94,7 @@ $ source $XILINX_INSTALL_PATH/settings**.sh
 # our pre-built bitfiles *:
 $ cd scripts
 $ ./get-latest-neuflow-image
-$ ./load-bitfile neuFlow-ml605-ethernetII.bit
+$ ./load-bitfile neuFlow-ml605.bit
 
 # at this points, you just have wait 2 seconds that the ethernet
 # LEDs are back on (out of reset)
