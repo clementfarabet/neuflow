@@ -13,6 +13,8 @@ function Ethernet:__init(args)
    self.core = args.core
    self.msg_level = args.msg_level or 'none'  -- 'detailled' or 'none' or 'concise'
    self.max_packet_size = 1500 or args.max_packet_size
+   self.nf = args.nf
+   self.profiler = self.nf.profiler
 
    -- compulsory
    if (self.core == nil) then
@@ -64,22 +66,32 @@ function Ethernet:dev_receiveBytecode()
 end
 
 function Ethernet:host_copyToDev(tensor)
+   self.profiler:start('copy-to-dev')
    for i = 1,tensor:size(1) do
       etherflow.sendtensor(tensor[i])
    end
    self:getFrame('copy-done')
+   self.profiler:lap('copy-to-dev')
 end
 
 function Ethernet:host_copyFromDev(tensor, handshake)
+   profiler_neuflow = self.profiler:start('on-board-processing')
+   self.profiler:setColor('on-board-processing', 'blue')
    self:getFrame('copy-starting')
+   self.profiler:lap('on-board-processing')
+
+   self.profiler:start('copy-from-dev')
    etherflow.handshake(handshake)
    for i = 1,tensor:size(1) do
       etherflow.receivetensor(tensor[i])
    end
+   self.profiler:lap('copy-from-dev')
 end
 
 function Ethernet:host_sendBytecode(bytecode)
+   self.profiler:start('load-bytecode')
    etherflow.loadbytecode(bytecode)
+   self.profiler:lap('load-bytecode')
 end
 
 
