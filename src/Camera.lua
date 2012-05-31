@@ -134,3 +134,18 @@ function Camera:captureOneFrame(cameraID)
    self.core.alloc_ur:free(reg_tmp)
 
 end
+
+function Camera:enableCameras()
+
+   local w_ = 640
+   local h_ = 240
+
+   print('<neuflow.Camera> Enable Camera: ' .. w_ .. 'x' .. h_)
+   local idx = self.core.mem:allocOnTheHeap(h_, w_, nil, true)
+   local idx2 = self.core.mem:allocOnTheHeap(h_, w_, nil, true)
+   self.core.mem.buff[idx].id = idx
+   self.core.mem.buff[idx2].id = idx2
+
+   self:startCom('A',self.core.mem.buff[idx])
+   self:startCom('B',self.core.mem.buff[idx2])
+end

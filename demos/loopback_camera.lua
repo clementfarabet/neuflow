@@ -30,17 +30,17 @@ nf = neuflow.init{platform='pico_m503',
 --
 
 
-nf:enableCameras()
+nf.camera:enableCameras()
 -- loop over the main code
 nf:beginLoop('main') do
 
 
    -- send data to device
-   nf:captureOneFrame({'B','A'})
+   nf.camera:captureOneFrame({'B','A'})
 
    -- slow down for slow host computer
    --nf:wait(50)
-   input_dev = nf:getLastFrame({'B','A'})
+   input_dev = nf.camera:getLastFrame({'B','A'})
 
    -- get it back
    outputs = nf:copyToHost(input_dev)
