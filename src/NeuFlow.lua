@@ -44,6 +44,9 @@ function NeuFlow:__init(args)
                                     core = self.core,
                                     msg_level = args.compiler_msg_level or self.global_msg_level}
 
+   -- use a profiler
+   self.profiler = neuflow.Profiler()
+
    -- instantiate the interface
    if (self.core.platform == 'pico_m503') or (self.core.platform == 'xilinx_ml605_tbsp') then
       self.handshake = false
@@ -53,7 +56,8 @@ function NeuFlow:__init(args)
    else
       self.handshake = true
       self.ethernet = neuflow.Ethernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
-                                       core = self.core}
+                                       core = self.core,
+                                       nf = self}
    end
 
    if self.core.platform == 'pico_m503' then
@@ -63,9 +67,6 @@ function NeuFlow:__init(args)
 
    -- for loops: this retains a list of jump locations
    self.loopTags = {}
-
-   -- use a profiler
-   self.profiler = neuflow.Profiler()
 
    -- ethernet socket (auto found for now)
    if self.use_ethernet then
@@ -471,9 +472,7 @@ function NeuFlow:loadBytecode(bytecode)
    if bytecode then
       -- then transmit bytecode
       print('<neuflow.NeuFlow> transmitting bytecode')
-      self.profiler:start('load-bytecode')
       self.ethernet:host_sendBytecode(bytecode)
-      self.profiler:lap('load-bytecode')
       -- we are already transmitting the bytecode
       -- we can close the log file now
       -- the way it was done before in cleanup
@@ -508,19 +507,12 @@ end
 -- transmit tensor
 --
 function NeuFlow:copyToDev(tensor)
-   self.profiler:start('copy-to-dev')
    self.ethernet:host_copyToDev(tensor)
-   self.profiler:lap('copy-to-dev')
 end
 
 ----------------------------------------------------------------------
 -- receive tensor
 --
 function NeuFlow:copyFromDev(tensor)
-   profiler_neuflow = self.profiler:start('on-board-processing')
-   self.profiler:setColor('on-board-processing', 'blue')
-   self.profiler:lap('on-board-processing')
-   self.profiler:start('copy-from-dev')
    self.ethernet:host_copyFromDev(tensor, self.handshake)
-   self.profiler:lap('copy-from-dev')
 end
