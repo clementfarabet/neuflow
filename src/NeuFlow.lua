@@ -60,6 +60,11 @@ function NeuFlow:__init(args)
                                        nf = self}
    end
 
+   if self.core.platform == 'pico_m503' then
+      self.camera = neuflow.Camera{msg_level = args.camera_msg_level or self.global_msg_level,
+	 core = self.core}
+   end
+
    -- for loops: this retains a list of jump locations
    self.loopTags = {}
 
@@ -328,6 +333,52 @@ function NeuFlow:copyToHost(source, dest)
    dest:resize(#lsource, orig_h, orig_w)
    return dest
 end
+
+----------------------------------------------------------------------
+-- Camera functions
+
+function NeuFlow:enableCameras()
+
+   local w_ = 640
+   local h_ = 240
+
+   print('<neuflow.NeuFlow> Enable Camera: ' .. w_ .. 'x' .. h_)
+   local idx = self.core.mem:allocOnTheHeap(h_, w_, nil, true)
+   local idx2 = self.core.mem:allocOnTheHeap(h_, w_, nil, true)
+   self.core.mem.buff[idx].id = idx
+   self.core.mem.buff[idx2].id = idx2
+
+   self.core:startProcess()
+   self.camera:startCom('A',self.core.mem.buff[idx])
+   self.camera:startCom('B',self.core.mem.buff[idx2])
+   self.core:endProcess()
+end
+
+function NeuFlow:captureOneFrame(cameraID)
+
+   self.core:startProcess()
+   output = self.camera:captureOneFrame(cameraID)
+   self.core:endProcess()
+
+end
+
+function NeuFlow:getLastFrame(cameraID)
+
+   self.core:startProcess()
+   output = self.camera:getLastFrame(cameraID)
+   self.core:endProcess()
+
+   return output
+end
+
+function NeuFlow:wait(msec)
+
+   self.core:startProcess()
+   self.core:loopRepeatStart(msec*9500)
+   self.core:loopRepeatEnd()
+   self.core:endProcess()
+end
+
 
 ----------------------------------------------------------------------
 -- wrappers for compilers
