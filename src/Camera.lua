@@ -138,3 +138,134 @@ function Camera:enableCameras()
    self:initCamera('A',self.core.mem.buff[idx])
    self:initCamera('B',self.core.mem.buff[idx2])
 end
+
+function Camera:startRBCamer() -- Start camera and send images to Running Buffer
+
+   local buff_h_ = self.h_ * self.nb_frames
+
+   print('<neuflow.Camera> Enable Camera: ' .. self.w_ .. 'x' .. self.h_)
+   local idx_A = self.core.mem:allocImageData(buff_h_, self.w_, nil, true)
+   local idx_B = self.core.mem:allocImageData(buff_h_, self.w_, nil, true)
+
+   self:initCamera('A', self.core.mem.data[idx_A])
+   self:initCamera('B', self.core.mem.data[idx_B])
+
+   -- Global setup for DMA port (camera A and B) to make continuous
+   local stride_bit_shift = math.log(1024) / math.log(2)
+
+   self.core:send_selectModule(blast_bus.area_streamer, dma.camera_A_port_id, 1)
+   self.core:send_setup(0, 16*1024*1024, stride_bit_shift, 0)
+
+   self.core:send_selectModule(blast_bus.area_streamer, dma.camera_B_port_id, 1)
+   self.core:send_setup(0, 16*1024*1024, stride_bit_shift, 0)
+
+   -- Open the streamer ports for writing
+   self.core:openPortWr(dma.camera_A_port_id, self.frames['A'])
+   self.core:openPortWr(dma.camera_B_port_id, self.frames['B'])
+
+   -- Start cameras sending images
+   local reg_ctrl = self.core.alloc_ur:get()
+   local mask_ctrl = bit.bor(self.mask.ctrl['A'], self.mask.ctrl['B'])
+
+   self.core:setreg(reg_ctrl, mask_ctrl)
+   self.core:iowrite(oFlower.io_gpios, reg_ctrl)
+
+   self.core.alloc_ur:free(reg_ctrl)
+end
+
+function Camera:stopRBCamer() -- Stop camera sending to Running Buffer
+
+   local reg_acqst = self.core.alloc_ur:get()
+   local mask_status = bit.bor(self.mask.status['A'], self.mask.status['B'])
+
+   -- Once the acquisition start. Disable the acquisition for the next frame
+   self.core:setreg(reg_acqst, 0x00000000) -- Unset bit 16 of GPIO to 1
+   self.core:iowrite(oFlower.io_gpios, reg_acqst)
+   self.core:nop(100) -- small delay
+
+   -- wait for the frame to finish being sent
+   self.core:loopUntilStart()
+   self.core:ioread(oFlower.io_gpios, reg_acqst)
+   self.core:bitandi(reg_acqst, mask_status, reg_acqst)
+   self.core:compi(reg_acqst, 0x00000000, reg_acqst)
+   self.core:loopUntilEndIfNonZero(reg_acqst)
+
+   self.core.alloc_ur:free(reg_acqst)
+
+   -- reset ports
+   self.core:configureStreamer(0, 16*1024*1024, 1024, {dma.camera_A_port_id, dma.camera_B_port_id})
+end
+
+function Camera:getLatestFrame() -- Get the latest complete frame
+
+   local reg_acqst = self.core.alloc_ur:get()
+   self.core:ioread(oFlower.io_gpios, reg_acqst)
+
+   self:streamLatestFrameFromPort('A', reg_acqst, dma.ethernet_read_port_id, 'full')
+   self:streamLatestFrameFromPort('B', reg_acqst, dma.ethernet_read_port_id, 'full')
+
+   self.core.alloc_ur:free(reg_acqst)
+
+   return torch.Tensor(self.w_, (2*self.h_))
+end
+
+function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_addr_range)
+
+   local goto_ends = {}
+   local reg_count = self.core.alloc_ur:get()
+
+   -- Start reading camera
+   for ii = (self.nb_frames-1), 1, -1 do
+      -- copy camera status into reg but masked for frame count
+      self.core:bitandi(reg_acqst, self.mask.counter[cameraID], reg_count)
+      self.core:compi(reg_count, ii, reg_count) -- test if current frame is 'ii'
+
+      -- if current frame not eq to 'ii' (reg_count == 0) goto next possible chose
+      self.core:gotoTagIfZero(nil, reg_count) -- goto next pos
+      local goto_next = self.core.linker:getLastReference()
+
+      -- read the last frame in running buffer
+      self.core:configPort{
+         index  = port_addr,
+         action = 'fetch+read+sync+close',
+         data   = {
+            x = self.frames[cameraID].x,
+            y = self.frames[cameraID].y + ((ii-1)*self.h_),
+            w = self.w_,
+            h = self.h_
+         },
+
+         range  = port_addr_range
+      }
+
+      self.core:gotoTag(nil) -- finnish so goto end
+      goto_ends[ii] = self.core.linker:getLastReference()
+
+      -- next pos
+      goto_next.goto_tag = self.core:makeGotoTag()
+      self.core:nop()
+   end
+
+   -- if got here only option left is to read the following frame
+   self.core:configPort{
+      index  = port_addr,
+      action = 'fetch+read+sync+close',
+      data   = {
+         x = self.frames[cameraID].x,
+         y = self.frames[cameraID].y + ((self.nb_frames-1)*self.h_),
+         w = self.w_,
+         h = self.h_
+      },
+
+      range  = port_addr_range
+   }
+
+   -- end sending frame for camera cameraID
+   self.core:nop()
+
+   for i, goto_end in pairs(goto_ends) do
+      goto_end.goto_tag = goto_end_tag
+   end
+
+   self.core.alloc_ur:free(reg_count)
+end
