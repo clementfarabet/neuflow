@@ -21,6 +21,11 @@ function Camera:__init(args)
       ['ctrl']    = {['A'] = 0x00000800, ['B'] = 0x08000000}
    }
 
+   self.port_addrs = {
+      ['A'] = dma.camera_A_port_id,
+      ['B'] = dma.camera_B_port_id
+   }
+
    -- compulsory
    if (self.core == nil) then
       error('<neuflow.Camera> ERROR: requires a Dataflow Core')
@@ -29,15 +34,13 @@ end
 
 function Camera:initCamera(cameraID, alloc_frames)
 
-   local buffer_size = alloc_frames.w * alloc_frames.h
-
-   if cameraID == 'B' then
-      self.frames['B'] = alloc_frames
-      print('<neuflow.Camera> : init Camera B : alloc_frame ' .. alloc_frames.w .. 'x' .. alloc_frames.h .. ' at ' .. alloc_frames.x .. ' ' .. alloc_frames.y)
-   else
-      self.frames['A'] = alloc_frames
-      print('<neuflow.Camera> : init Camera A : alloc_frame ' .. alloc_frames.w .. 'x' .. alloc_frames.h .. ' at ' .. alloc_frames.x .. ' ' .. alloc_frames.y)
-   end
+   self.frames[cameraID] = alloc_frames
+   print('<neuflow.Camera> : init Camera ' ..
+         cameraID .. ' : alloc_frame ' ..
+         alloc_frames.w .. 'x' ..
+         alloc_frames.h .. ' at ' ..
+         alloc_frames.x .. ' ' ..
+         alloc_frames.y)
 
    local reg_ctrl = self.core.alloc_ur:get()
    self.core:setreg(reg_ctrl, 0x00000000) -- Unset bit 16 of GPIO to 0
@@ -59,19 +62,12 @@ function Camera:getLastFrame(cameraID)
    else
       lcameraID = cameraID
    end
+
    for i = 1,#lcameraID do
-      if lcameraID[i] == 'B' then
-         if (mask_status == 0x00000000) or (mask_status == self.mask.status['A']) then
-            mask_status = mask_status + self.mask.status['B']
-            table.insert(outputs, self.frames['B'])
-         end
-      else
-         if (mask_status == 0x00000000) or (mask_status == self.mask.status['B']) then
-            mask_status = mask_status + self.mask.status['A']
-            table.insert(outputs, self.frames['A'])
-         end
-      end
+      mask_status = bit.bor(mask_status, self.mask.status[lcameraID[i]])
+      table.insert(outputs, self.frames[lcameraID[i]])
    end
+
    self.core:loopUntilStart()
    self.core:ioread(oFlower.io_gpios, reg_acqst)
    self.core:bitandi(reg_acqst, mask_status, reg_tmp)
@@ -82,11 +78,7 @@ function Camera:getLastFrame(cameraID)
    self.core.alloc_ur:free(reg_tmp)
 
    for i = 1,#lcameraID do
-      if lcameraID[i] == 'B' then
-         self.core:closePort(dma.camera_B_port_id)
-      else
-         self.core:closePort(dma.camera_A_port_id)
-      end
+      self.core:closePort(self.port_addrs[lcameraID[i]])
    end
    return outputs
 end
@@ -106,27 +98,15 @@ function Camera:captureOneFrame(cameraID)
    else
       lcameraID = cameraID
    end
+
    for i = 1,#lcameraID do
-      if lcameraID[i] == 'B' then
-         if (mask_ctrl == 0x00000000) or (mask_ctrl == self.mask.ctrl['A']) then
-            mask_ctrl = mask_ctrl + self.mask.ctrl['B']
-            self.core:openPortWr(5, self.frames['B'])
-         end
-         if (mask_status == 0x00000000) or (mask_status == self.mask.status['A']) then
-            mask_status = mask_status + self.mask.status['B']
-         end
-      else
-         if (mask_ctrl == 0x00000000) or (mask_ctrl == self.mask.ctrl['B']) then
-            mask_ctrl = mask_ctrl + self.mask.ctrl['A']
-            self.core:openPortWr(4, self.frames['A'])
-         end
-         if (mask_status == 0x00000000) or (mask_status == self.mask.status['B']) then
-            mask_status = mask_status + self.mask.status['A']
-         end
-      end
+      mask_ctrl = bit.bor(mask_ctrl, self.mask.ctrl[lcameraID[i]])
+      self.core:openPortWr(self.port_addrs[lcameraID[i]], self.frames[lcameraID[i]])
+
+      mask_status = bit.bor(mask_status, self.mask.status[lcameraID[i]])
    end
 
-   self.core:setreg(reg_ctrl, mask_ctrl) -- Set bit 11 of GPIO to 1
+   self.core:setreg(reg_ctrl, mask_ctrl)
    self.core:iowrite(oFlower.io_gpios, reg_ctrl)
 
    self.core:loopUntilStart()
@@ -136,13 +116,12 @@ function Camera:captureOneFrame(cameraID)
    self.core:loopUntilEndIfNonZero(reg_tmp)
 
    -- Once the acquisition start. Disable the acquisition for the next frame
-   self.core:setreg(reg_ctrl, 0x00000000) -- Unset bit 16 of GPIO to 1
+   self.core:setreg(reg_ctrl, 0x00000000)
    self.core:iowrite(oFlower.io_gpios, reg_ctrl)
 
    self.core.alloc_ur:free(reg_acqst)
    self.core.alloc_ur:free(reg_ctrl)
    self.core.alloc_ur:free(reg_tmp)
-
 end
 
 function Camera:enableCameras()

@@ -19,9 +19,14 @@ require 'qtwidget'
 -- INIT: initialize the neuFlow context
 -- a mem manager, the dataflow core, and the compiler
 --
-nf = neuflow.init{platform='pico_m503',
+nf = neuflow.init {
+   platform='pico_m503',
    global_msg_level = 'detailled',
-   interface_msg_level = 'detailled'}
+   interface_msg_level = 'detailled',
+   offset_data_1D = bootloader.entry_point_b + 6*MB,
+   offset_data_2D = bootloader.entry_point_b + 7*MB
+}
+
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and
 -- how it should interact with the host (data exchange)
@@ -31,21 +36,17 @@ nf = neuflow.init{platform='pico_m503',
 
 
 nf.camera:enableCameras()
+
 -- loop over the main code
 nf:beginLoop('main') do
 
 
-   -- send data to device
+   -- send image from camera to memory
    nf.camera:captureOneFrame({'B','A'})
-
-   -- slow down for slow host computer
-   --nf:wait(50)
    input_dev = nf.camera:getLastFrame({'B','A'})
 
-   -- get it back
+   -- pass image to host
    outputs = nf:copyToHost(input_dev)
-
-   -- nf:wait(4000)
 
 end nf:endLoop('main')
 
