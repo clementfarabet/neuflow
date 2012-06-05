@@ -42,6 +42,7 @@ function Camera:initCamera(cameraID, alloc_frames)
          alloc_frames.x .. ' ' ..
          alloc_frames.y)
 
+   -- puts the cameras in standby
    local reg_ctrl = self.core.alloc_ur:get()
    self.core:setreg(reg_ctrl, 0x00000000) -- Unset bit 16 of GPIO to 0
    self.core:iowrite(oFlower.io_gpios, reg_ctrl)
@@ -68,6 +69,7 @@ function Camera:getLastFrame(cameraID)
       table.insert(outputs, self.frames[lcameraID[i]])
    end
 
+   -- wait for the frame to finish being sent
    self.core:loopUntilStart()
    self.core:ioread(oFlower.io_gpios, reg_acqst)
    self.core:bitandi(reg_acqst, mask_status, reg_tmp)
@@ -106,9 +108,11 @@ function Camera:captureOneFrame(cameraID)
       mask_status = bit.bor(mask_status, self.mask.status[lcameraID[i]])
    end
 
+   -- trigger acquisition
    self.core:setreg(reg_ctrl, mask_ctrl)
    self.core:iowrite(oFlower.io_gpios, reg_ctrl)
 
+   -- loop until acquisition has started
    self.core:loopUntilStart()
    self.core:ioread(oFlower.io_gpios, reg_acqst)
    self.core:bitandi(reg_acqst, mask_status, reg_tmp)
@@ -126,20 +130,15 @@ end
 
 function Camera:enableCameras()
 
-   local w_ = self.w_
-   local h_ = self.h_
+   print('<neuflow.Camera> Enable Camera: ' .. self.w_ .. 'x' .. self.h_)
+   local idx_A = self.core.mem:allocImageData(self.h_, self.w_, nil, true)
+   local idx_B = self.core.mem:allocImageData(self.h_, self.w_, nil, true)
 
-   print('<neuflow.Camera> Enable Camera: ' .. w_ .. 'x' .. h_)
-   local idx = self.core.mem:allocOnTheHeap(h_, w_, nil, true)
-   local idx2 = self.core.mem:allocOnTheHeap(h_, w_, nil, true)
-   self.core.mem.buff[idx].id = idx
-   self.core.mem.buff[idx2].id = idx2
-
-   self:initCamera('A',self.core.mem.buff[idx])
-   self:initCamera('B',self.core.mem.buff[idx2])
+   self:initCamera('A',self.core.mem.data[idx_A])
+   self:initCamera('B',self.core.mem.data[idx_B])
 end
 
-function Camera:startRBCamer() -- Start camera and send images to Running Buffer
+function Camera:startRBCameras() -- Start camera and send images to Running Buffer
 
    local buff_h_ = self.h_ * self.nb_frames
 
@@ -173,7 +172,7 @@ function Camera:startRBCamer() -- Start camera and send images to Running Buffer
    self.core.alloc_ur:free(reg_ctrl)
 end
 
-function Camera:stopRBCamer() -- Stop camera sending to Running Buffer
+function Camera:stopRBCameras() -- Stop camera sending to Running Buffer
 
    local reg_acqst = self.core.alloc_ur:get()
    local mask_status = bit.bor(self.mask.status['A'], self.mask.status['B'])
