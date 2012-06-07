@@ -35,18 +35,22 @@ nf = neuflow.init {
 --
 
 
-nf.camera:enableCameras()
+nf.camera:startRBCameras() -- Start camera and send images to Running Buffer
+--nf.camera:enableCameras()
 
 -- loop over the main code
 nf:beginLoop('main') do
 
+   outputs = nf.camera:copyToHostLatestFrame() -- Get the latest complete frame from both camers
 
+--[[
    -- send image from camera to memory
    nf.camera:captureOneFrame({'B','A'})
    input_dev = nf.camera:getLastFrame({'B','A'})
 
    -- pass image to host
    outputs = nf:copyToHost(input_dev)
+--]]
 
 end nf:endLoop('main')
 
