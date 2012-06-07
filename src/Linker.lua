@@ -371,7 +371,7 @@ function Linker:dump(info, mem)
       -- and raw_data
       self:dump_RawData(info, out, mem)
       -- and data (images) for simulation)
-      self:dump_ImageData(info, out, mem)
+--      self:dump_ImageData(info, out, mem)
    end
 
    -- and close the file
