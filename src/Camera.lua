@@ -55,10 +55,6 @@ end
 function Camera:getLastFrame(cameraID)
    local outputs = {}
 
-   local reg_acqst = self.core.alloc_ur:get()
-   local reg_tmp = self.core.alloc_ur:get()
-
-   local mask_status = 0x00000000
    if #cameraID == 1 then
       lcameraID = {cameraID}
    else
@@ -66,22 +62,9 @@ function Camera:getLastFrame(cameraID)
    end
 
    for i = 1,#lcameraID do
-      mask_status = bit.bor(mask_status, self.mask.status[lcameraID[i]])
       table.insert(outputs, self.frames[lcameraID[i]])
-   end
 
-   -- wait for the frame to finish being sent
-   self.core:loopUntilStart()
-   self.core:ioread(oFlower.io_gpios, reg_acqst)
-   self.core:bitandi(reg_acqst, mask_status, reg_tmp)
-   self.core:compi(reg_tmp, 0x00000000, reg_tmp)
-   self.core:loopUntilEndIfNonZero(reg_tmp)
-
-   self.core.alloc_ur:free(reg_acqst)
-   self.core.alloc_ur:free(reg_tmp)
-
-   for i = 1,#lcameraID do
-      self.core:closePort(self.port_addrs[lcameraID[i]])
+      self.core:closePortSafe(self.port_addrs[lcameraID[i]])
    end
    return outputs
 end
