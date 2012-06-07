@@ -201,36 +201,9 @@ function Camera:getLatestFrame() -- Get the latest complete frame
    local reg_acqst = self.core.alloc_ur:get()
    self.core:ioread(oFlower.io_gpios, reg_acqst)
 
-   --self:streamLatestFrameFromPort('A', reg_acqst, dma.ethernet_read_port_id, 'full')
-   ---[[
-   self.core:configPort {
-      index = dma.ethernet_read_port_id,
-      action = 'fetch+read+sync+close',
-      data = {
-         x = self.frames['A'].x,
-         y = self.frames['A'].y+(2*self.h_),
-         w = self.w_,
-         h = self.h_
-      },
-      range = 'full'
-   }
-   --]]
-
+   self:streamLatestFrameFromPort('A', reg_acqst, dma.ethernet_read_port_id, 'full')
    self.nf.ethernet:streamFromHost(self.nf.ethernet.ack_stream[1], 'ack_stream')
-   --self:streamLatestFrameFromPort('B', reg_acqst, dma.ethernet_read_port_id, 'full')
-   ---[[
-   self.core:configPort {
-      index = dma.ethernet_read_port_id,
-      action = 'fetch+read+sync+close',
-      data = {
-         x = self.frames['B'].x,
-         y = self.frames['B'].y+(2*self.h_),
-         w = self.w_,
-         h = self.h_
-      },
-      range = 'full'
-   }
-   --]]
+   self:streamLatestFrameFromPort('B', reg_acqst, dma.ethernet_read_port_id, 'full')
 
    self.core.alloc_ur:free(reg_acqst)
 
@@ -288,7 +261,8 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
       range  = port_addr_range
    }
 
-   -- end sending frame for camera cameraID
+   -- end point
+   local goto_end_tag = self.core:makeGotoTag()
    self.core:nop()
 
    for i, goto_end in pairs(goto_ends) do
