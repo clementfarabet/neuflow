@@ -180,7 +180,7 @@ function Camera:stopRBCameras() -- Stop camera sending to Running Buffer
    self.core:configureStreamer(0, 16*1024*1024, 1024, {dma.camera_A_port_id, dma.camera_B_port_id})
 end
 
-function Camera:getLatestFrame() -- Get the latest complete frame
+function Camera:copyToHostLatestFrame() -- Get the latest complete frame
 
    local reg_acqst = self.core.alloc_ur:get()
    self.core:ioread(oFlower.io_gpios, reg_acqst)
