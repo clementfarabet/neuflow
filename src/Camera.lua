@@ -167,6 +167,7 @@ function Camera:startRBCameras() -- Start camera and send images to Running Buff
    local reg_ctrl = self.core.alloc_ur:get()
    local mask_ctrl = bit.bor(self.mask.ctrl['A'], self.mask.ctrl['B'])
 
+   -- trigger acquisition
    self.core:setreg(reg_ctrl, mask_ctrl)
    self.core:iowrite(oFlower.io_gpios, reg_ctrl)
 
@@ -192,7 +193,7 @@ function Camera:stopRBCameras() -- Stop camera sending to Running Buffer
 
    self.core.alloc_ur:free(reg_acqst)
 
-   -- reset ports
+   -- reset ports setup
    self.core:configureStreamer(0, 16*1024*1024, 1024, {dma.camera_A_port_id, dma.camera_B_port_id})
 end
 
@@ -215,13 +216,12 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
    local goto_ends = {}
    local reg_count = self.core.alloc_ur:get()
 
-   -- Start reading camera
    for ii = (self.nb_frames-1), 1, -1 do
       -- copy camera status into reg but masked for frame count
       self.core:bitandi(reg_acqst, self.mask.counter[cameraID], reg_count)
       self.core:compi(reg_count, ii, reg_count) -- test if current frame is 'ii'
 
-      -- if current frame not eq to 'ii' (reg_count == 0) goto next possible chose
+      -- if current frame not eq to 'ii' (reg_count == 0) goto next possible option
       self.core:gotoTagIfZero(nil, reg_count) -- goto next pos
       local goto_next = self.core.linker:getLastReference()
 
@@ -239,7 +239,7 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
          range  = port_addr_range
       }
 
-      self.core:gotoTag(nil) -- finnish so goto end
+      self.core:gotoTag(nil) -- finish so goto end
       goto_ends[ii] = self.core.linker:getLastReference()
 
       -- next pos
@@ -248,7 +248,7 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
    end
 
    -- if got here only option left is to read the following frame
-   self.core:configPort{
+   self.core:configPort {
       index  = port_addr,
       action = 'fetch+read+sync+close',
       data   = {
