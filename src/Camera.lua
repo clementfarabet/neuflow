@@ -8,7 +8,8 @@ local Camera = torch.class('neuflow.Camera')
 
 function Camera:__init(args)
    -- args:
-   self.core = args.core
+   self.nf = args.nf
+   self.core = args.nf.core
    self.msg_level = args.msg_level or 'none'  -- 'detailled' or 'none' or 'concise'
    self.frames = {}
 
@@ -131,11 +132,11 @@ end
 function Camera:enableCameras()
 
    print('<neuflow.Camera> Enable Camera: ' .. self.w_ .. 'x' .. self.h_)
-   local idx_A = self.core.mem:allocImageData(self.h_, self.w_, nil, true)
-   local idx_B = self.core.mem:allocImageData(self.h_, self.w_, nil, true)
+   local idx_A = self.core.mem:allocImageData(self.h_, self.w_, nil)
+   local idx_B = self.core.mem:allocImageData(self.h_, self.w_, nil)
 
-   self:initCamera('A',self.core.mem.data[idx_A])
-   self:initCamera('B',self.core.mem.data[idx_B])
+   self:initCamera('A', self.core.mem.data[idx_A])
+   self:initCamera('B', self.core.mem.data[idx_B])
 end
 
 function Camera:startRBCameras() -- Start camera and send images to Running Buffer
@@ -143,8 +144,8 @@ function Camera:startRBCameras() -- Start camera and send images to Running Buff
    local buff_h_ = self.h_ * self.nb_frames
 
    print('<neuflow.Camera> Enable Camera: ' .. self.w_ .. 'x' .. self.h_)
-   local idx_A = self.core.mem:allocImageData(buff_h_, self.w_, nil, true)
-   local idx_B = self.core.mem:allocImageData(buff_h_, self.w_, nil, true)
+   local idx_A = self.core.mem:allocImageData(buff_h_, self.w_, nil)
+   local idx_B = self.core.mem:allocImageData(buff_h_, self.w_, nil)
 
    self:initCamera('A', self.core.mem.data[idx_A])
    self:initCamera('B', self.core.mem.data[idx_B])
@@ -152,11 +153,11 @@ function Camera:startRBCameras() -- Start camera and send images to Running Buff
    -- Global setup for DMA port (camera A and B) to make continuous
    local stride_bit_shift = math.log(1024) / math.log(2)
 
-   self.core:send_selectModule(blast_bus.area_streamer, dma.camera_A_port_id, 1)
-   self.core:send_setup(0, 16*1024*1024, stride_bit_shift, 0)
+   self.core:send_selectModule(blast_bus.area_streamer, blast_bus.addr_mem_streamer_0+dma.camera_A_port_id, 1)
+   self.core:send_setup(0, 16*1024*1024, stride_bit_shift, 1)
 
-   self.core:send_selectModule(blast_bus.area_streamer, dma.camera_B_port_id, 1)
-   self.core:send_setup(0, 16*1024*1024, stride_bit_shift, 0)
+   self.core:send_selectModule(blast_bus.area_streamer, blast_bus.addr_mem_streamer_0+dma.camera_B_port_id, 1)
+   self.core:send_setup(0, 16*1024*1024, stride_bit_shift, 1)
 
    -- Open the streamer ports for writing
    self.core:openPortWr(dma.camera_A_port_id, self.frames['A'])
@@ -200,12 +201,40 @@ function Camera:getLatestFrame() -- Get the latest complete frame
    local reg_acqst = self.core.alloc_ur:get()
    self.core:ioread(oFlower.io_gpios, reg_acqst)
 
-   self:streamLatestFrameFromPort('A', reg_acqst, dma.ethernet_read_port_id, 'full')
-   self:streamLatestFrameFromPort('B', reg_acqst, dma.ethernet_read_port_id, 'full')
+   --self:streamLatestFrameFromPort('A', reg_acqst, dma.ethernet_read_port_id, 'full')
+   ---[[
+   self.core:configPort {
+      index = dma.ethernet_read_port_id,
+      action = 'fetch+read+sync+close',
+      data = {
+         x = self.frames['A'].x,
+         y = self.frames['A'].y+(2*self.h_),
+         w = self.w_,
+         h = self.h_
+      },
+      range = 'full'
+   }
+   --]]
+
+   self.nf.ethernet:streamFromHost(self.nf.ethernet.ack_stream[1], 'ack_stream')
+   --self:streamLatestFrameFromPort('B', reg_acqst, dma.ethernet_read_port_id, 'full')
+   ---[[
+   self.core:configPort {
+      index = dma.ethernet_read_port_id,
+      action = 'fetch+read+sync+close',
+      data = {
+         x = self.frames['B'].x,
+         y = self.frames['B'].y+(2*self.h_),
+         w = self.w_,
+         h = self.h_
+      },
+      range = 'full'
+   }
+   --]]
 
    self.core.alloc_ur:free(reg_acqst)
 
-   return torch.Tensor(self.w_, (2*self.h_))
+   return torch.Tensor(2, self.h_, self.w_)
 end
 
 function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_addr_range)
