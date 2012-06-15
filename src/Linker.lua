@@ -273,11 +273,14 @@ function Linker:removeSegment(seg_start, seg_end)
 end
 
 function Linker:alignProcessWithPages()
-   local function countNextProcess(node)
+   local function countNextProcess(node, cnt)
+      cnt = cnt or 0
+
       if node == nil or node.bytes == nil then
-         return 0
+         return cnt
       else
-         return countNextProcess(node.next) + 1
+         cnt = cnt+1
+         return countNextProcess(node.next, cnt)
       end
    end
 
