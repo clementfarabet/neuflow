@@ -774,7 +774,7 @@ function Core:getStatus(statusToGet)
    self:addInstruction {
       opcode = oFlower.op_getStatus,
       arg8_1 = statusToGet,
-      arg8_2 = 32
+      arg8_2 = 80
    }
 end
 
