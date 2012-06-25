@@ -192,7 +192,7 @@ end
 dma = {}
 do
    -- global DMA IOs
-   dma.nb_ios = 2
+   dma.nb_ios = 0
 end
 
 
