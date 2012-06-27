@@ -15,7 +15,7 @@ function Camera:__init(args)
 
    self.nb_frames = 4 -- number of frames in running buffer
    self.w_ = 640
-   self.h_ = 480
+   self.h_ = 240
    self.mask = {
       ['counter']     = {['A'] = 0x0000000c, ['B'] = 0x000c0000},
       ['status']      = {['A'] = 0x00000001, ['B'] = 0x00010000},
@@ -53,7 +53,11 @@ function Camera:__init(args)
       ['power'] = {
          ['value'] = {['ON'] = 0x1, ['OFF'] = 0x0},
          ['mask'] = 0x1,
-         ['index'] = 11}
+         ['index'] = 11},
+      ['iic'] = {
+         ['value'] = {['ON'] = 0x1, ['OFF'] = 0x0},
+         ['mask'] = 0x1,
+         ['index'] = 12}
    }
 
    -- Memorize here the camera register value
