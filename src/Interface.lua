@@ -37,9 +37,11 @@ function Ethernet:sendReset()
 end
 
 function Ethernet:dev_copyToHost(tensor, ack)
-   self.core:startProcess()
-   self:printToEthernet('copy-starting')
-   self.core:endProcess()
+   if ack ~= 'no-ack' then
+      self.core:startProcess()
+      self:printToEthernet('copy-starting')
+      self.core:endProcess()
+   end
 
    for i = 1,#tensor do
       self.core:startProcess()
@@ -146,7 +148,6 @@ end
 function Ethernet:printToEthernet(str)
    -- Printing to ethernet involves initializing a transfer with the driver, 
    -- then writing the data (frame), then triggering the transfer.
-
    if (self.msg_level == 'detailled') then
       self.core:print(string.format('[ETHERNET TX : %s]',str))
    end
@@ -195,8 +196,10 @@ function Ethernet:streamToHost(stream, tag, mode)
       self.core:message(string.format('eth: sending %0d packets [tag = %s]', nb_packets, tag))
    end
 
-   -- (1) specify: name | size | nb_packets
-   self:printToEthernet(string.format('TX | %s | %0d | %0d', tag, data_size, nb_packets))
+   if mode ~= 'no-ack' then
+      -- (1) specify: name | size | nb_packets
+      self:printToEthernet(string.format('TX | %s | %0d | %0d', tag, data_size, nb_packets))
+   end
    
    -- (1) a sleep ?
    if data_size < 30*30*2 then
