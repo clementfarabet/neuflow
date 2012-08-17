@@ -317,9 +317,7 @@ function NeuFlow:copyToHost(source, dest)
    -- process list of streams
    print('<neuflow.NeuFlow> copy dev->host: ' .. #lsource .. 'x' .. lsource[1].orig_h .. 'x' .. lsource[1].orig_w)
 
-   if self.mode ~= 'simulation' then
-      self.ethernet:dev_copyToHost(lsource, ack)
-   end
+   self.ethernet:dev_copyToHost(lsource, ack)
 
    -- create/resize dest
    if not dest then
