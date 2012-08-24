@@ -28,6 +28,11 @@
 #else // not _LINUX_ but _APPLE_
 
 // osx
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
+
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -52,16 +57,31 @@
  */
 static const int neuflow_one_encoding = 1<<8;
 
+#ifdef _LINUX_
 static int sockfd;
 static socklen_t socklen;
-
-#ifdef _LINUX_
 static struct sockaddr_ll sock_address;
 static struct ifreq ifr;
 static int ifindex;
+
 #else // not _LINUX_ but _APPLE_
-// socket parameters
-static struct sockaddr_ndrv sock_address;
+// BPF (Berkeley Packet Filter) interface
+int bpf = 0;
+int bpf_buf_len = 0;
+struct bpf_hdr *bpf_buf;
+char* bpf_ptr;
+int bpf_read_bytes;
+struct bpf_program my_bpf_program;
+//BPF Filter
+struct bpf_insn insns[] = {
+    BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),                 // Load type at offset 12 in accumulator
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x88b5, 0, 3),      // If type matches then check src addr (incr PC by 0)
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 6),                  // Load src addr in accumulator
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x00801064, 0, 1),  // If src addr matches then keep the whole message
+    BPF_STMT(BPF_RET+BPF_K, (u_int)-1),                 // Keep the message (keep max byte)
+    BPF_STMT(BPF_RET+BPF_K, 0),                         // Discard the message (keep 0 byte)
+};
+
 #endif // _LINUX_
 
 // ethernet packet parameters
@@ -197,6 +217,7 @@ uint16_t tbsp_read_data_length(struct tbsp_packet *packet) {
  */
 
 int network_recv_packet() {
+#ifdef _LINUX_
   int kk = 0;
   int ii = 0;
   int bad_packet = 0;
@@ -252,7 +273,32 @@ int network_recv_packet() {
     // end debugging
 
   } while (bad_packet);
-
+#else // not _LINUX_ but _APPLE_
+  struct frame_t *frame;
+  struct bpf_hdr *bpf_packet;
+  // Check if a new read is needed (a read from a bpf device can contains several bpf packets)
+  if(bpf_ptr >= ((char*)(bpf_buf) + bpf_read_bytes))
+  {
+    //New read
+    memset(bpf_buf, 0, bpf_buf_len);
+    bpf_read_bytes = read(bpf, bpf_buf, bpf_buf_len);
+    if(bpf_read_bytes < 0)
+    {
+      printf("Bad read %d\n", bpf_read_bytes);
+      return bpf_read_bytes;
+    }
+    if(bpf_read_bytes == 0)
+    {
+      printf("Null read %d\n", bpf_read_bytes);
+      return bpf_read_bytes;
+    }
+    bpf_ptr = (char*)bpf_buf;
+  }
+  bpf_packet = (struct bpf_hdr*)bpf_ptr;
+  memcpy(recv_buffer, (char*)bpf_packet + bpf_packet->bh_hdrlen, bpf_packet->bh_caplen);
+  // Increment thr ptr message for the next read
+  bpf_ptr += BPF_WORDALIGN(bpf_packet->bh_hdrlen + bpf_packet->bh_caplen);
+#endif // _LINUX_
   return 0;
 }
 
@@ -260,7 +306,12 @@ int network_recv_packet() {
 int network_send_packet() {
 
   // A delay to give the OS time to complete sending the last packet
+#ifdef _LINUX_
   usleep(10);
+#else // not _LINUX_ but _APPLE_
+// OSX sends frames too quickly for the target and need to be slow down.
+  usleep(100);
+#endif // _LINUX_
 
   memcpy( &send_buffer[0],            eth_addr_remote, ETH_ALEN);
   memcpy( &send_buffer[ETH_ALEN],     eth_addr_local,  ETH_ALEN);
@@ -279,14 +330,21 @@ int network_send_packet() {
 //  }
 //  printf("\n");
   // end debugging
-
+#ifdef _LINUX_
   return sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
+#else // not _LINUX_ but _APPLE_
+  return write(bpf, send_buffer, frame_length);
+#endif // _LINUX_
 }
 
 
 int network_close_socket() {
-
+#ifdef _LINUX_
   return close(sockfd);
+#else // not _LINUX_ but _APPLE_
+  free(bpf_buf);
+  return close(bpf);
+#endif // _LINUX_
 }
 
 
@@ -367,78 +425,94 @@ int network_open_socket(const char *dev) {
 
 #else // not _LINUX_ but _APPLE_
 
+// Open an available bpf device
+int open_dev(void)
+{
+  char buf[ 11 ] = { 0 };
+
+  int i = 0;
+  for(i = 0; i < 99; i++ )
+  {
+    sprintf( buf, "/dev/bpf%i", i );
+    bpf = open( buf, O_RDWR );
+    if( bpf != -1 ) {
+      printf("Opened device /dev/bpf%i\n", i);
+      break;
+    }
+  }
+  if(bpf == -1) {
+    printf("Cannot open any /dev/bpf* device, exiting\n");
+    exit(1);
+  }
+  return bpf;
+}
+
+// link the device to an interface
+void assoc_dev(int bpflocal, const char* interface)
+{
+  struct ifreq bound_if;
+  strcpy(bound_if.ifr_name, interface);
+  if(ioctl(bpflocal , BIOCSETIF, &bound_if ) > 0) {
+    printf("Cannot bind bpf device to physical device %s, exiting\n", interface);
+    exit(1);
+  }
+  printf("Bound bpf device to physical device %s\n", interface);
+}
+
+// Set the bpf buffer size
+int set_buf_len(int bpflocal)
+{
+  int buf_len_local = 1;
+  // activate immediate mode (therefore, buf_len is initially set to "1")
+  if( ioctl( bpflocal, BIOCIMMEDIATE, &buf_len_local ) == -1 ) {
+    printf("Cannot set IMMEDIATE mode of bpf device\n");
+    exit(1);
+  }
+  buf_len_local = 3*1024*1024;
+  // request buffer length
+  if( ioctl( bpflocal, BIOCSBLEN, &buf_len_local  ) == -1 ) {
+    printf("Cannot get bufferlength of bpf device\n");
+    exit(1);
+  }
+
+  // request buffer length
+  if( ioctl( bpflocal, BIOCGBLEN, &buf_len_local  ) == -1 ) {
+    printf("Cannot get bufferlength of bpf device\n");
+    exit(1);
+  }
+  printf("Buffer length of bpf device: %d\n", buf_len_local);
+  return buf_len_local;
+}
+
 int network_open_socket(const char *dev) {
 
-  if ((sockfd = socket(PF_NDRV, SOCK_RAW, 0)) == -1) {
-    fprintf(stderr, "socket: socket() failed: %s\n", strerror(errno));
-    return -1;
+  bpf = open_dev();
+  bpf_buf_len = set_buf_len(bpf);
+  assoc_dev(bpf, dev);
+
+  //This size must match the number of instructions in the filter program
+  my_bpf_program.bf_len = 6;
+  my_bpf_program.bf_insns = &insns;
+
+  if (ioctl(bpf, BIOCSETF, &my_bpf_program) < 0)    // Setting filter
+  {
+    perror("ioctl BIOCSETF");
+    exit(EXIT_FAILURE);
   }
+  printf("Filter program set\n");
 
-  // bind socket to physical device
-  strlcpy((char *)sock_address.snd_name, dev, sizeof(sock_address.snd_name));
-  sock_address.snd_len = sizeof(sock_address);
-  sock_address.snd_family = AF_NDRV;
-
-  if (bind(sockfd, (struct sockaddr *)&sock_address, sizeof(sock_address)) < 0) {
-    fprintf(stderr, "socket: bind() failed: %s\n", strerror(errno));
-    return -1;
+  // Allocate space for bpf packet
+  bpf_buf = (struct bpf_hdr*) malloc(bpf_buf_len);
+  if (bpf_buf == 0){
+      fprintf(stderr, "bpf buffer alloc failed: %s\n", strerror(errno));
+      return -1;
   }
-
-  // size of socket address
-  socklen = sizeof(sock_address);
-
-  const u_short ETHER_TYPES[] = {0x88b5};
-  const int ETHER_TYPES_COUNT = sizeof(ETHER_TYPES)/sizeof(ETHER_TYPES[0]);
-  struct ndrv_demux_desc demux[ETHER_TYPES_COUNT];
-
-  int aa;
-  for (aa = 0; aa < ETHER_TYPES_COUNT; aa++) {
-    demux[aa].type            = NDRV_DEMUXTYPE_ETHERTYPE;
-    demux[aa].length          = sizeof(demux[aa].data.ether_type);
-    demux[aa].data.ether_type = htons(ETHER_TYPES[aa]);
-  }
-
-  struct ndrv_protocol_desc proto;
-  bzero(&proto, sizeof(proto));
-  proto.version         = NDRV_PROTOCOL_DESC_VERS;
-  proto.protocol_family = NDRV_DEMUXTYPE_ETHERTYPE;
-  proto.demux_count     = ETHER_TYPES_COUNT;
-  proto.demux_list      = demux;
-
-  int result = setsockopt(sockfd, SOL_NDRVPROTO, NDRV_SETDMXSPEC, (caddr_t)&proto, sizeof(proto));
-  if (result != 0) {
-    fprintf(stderr, "error on setsockopt %d\n", result);
-    return -1;
-  }
+  bpf_ptr = (char*)bpf_buf;
+  bpf_read_bytes = 0;
+  printf("bpf buffer created size : %d\n", bpf_buf_len);
 
   // Message
   printf("<ethertbsp> started on device %s\n", dev);
-
-  // set buffer sizes
-  unsigned int size = sizeof(int);
-  int realbufsize = 0;
-
-  // receive buffer
-  int sockbufsize_rcv = 3*1024*1024;
-  int set_res = setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (int *)&sockbufsize_rcv, sizeof(int));
-  int get_res = getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
-  if ((set_res < 0)||(get_res < 0)) {
-    perror("set/get sockopt");
-    close(sockfd);
-    exit(1);
-  }
-  printf("<ethertbsp> set rx buffer size to %dMB\n", realbufsize/(1024*1024));
-
-  // send buffer
-  int sockbufsize_snd = 3*1024*1024;
-  set_res = setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (int *)&sockbufsize_snd, sizeof(int));
-  get_res = getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
-  if ((set_res < 0)||(get_res < 0)) {
-    perror("set/get sockopt");
-    close(sockfd);
-    exit(1);
-  }
-  printf("<ethertbsp> set tx buffer size to %dMB\n", realbufsize/(1024*1024));
 
   return 0;
 }
@@ -736,7 +810,7 @@ static int ethertbsp_(Api_open_socket_lua)(lua_State *L) {
 #ifdef _LINUX_
   const char *dev = "eth0";
 #else // not _LINUX_ but _APPLE_
-  const char *dev = "en0";
+  const char *dev = "en2";
 #endif
 
   // get dev name
