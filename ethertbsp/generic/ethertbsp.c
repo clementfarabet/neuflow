@@ -51,6 +51,8 @@
 
 #endif // _LINUX_
 
+#define ETH_ADDR_REM (0x008010640000)
+#define ETH_TYPE     (0x88b5)
 
 /**
  * Global Parameters
@@ -74,20 +76,27 @@ int bpf_read_bytes;
 struct bpf_program my_bpf_program;
 //BPF Filter
 struct bpf_insn insns[] = {
-    BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),                 // Load type at offset 12 in accumulator
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x88b5, 0, 3),      // If type matches then check src addr (incr PC by 0)
-    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 6),                  // Load src addr in accumulator
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x00801064, 0, 1),  // If src addr matches then keep the whole message
-    BPF_STMT(BPF_RET+BPF_K, (u_int)-1),                 // Keep the message (keep max byte)
-    BPF_STMT(BPF_RET+BPF_K, 0),                         // Discard the message (keep 0 byte)
+  BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),                 // Load type at offset 12 in accumulator
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETH_TYPE, 0, 5), // If type matches then check src addr (incr PC by 0)
+  BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 6),                  // Load src addr in accumulator
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETH_ADDR_REM>>16, 0, 3),  // If src addr matches then keep the whole message
+  BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 10),                  // Load src addr in accumulator
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETH_ADDR_REM & 0xffff, 0, 1),// 2nd part of src addr
+  BPF_STMT(BPF_RET+BPF_K, (u_int)-1),                 // Keep the message (keep max byte)
+  BPF_STMT(BPF_RET+BPF_K, 0),                         // Discard the message (keep 0 byte)
 };
 
 #endif // _LINUX_
 
 // ethernet packet parameters
-static uint8_t eth_addr_remote[6] = {0x00,0x80,0x10,0x64,0x00,0x00};
+static uint8_t eth_addr_remote[6] = {ETH_ADDR_REM>>40,
+                                     (ETH_ADDR_REM>>32) & 0xff,
+                                     (ETH_ADDR_REM>>24) & 0xff,
+                                     (ETH_ADDR_REM>>16) & 0xff,
+                                     (ETH_ADDR_REM>>8)  & 0xff,
+                                     (ETH_ADDR_REM)     & 0xff};
 static uint8_t eth_addr_local[6]  = {0xff,0xff,0xff,0xff,0xff,0xff};
-static uint8_t eth_type_tbsp[2]   = {0x88, 0xb5};
+static uint8_t eth_type_tbsp[2]   = {ETH_TYPE>>8, ETH_TYPE & 0xff};
 const int ethertype_length        = (ETH_HLEN-(2*ETH_ALEN));
 
 uint8_t send_buffer[ETH_FRAME_LEN];
@@ -491,7 +500,7 @@ int network_open_socket(const char *dev) {
   assoc_dev(bpf, dev);
 
   //This size must match the number of instructions in the filter program
-  my_bpf_program.bf_len = 6;
+  my_bpf_program.bf_len = 8;
   my_bpf_program.bf_insns = &insns;
 
   if (ioctl(bpf, BIOCSETF, &my_bpf_program) < 0)    // Setting filter
