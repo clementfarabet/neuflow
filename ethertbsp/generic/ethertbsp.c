@@ -819,7 +819,7 @@ static int ethertbsp_(Api_open_socket_lua)(lua_State *L) {
 #ifdef _LINUX_
   const char *dev = "eth0";
 #else // not _LINUX_ but _APPLE_
-  const char *dev = "en2";
+  const char *dev = "en0";
 #endif
 
   // get dev name
