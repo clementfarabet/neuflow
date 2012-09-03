@@ -24,8 +24,12 @@ function DmaEthernet:__init(args)
    self.ack_stream = self.nf:allocHeap(self.ack_tensor)
 end
 
-function DmaEthernet:open()
-   ethertbsp.open()
+function DmaEthernet:open(interfaceid)
+   if(interfaceid) then
+      ethertbsp.open(interfaceid)
+   else
+      ethertbsp.open()
+   end
 end
 
 function DmaEthernet:close()

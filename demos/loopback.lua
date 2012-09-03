@@ -22,7 +22,13 @@ require 'qtwidget'
 -- platform='xilinx_ml605' or platform='pico_m503'
 
 local platform = arg[1] or 'xilinx_ml605'
-nf = neuflow.init{platform=platform}
+local interface = arg[2]
+if (interface) then
+   nf = neuflow.init{platform=platform,
+      interface_id=interface}
+else
+   nf = neuflow.init{platform=platform}
+end
 
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and 

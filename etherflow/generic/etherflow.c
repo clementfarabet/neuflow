@@ -21,6 +21,10 @@
 #include <linux/filter.h>
 #include <asm/types.h>
 #else // _APPLE_
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -37,13 +41,22 @@
 #define ETH_FRAME_LEN   1514     /* Max. octets in frame sans FCS   */
 #define ETH_FCS_LEN     4        /* Octets in the FCS               */
 #endif
+#define ETH_PACKET_DELAY_US 12
+#define ETH_ADDR_REM (0x010203040506)
+#define ETH_TYPE     (0x1000)
 
 /***********************************************************
  * Global Parameters
  **********************************************************/
-static unsigned char dest_mac[6] = {0x01,0x02,0x03,0x04,0x05,0x06};
+static unsigned char dest_mac[6] = {ETH_ADDR_REM>>40,
+                                    (ETH_ADDR_REM>>32) & 0xff,
+                                    (ETH_ADDR_REM>>24) & 0xff,
+                                    (ETH_ADDR_REM>>16) & 0xff,
+                                    (ETH_ADDR_REM>>8)  & 0xff,
+                                    (ETH_ADDR_REM)     & 0xff};
 static unsigned char host_mac[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
-static unsigned char eth_type[2] = {0x10, 0x00};
+static unsigned char eth_type[2] = {ETH_TYPE>>8, ETH_TYPE & 0xff};
+struct timeval last_packet = {0, 0};
 static const int neuflow_one_encoding = 1<<8;
 static int neuflow_first_call = 1;
 
@@ -56,7 +69,84 @@ static struct sockaddr_ll sock_address;
 static struct ifreq ifr;
 static int ifindex;
 #else // _APPLE_
-static struct sockaddr_ndrv sock_address;
+// BPF (Berkeley Packet Filter) interface
+int bpf = 0;
+int bpf_buf_len = 0;
+struct bpf_hdr *bpf_buf;
+char* bpf_ptr;
+int bpf_read_bytes;
+struct bpf_program my_bpf_program;
+//BPF Filter
+struct bpf_insn insns[] = {
+  BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),                 // Load type at offset 12 in accumulator
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETH_TYPE, 0, 5), // If type matches then check src addr (incr PC by 0)
+  BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 6),                  // Load src addr in accumulator
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETH_ADDR_REM>>16, 0, 3),  // If src addr matches then keep the whole message
+  BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 10),                  // Load src addr in accumulator
+  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ETH_ADDR_REM & 0xffff, 0, 1),// 2nd part of src addr
+  BPF_STMT(BPF_RET+BPF_K, (u_int)-1),                 // Keep the message (keep max byte)
+  BPF_STMT(BPF_RET+BPF_K, 0),                         // Discard the message (keep 0 byte)
+};
+
+// Open an available bpf device
+int open_dev(void)
+{
+  char buf[ 11 ] = { 0 };
+
+  int i = 0;
+  for(i = 0; i < 99; i++ )
+  {
+    sprintf( buf, "/dev/bpf%i", i );
+    bpf = open( buf, O_RDWR );
+    if( bpf != -1 ) {
+      printf("<etherflow> Opened device /dev/bpf%i\n", i);
+      break;
+    }
+  }
+  if(bpf == -1) {
+    printf("<etherflow> Cannot open any /dev/bpf* device, exiting\n");
+    exit(1);
+  }
+  return bpf;
+}
+
+// link the device to an interface
+void assoc_dev(int bpflocal, const char* interface)
+{
+  struct ifreq bound_if;
+  strcpy(bound_if.ifr_name, interface);
+  if(ioctl(bpflocal , BIOCSETIF, &bound_if ) > 0) {
+    printf("<etherflow> Cannot bind bpf device to physical device %s, exiting\n", interface);
+    exit(1);
+  }
+  printf("<etherflow> Bound bpf device to physical device %s\n", interface);
+}
+
+// Set the bpf buffer size
+int set_buf_len(int bpflocal)
+{
+  int buf_len_local = 1;
+  // activate immediate mode (therefore, buf_len is initially set to "1")
+  if( ioctl( bpflocal, BIOCIMMEDIATE, &buf_len_local ) == -1 ) {
+    printf("<etherflow> Cannot set IMMEDIATE mode of bpf device\n");
+    exit(1);
+  }
+  buf_len_local = 3*1024*1024;
+  // request buffer length
+  if( ioctl( bpflocal, BIOCSBLEN, &buf_len_local  ) == -1 ) {
+    printf("<etherflow> Cannot get bufferlength of bpf device\n");
+    exit(1);
+  }
+
+  // request buffer length
+  if( ioctl( bpflocal, BIOCGBLEN, &buf_len_local  ) == -1 ) {
+    printf("<etherflow> Cannot get bufferlength of bpf device\n");
+    exit(1);
+  }
+  printf("<etherflow> Buffer length of bpf device: %d\n", buf_len_local);
+  return buf_len_local;
+}
+
 #endif
 
 /***********************************************************
@@ -67,6 +157,7 @@ static struct sockaddr_ndrv sock_address;
  * returns:
  *    socket - a socket descriptor
  **********************************************************/
+#ifdef _LINUX_
 int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac) {
 
   // dest mac ?
@@ -81,7 +172,7 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
     for (k=0; k<ETH_ALEN; k++) host_mac[k] = srcmac[k];
   }
 
-#ifdef _LINUX_
+
   // open raw socket and configure it
   sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
   if (sock == -1) {
@@ -122,48 +213,6 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
   // size of socket
   socklen = sizeof(sock_address);
 
-#else // _APPLE_
-
-  // open raw socket, on Mac OS, by default it can't receive anything
-  sock = socket(PF_NDRV, SOCK_RAW, 0);
-  if (sock < 0) {
-    fprintf(stderr, "socket: socket() failed: %s\n", strerror(errno));
-    exit(1);
-  }
-
-  // bind socket to physical device
-  strlcpy((char *)sock_address.snd_name, dev, sizeof(sock_address.snd_name));
-  sock_address.snd_len = sizeof(sock_address);
-  sock_address.snd_family = AF_NDRV;
-  if (bind(sock, (struct sockaddr *)&sock_address, sizeof(sock_address)) < 0) {
-    fprintf(stderr, "socket: bind() failed: %s\n", strerror(errno));
-    exit(1);
-  }
-
-  // size of socket address
-  socklen = sizeof(sock_address);
-
-  // authorize receiving raw ethernet frames, with ETHTYPE == 0x1000
-  struct ndrv_demux_desc demux_desc[1];
-  bzero(demux_desc, sizeof(demux_desc)*1);
-  demux_desc[0].type = NDRV_DEMUXTYPE_ETHERTYPE;
-  demux_desc[0].length = 2;
-  demux_desc[0].data.ether_type = htons(0x1000);
-
-  struct ndrv_protocol_desc desc;
-  bzero(&desc, sizeof(desc));
-  desc.version = NDRV_PROTOCOL_DESC_VERS;
-  desc.protocol_family = 1;
-  desc.demux_count = 1;
-  desc.demux_list = demux_desc;
-
-  int result = setsockopt(sock, SOL_NDRVPROTO, NDRV_SETDMXSPEC, (caddr_t)&desc, sizeof(desc));
-  if (result != 0) {
-    fprintf(stderr, "error on setsockopt %d\n", result);
-    exit(1);
-  }
-#endif
-
   // Message
   printf("<etherflow> started on device %s\n", dev);
 
@@ -172,13 +221,8 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
   int realbufsize = 0;
 
   // receive buffer
-#ifdef _LINUX_
   int sockbufsize_rcv = 64*1024*1024;
   int set_res = setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE, (int *)&sockbufsize_rcv, sizeof(int));
-#else // _APPLE_
-  int sockbufsize_rcv = 3*1024*1024;
-  int set_res = setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (int *)&sockbufsize_rcv, sizeof(int));
-#endif
   int get_res = getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &realbufsize, &size);
   if ((set_res < 0)||(get_res < 0)) {
     perror("set/get sockopt");
@@ -188,13 +232,8 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
   printf("<etherflow> set rx buffer size to %dMB\n", realbufsize/(1024*1024));
 
   // send buffer
-#ifdef _LINUX_
   int sockbufsize_snd = 64*1024*1024;
   set_res = setsockopt(sock, SOL_SOCKET, SO_SNDBUFFORCE, (int *)&sockbufsize_snd, sizeof(int));
-#else // _APPLE_
-  int sockbufsize_snd = 3*1024*1024;
-  set_res = setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (int *)&sockbufsize_snd, sizeof(int));
-#endif
   get_res = getsockopt(sock, SOL_SOCKET, SO_SNDBUF, &realbufsize, &size);
   if ((set_res < 0)||(get_res < 0)) {
     perror("set/get sockopt");
@@ -205,6 +244,41 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
 
   return 0;
 }
+#else
+int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned char *srcmac) {
+
+  // src mac can't be modified using the bpf. it's automatically replaced by the real mac address.
+
+  bpf = open_dev();
+  bpf_buf_len = set_buf_len(bpf);
+  assoc_dev(bpf, dev);
+
+  //This size must match the number of instructions in the filter program
+  my_bpf_program.bf_len = 8;
+  my_bpf_program.bf_insns = &insns;
+
+  if (ioctl(bpf, BIOCSETF, &my_bpf_program) < 0)    // Setting filter
+  {
+    perror("ioctl BIOCSETF");
+    exit(EXIT_FAILURE);
+  }
+  printf("<etherflow> Filter program set\n");
+
+  // Allocate space for bpf packet
+  bpf_buf = (struct bpf_hdr*) malloc(bpf_buf_len);
+  if (bpf_buf == 0){
+      fprintf(stderr, "bpf buffer alloc failed: %s\n", strerror(errno));
+      return -1;
+  }
+  bpf_ptr = (char*)bpf_buf;
+  bpf_read_bytes = 0;
+  printf("<etherflow> bpf buffer created size : %d\n", bpf_buf_len);
+
+  // Message
+  printf("<etherflow> started on device %s\n", dev);
+}
+
+#endif
 
 /***********************************************************
  * close_socket()
@@ -215,8 +289,12 @@ int etherflow_open_socket_C(const char *dev, unsigned char *destmac, unsigned ch
  *    none
  **********************************************************/
 int etherflow_close_socket_C() {
-  close(sock);
-  return 0;
+#ifdef _LINUX_
+  return close(sock);
+#else // not _LINUX_ but _APPLE_
+  free(bpf_buf);
+  return close(bpf);
+#endif // _LINUX_
 }
 
 /***********************************************************
@@ -241,7 +319,11 @@ int etherflow_send_reset_C() {
   memcpy((void*)(send_buffer+ETH_ALEN), (void*)host_mac, ETH_ALEN);
 
   // send packet return error sendto error code
+#ifdef _LINUX_
   return sendto(sock, send_buffer, ETH_FRAME_LEN, 0, (struct sockaddr*)&sock_address, socklen);
+#else // not _LINUX_ but _APPLE_
+  return write(bpf, send_buffer, ETH_FRAME_LEN);
+#endif // _LINUX_
 }
 
 /***********************************************************
@@ -254,6 +336,7 @@ int etherflow_send_reset_C() {
  *    length - nb of bytes read/received
  **********************************************************/
 unsigned char recbuffer[ETH_FRAME_LEN];
+#ifdef _LINUX_
 unsigned char * etherflow_receive_frame_C(int *lengthp) {
   int len;
   while (1) {
@@ -277,7 +360,36 @@ unsigned char * etherflow_receive_frame_C(int *lengthp) {
   if (lengthp != NULL) (*lengthp) = len;
   return recbuffer;
 }
-
+#else // not _LINUX_ but _APPLE_
+unsigned char * etherflow_receive_frame_C(int *lengthp) {
+  struct frame_t *frame;
+  struct bpf_hdr *bpf_packet;
+  // Check if a new read is needed (a read from a bpf device can contains several bpf packets)
+  if(bpf_ptr >= ((char*)(bpf_buf) + bpf_read_bytes))
+  {
+    //New read
+    memset(bpf_buf, 0, bpf_buf_len);
+    bpf_read_bytes = read(bpf, bpf_buf, bpf_buf_len);
+    if(bpf_read_bytes < 0)
+    {
+        (*lengthp) = 0;
+      return recbuffer;
+    }
+    if(bpf_read_bytes == 0)
+    {
+        (*lengthp) = 0;
+      return recbuffer;
+    }
+    bpf_ptr = (char*)bpf_buf;
+  }
+  bpf_packet = (struct bpf_hdr*)bpf_ptr;
+  memcpy(recbuffer, (char*)bpf_packet + bpf_packet->bh_hdrlen, bpf_packet->bh_caplen);
+  // Increment thr ptr message for the next read
+  bpf_ptr += BPF_WORDALIGN(bpf_packet->bh_hdrlen + bpf_packet->bh_caplen);
+  if (lengthp != NULL) (*lengthp) = bpf_packet->bh_caplen;
+  return recbuffer;
+}
+#endif // _LINUX_
 /***********************************************************
  * send_frame_C()
  * what: sends an ethernet frame
@@ -289,9 +401,12 @@ unsigned char * etherflow_receive_frame_C(int *lengthp) {
  *    error code
  **********************************************************/
 int etherflow_send_frame_C(short int length, const unsigned char * data_p) {
-
+  struct timeval current;
   // buffer to send:
   unsigned char send_buffer[ETH_FRAME_LEN];
+  // A delay to give the OS time to complete sending the last packet
+  int error;
+  long int diff_usec;
 
   // prepare send_buffer with DEST and SRC addresses
   memcpy((void*)send_buffer, (void*)dest_mac, ETH_ALEN);
@@ -305,9 +420,19 @@ int etherflow_send_frame_C(short int length, const unsigned char * data_p) {
   // copy user data to send_buffer
   memcpy((void*)(send_buffer+ETH_HLEN), (void*)data_p, length);
 
-  // send packet
-  sendto(sock, send_buffer, length+ETH_HLEN, 0, (struct sockaddr*)&sock_address, socklen);
+  error = gettimeofday(&current, NULL);
+  diff_usec = current.tv_usec - last_packet.tv_usec + (current.tv_sec - last_packet.tv_sec) * 1000000;
+  if(diff_usec < ETH_PACKET_DELAY_US){
+      usleep(ETH_PACKET_DELAY_US - diff_usec);
+  }
+  error = gettimeofday(&last_packet, NULL);
 
+  // send packet
+#ifdef _LINUX_
+  sendto(sock, send_buffer, length+ETH_HLEN, 0, (struct sockaddr*)&sock_address, socklen);
+#else // not _LINUX_ but _APPLE_
+  write(bpf, send_buffer, length+ETH_HLEN);
+#endif // _LINUX_
   return 0;
 }
 
@@ -361,7 +486,7 @@ int etherflow_send_ByteTensor_C(unsigned char * data, int size) {
     etherflow_send_frame_C(packet_size, packet);
 
     // why do we have to do that? buffer size?
-    usleep(100);
+    //usleep(100);
   }
 
   // return the number of results

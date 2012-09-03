@@ -18,6 +18,9 @@ function NeuFlow:__init(args)
    self.global_msg_level = args.global_msg_level or 'none'
    self.mode = args.mode or 'runtime' -- or 'simulation' or 'rom'
    self.use_ethernet = (self.mode == 'runtime')
+   if(args.interface_id) then
+      self.interface_id = args.interface_id
+   end
 
    -- default offsets, for conveniency
    args.offset_code = args.offset_code or bootloader.entry_point_b
@@ -66,7 +69,7 @@ function NeuFlow:__init(args)
    -- ethernet socket (auto found for now)
    if self.use_ethernet then
       print '<neuflow.NeuFlow> loading ethernet driver'
-      if self.ethernet:open() ~= 0 then
+      if self.ethernet:open(self.interface_id) ~= 0 then
          self.use_ethernet = false
       end
    end

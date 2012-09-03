@@ -16,7 +16,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-
+#include <sys/time.h>
 #ifdef _LINUX_
 
 #include <linux/if_packet.h>
@@ -24,7 +24,6 @@
 #include <linux/if_arp.h>
 #include <linux/filter.h>
 #include <asm/types.h>
-
 #else // not _LINUX_ but _APPLE_
 
 // osx
@@ -48,9 +47,8 @@
 #define ETH_DATA_LEN    1500     /* Max. octets in payload          */
 #define ETH_FRAME_LEN   1514     /* Max. octets in frame sans FCS   */
 #define ETH_FCS_LEN     4        /* Octets in the FCS               */
-
 #endif // _LINUX_
-
+#define ETH_PACKET_DELAY_US 170
 #define ETH_ADDR_REM (0x008010640000)
 #define ETH_TYPE     (0x88b5)
 
@@ -58,7 +56,8 @@
  * Global Parameters
  */
 static const int neuflow_one_encoding = 1<<8;
-
+struct timeval last_packet = {0, 0};
+int usleep_bias;
 #ifdef _LINUX_
 static int sockfd;
 static socklen_t socklen;
@@ -134,6 +133,22 @@ uint8_t carryover[ETH_FRAME_LEN];
 uint32_t current_send_seq_pos = 0;
 uint32_t current_recv_seq_pos = 0;
 
+
+/* this function returns the effective delay according to the desired delay in parameter */
+int calibrate_usleep (int desired_delay){
+  int i;
+  int loop = 1000;
+  struct timeval t1, t2;
+  long long t = 0;
+  for(i = 0; i < loop; i++){
+      gettimeofday(&t1, NULL);
+      usleep(desired_delay);
+      gettimeofday(&t2, NULL);
+      t += ((t2.tv_sec * 1000000) + t2.tv_usec) - ((t1.tv_sec * 1000000) + t1.tv_usec);
+  }
+
+  return (t/loop) - desired_delay;
+}
 
 /**
  * TBSP Handler Functions
@@ -313,14 +328,12 @@ int network_recv_packet() {
 
 
 int network_send_packet() {
-
+  struct timeval current;
+  int bytesent;
   // A delay to give the OS time to complete sending the last packet
-#ifdef _LINUX_
-  usleep(10);
-#else // not _LINUX_ but _APPLE_
-// OSX sends frames too quickly for the target and need to be slow down.
-  usleep(100);
-#endif // _LINUX_
+  int error;
+  long int diff_usec;
+  int delay;
 
   memcpy( &send_buffer[0],            eth_addr_remote, ETH_ALEN);
   memcpy( &send_buffer[ETH_ALEN],     eth_addr_local,  ETH_ALEN);
@@ -339,11 +352,23 @@ int network_send_packet() {
 //  }
 //  printf("\n");
   // end debugging
+
+error = gettimeofday(&current, NULL);
+diff_usec = current.tv_usec - last_packet.tv_usec + (current.tv_sec - last_packet.tv_sec) * 1000000;
+if(diff_usec < ETH_PACKET_DELAY_US){
+  delay = ETH_PACKET_DELAY_US - diff_usec - usleep_bias;
+  if(delay < 2)
+    delay = 2;
+  usleep(delay);
+}
+error = gettimeofday(&last_packet, NULL);
+
 #ifdef _LINUX_
-  return sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
+  bytesent = sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
 #else // not _LINUX_ but _APPLE_
-  return write(bpf, send_buffer, frame_length);
+  bytesent =  write(bpf, send_buffer, frame_length);
 #endif // _LINUX_
+  return bytesent;
 }
 
 
@@ -445,12 +470,12 @@ int open_dev(void)
     sprintf( buf, "/dev/bpf%i", i );
     bpf = open( buf, O_RDWR );
     if( bpf != -1 ) {
-      printf("Opened device /dev/bpf%i\n", i);
+      printf("<ethertbsp> Opened device /dev/bpf%i\n", i);
       break;
     }
   }
   if(bpf == -1) {
-    printf("Cannot open any /dev/bpf* device, exiting\n");
+    printf("<ethertbsp> Cannot open any /dev/bpf* device, exiting\n");
     exit(1);
   }
   return bpf;
@@ -462,10 +487,10 @@ void assoc_dev(int bpflocal, const char* interface)
   struct ifreq bound_if;
   strcpy(bound_if.ifr_name, interface);
   if(ioctl(bpflocal , BIOCSETIF, &bound_if ) > 0) {
-    printf("Cannot bind bpf device to physical device %s, exiting\n", interface);
+    printf("<ethertbsp> Cannot bind bpf device to physical device %s, exiting\n", interface);
     exit(1);
   }
-  printf("Bound bpf device to physical device %s\n", interface);
+  printf("<ethertbsp> Bound bpf device to physical device %s\n", interface);
 }
 
 // Set the bpf buffer size
@@ -474,13 +499,13 @@ int set_buf_len(int bpflocal)
   int buf_len_local = 1;
   // activate immediate mode (therefore, buf_len is initially set to "1")
   if( ioctl( bpflocal, BIOCIMMEDIATE, &buf_len_local ) == -1 ) {
-    printf("Cannot set IMMEDIATE mode of bpf device\n");
+    printf("<ethertbsp> Cannot set IMMEDIATE mode of bpf device\n");
     exit(1);
   }
   buf_len_local = 3*1024*1024;
   // request buffer length
   if( ioctl( bpflocal, BIOCSBLEN, &buf_len_local  ) == -1 ) {
-    printf("Cannot get bufferlength of bpf device\n");
+    printf("<ethertbsp> Cannot get bufferlength of bpf device\n");
     exit(1);
   }
 
@@ -489,7 +514,7 @@ int set_buf_len(int bpflocal)
     printf("Cannot get bufferlength of bpf device\n");
     exit(1);
   }
-  printf("Buffer length of bpf device: %d\n", buf_len_local);
+  printf("<ethertbsp> Buffer length of bpf device: %d\n", buf_len_local);
   return buf_len_local;
 }
 
@@ -508,7 +533,7 @@ int network_open_socket(const char *dev) {
     perror("ioctl BIOCSETF");
     exit(EXIT_FAILURE);
   }
-  printf("Filter program set\n");
+  printf("<ethertbsp> Filter program set\n");
 
   // Allocate space for bpf packet
   bpf_buf = (struct bpf_hdr*) malloc(bpf_buf_len);
@@ -518,7 +543,7 @@ int network_open_socket(const char *dev) {
   }
   bpf_ptr = (char*)bpf_buf;
   bpf_read_bytes = 0;
-  printf("bpf buffer created size : %d\n", bpf_buf_len);
+  printf("<ethertbsp> bpf buffer created size : %d\n", bpf_buf_len);
 
   // Message
   printf("<ethertbsp> started on device %s\n", dev);
@@ -702,7 +727,6 @@ void tbsp_recv_stream(uint8_t *data, int length) {
   current_recv_seq_pos = current_recv_seq_pos + ((uint32_t) length);
 }
 
-
 /**
  * C interface, common funtions
  */
@@ -731,6 +755,9 @@ int ethertbsp_open_socket_C(const char *dev, unsigned char *remote_mac, unsigned
   bzero(recv_buffer, recv_buffer_length);
   tbsp_packet_init(&recv_packet, &recv_buffer[ETH_HLEN]);
 
+  // Calibrate usleep
+  usleep_bias = calibrate_usleep(ETH_PACKET_DELAY_US);
+  printf("<ethertbsp> usleep bias %d\n", usleep_bias);
   return network_open_socket(dev);
 }
 
@@ -757,7 +784,7 @@ int ethertbsp_send_frame_C(short int length, const unsigned char * data_p) {
 int ethertbsp_send_ByteTensor_C(unsigned char * data, int length) {
   // A delay to give the data time to clear the last transfer and for the
   // streamer port to close before the this transfer.
-  usleep(100);
+  //usleep(100);
 
   tbsp_send_stream( &data[0], length);
 
@@ -784,7 +811,7 @@ int ethertbsp_send_(Tensor_C)(real *data_real, int length_real) {
 
   // A delay to give the data time to clear the last transfer and for the
   // streamer port to close before the this transfer.
-  usleep(100);
+  //usleep(100);
 
   tbsp_send_stream( &data_byte[0], length_byte);
 
@@ -816,14 +843,21 @@ int ethertbsp_receive_(Tensor_C)(real *data_real, int length_real, int height) {
  */
 
 static int ethertbsp_(Api_open_socket_lua)(lua_State *L) {
+  int  devid_idx;
 #ifdef _LINUX_
-  const char *dev = "eth0";
+  char *default_dev = "eth0";
 #else // not _LINUX_ but _APPLE_
-  const char *dev = "en2";
+  char *default_dev = "en0";
 #endif
-
+  const char * dev;
   // get dev name
-  if (lua_isstring(L, 1)) dev = lua_tostring(L,1);
+  if (lua_isstring(L, 1)) {
+    dev = lua_tostring(L,1);
+  }
+  else
+  {
+    dev = default_dev;
+  }
 
   // get dest mac address
   if (lua_istable(L, 2)) {
