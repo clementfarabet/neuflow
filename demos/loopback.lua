@@ -22,10 +22,10 @@ require 'qtwidget'
 -- platform='xilinx_ml605' or platform='pico_m503'
 
 local platform = arg[1] or 'xilinx_ml605'
-local interface = arg[2]
-if (interface) then
+local network_if_name = arg[2]
+if (network_if_name) then
    nf = neuflow.init{platform=platform,
-      interface_id=interface}
+      network_if_name=network_if_name}
 else
    nf = neuflow.init{platform=platform}
 end

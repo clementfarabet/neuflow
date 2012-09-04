@@ -22,9 +22,9 @@ function Ethernet:__init(args)
    end
 end
 
-function Ethernet:open(interfaceid)
-   if(interfaceid) then
-      etherflow.open(interfaceid)
+function Ethernet:open(network_if_name)
+   if(network_if_name) then
+      etherflow.open(network_if_name)
    else
       etherflow.open()
    end
