@@ -41,7 +41,7 @@
 #define ETH_FRAME_LEN   1514     /* Max. octets in frame sans FCS   */
 #define ETH_FCS_LEN     4        /* Octets in the FCS               */
 #endif
-#define ETH_PACKET_DELAY_US 12
+#define ETH_PACKET_DELAY_US 22
 #define ETH_ADDR_REM (0x010203040506)
 #define ETH_TYPE     (0x1000)
 
@@ -57,6 +57,7 @@ static unsigned char dest_mac[6] = {ETH_ADDR_REM>>40,
 static unsigned char host_mac[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
 static unsigned char eth_type[2] = {ETH_TYPE>>8, ETH_TYPE & 0xff};
 struct timeval last_packet = {0, 0};
+int usleep_bias;
 static const int neuflow_one_encoding = 1<<8;
 static int neuflow_first_call = 1;
 
@@ -87,6 +88,24 @@ struct bpf_insn insns[] = {
   BPF_STMT(BPF_RET+BPF_K, (u_int)-1),                 // Keep the message (keep max byte)
   BPF_STMT(BPF_RET+BPF_K, 0),                         // Discard the message (keep 0 byte)
 };
+
+
+// this function returns the effective delay according to the desired delay in parameter
+int calibrate_usleep (int desired_delay){
+  int i;
+  int loop = 1000;
+  struct timeval t1, t2;
+  long long t = 0;
+  for(i = 0; i < loop; i++){
+    gettimeofday(&t1, NULL);
+    usleep(desired_delay);
+    gettimeofday(&t2, NULL);
+    t += ((t2.tv_sec * 1000000) + t2.tv_usec) - ((t1.tv_sec * 1000000) + t1.tv_usec);
+  }
+
+  return (t/loop) - desired_delay;
+}
+
 
 // Open an available bpf device
 int open_dev(void)
@@ -407,6 +426,7 @@ int etherflow_send_frame_C(short int length, const unsigned char * data_p) {
   // A delay to give the OS time to complete sending the last packet
   int error;
   long int diff_usec;
+  int delay;
 
   // prepare send_buffer with DEST and SRC addresses
   memcpy((void*)send_buffer, (void*)dest_mac, ETH_ALEN);
@@ -423,7 +443,10 @@ int etherflow_send_frame_C(short int length, const unsigned char * data_p) {
   error = gettimeofday(&current, NULL);
   diff_usec = current.tv_usec - last_packet.tv_usec + (current.tv_sec - last_packet.tv_sec) * 1000000;
   if(diff_usec < ETH_PACKET_DELAY_US){
-      usleep(ETH_PACKET_DELAY_US - diff_usec);
+    delay = ETH_PACKET_DELAY_US - diff_usec - usleep_bias;
+    if(delay < 2)
+      delay = 2;
+    usleep(delay);
   }
   error = gettimeofday(&last_packet, NULL);
 
@@ -700,6 +723,10 @@ static int etherflow_(Api_open_socket_lua)(lua_State *L) {
 
   // open socket
   int error = etherflow_open_socket_C(dev, destmac, srcmac);
+
+  // Calibrate usleep
+  usleep_bias = calibrate_usleep(ETH_PACKET_DELAY_US);
+  printf("<etherflow> usleep bias %d\n", usleep_bias);
 
   lua_pushnumber(L, error);  /* push result */
   return 1;
