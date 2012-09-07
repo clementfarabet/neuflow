@@ -90,23 +90,6 @@ struct bpf_insn insns[] = {
 };
 
 
-// this function returns the effective delay according to the desired delay in parameter
-int calibrate_usleep (int desired_delay){
-  int i;
-  int loop = 1000;
-  struct timeval t1, t2;
-  long long t = 0;
-  for(i = 0; i < loop; i++){
-    gettimeofday(&t1, NULL);
-    usleep(desired_delay);
-    gettimeofday(&t2, NULL);
-    t += ((t2.tv_sec * 1000000) + t2.tv_usec) - ((t1.tv_sec * 1000000) + t1.tv_usec);
-  }
-
-  return (t/loop) - desired_delay;
-}
-
-
 // Open an available bpf device
 int open_dev(void)
 {
@@ -167,6 +150,23 @@ int set_buf_len(int bpflocal)
 }
 
 #endif
+
+// this function returns the effective delay according to the desired delay in parameter
+int calibrate_usleep (int desired_delay){
+  int i;
+  int loop = 1000;
+  struct timeval t1, t2;
+  long long t = 0;
+  for(i = 0; i < loop; i++){
+    gettimeofday(&t1, NULL);
+    usleep(desired_delay);
+    gettimeofday(&t2, NULL);
+    t += ((t2.tv_sec * 1000000) + t2.tv_usec) - ((t1.tv_sec * 1000000) + t1.tv_usec);
+  }
+
+  return (t/loop) - desired_delay;
+}
+
 
 /***********************************************************
  * open_socket()
