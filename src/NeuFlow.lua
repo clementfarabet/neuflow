@@ -381,7 +381,7 @@ function NeuFlow:writeBytecode(args)
    self.tempfilebin = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
 
    -- generate binary once
-   local file = assert(io.open(self.tempfilebin, "wb"))
+   local file = assert(io.open(self.tempfilebin, "wb+"))
 
    self.core.linker:dump(
       {
@@ -392,6 +392,10 @@ function NeuFlow:writeBytecode(args)
       },
       self.core.mem
    )
+
+   file:flush()
+   file:seek('set')
+   local tensor = self:convertBytecodeFile(file)
    assert(file:close())
 
    -- generate all outputs
@@ -414,6 +418,8 @@ function NeuFlow:writeBytecode(args)
          error('format should be one of: bin | hex')
       end
    end
+
+   return tensor
 end
 
 ----------------------------------------------------------------------
@@ -487,8 +493,7 @@ function NeuFlow:loadBytecode(bytecode)
       self.logfile:close()
    else
       -- if no bytecode given, first dump it to file, then load it from there
-      self:writeBytecode{}
-      self:loadBytecodeFromFile(self.tempfilebin)
+      self:loadBytecode(self:writeBytecode{})
    end
 end
 
@@ -497,6 +502,13 @@ end
 --
 function NeuFlow:loadBytecodeFromFile(filename)
    local file = assert(io.open(filename, "r"))
+   local tensor = self:convertBytecodeFile(file)
+   file:close()
+
+   self:loadBytecode(tensor)
+end
+
+function NeuFlow:convertBytecodeFile(file)
    local bytes = file:read("*all")
    local tensor = torch.ByteTensor(self.bytecodesize)
    local i = 1
@@ -504,9 +516,8 @@ function NeuFlow:loadBytecodeFromFile(filename)
       tensor[i] = string.byte(b)
       i = i+1
    end
-   file:close()
 
-   self:loadBytecode(tensor)
+   return tensor
 end
 
 ----------------------------------------------------------------------
