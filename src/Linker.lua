@@ -332,20 +332,15 @@ function Linker:dump(info, mem)
    self.processp = #self.instruction_output + 1
 
    -- parse argument
-   if (info ~= nil) then
-      -- get defaults if nil
-      info.file = info.file or 'stdout'
-      info.offsetData = info.offsetData or self.processp
-      info.offsetProcess = info.offsetProcess or 0
-      info.bigendian = info.bigendian or 0
-      info.dumpHeader = info.dumpHeader or false
-      info.writeArray = info.writeArray or false
-   else
-      -- Default params
-      info = {file='stdout',
-              offsetData=self.processp, offsetProcess=0,
-              bigendian=0, dumpHeader=false, writeArray=false}
-   end
+   info = info or {}
+
+   -- get defaults if nil
+   info.file            = info.file          or 'stdout'
+   info.offsetData      = info.offsetData    or self.processp
+   info.offsetProcess   = info.offsetProcess or 0
+   info.bigendian       = info.bigendian     or 0
+   info.dumpHeader      = info.dumpHeader    or false
+   info.writeArray      = info.writeArray    or false
 
    local out
 
