@@ -381,7 +381,7 @@ function NeuFlow:writeBytecode(args)
 
    -- generate binary once
    self.tempfilebin = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
-   self.core.linker:dump({dumpHeader=false, file=self.tempfilebin, writeArray=false},
+   self.core.linker:dump({dumpHeader=false, filename=self.tempfilebin, writeArray=false},
                          self.core.mem)
 
    -- generate all outputs
@@ -485,8 +485,8 @@ end
 ----------------------------------------------------------------------
 -- transmit bytecode (from file)
 --
-function NeuFlow:loadBytecodeFromFile(file)
-   local file = assert(io.open(file, "r"))
+function NeuFlow:loadBytecodeFromFile(filename)
+   local file = assert(io.open(filename, "r"))
    local bytes = file:read("*all")
    local tensor = torch.ByteTensor(self.bytecodesize)
    local i = 1

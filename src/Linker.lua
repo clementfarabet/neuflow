@@ -335,7 +335,7 @@ function Linker:dump(info, mem)
    info = info or {}
 
    -- get defaults if nil
-   info.file            = info.file          or 'stdout'
+   info.filename        = info.filename      or 'stdout'
    info.offsetData      = info.offsetData    or self.processp
    info.offsetProcess   = info.offsetProcess or 0
    info.bigendian       = info.bigendian     or 0
@@ -349,10 +349,10 @@ function Linker:dump(info, mem)
       out:write('const uint8 bytecode_exampleInstructions[] = {');
    else -- writing bytecode to file or stdout
       -- select output
-      if (info.file == 'stdout') then
+      if (info.filename == 'stdout') then
          out = io.stdout
       else
-         out = assert(io.open(info.file, "wb"))
+         out = assert(io.open(info.filename, "wb"))
       end
       -- print optional header
       if (info.dumpHeader) then
@@ -377,7 +377,7 @@ function Linker:dump(info, mem)
       out:write('0};\n\n');
       assert(out:close())
    else -- writing bytecode to file or stdout
-      if (info.file ~= 'stdout') then
+      if (info.filename ~= 'stdout') then
          assert(out:close())
       end
    end
@@ -426,7 +426,7 @@ function Linker:checkCollisions(info, mem)
    local c = sys.COLORS
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
    print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' Compilation Report ' ..
-         c.none ..'[' .. info.file .. "]\n")
+         c.none ..'[' .. info.filename .. "]\n")
    print(string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
                        offset_bytes_process,
                        (self.processp-offset_bytes_process-1),
