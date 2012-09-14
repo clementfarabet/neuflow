@@ -335,6 +335,7 @@ function Linker:dump(info, mem)
    info = info or {}
 
    -- get defaults if nil
+   info.file            = info.file          or io.stdout
    info.filename        = info.filename      or 'stdout'
    info.offsetData      = info.offsetData    or self.processp
    info.offsetProcess   = info.offsetProcess or 0
@@ -342,18 +343,11 @@ function Linker:dump(info, mem)
    info.dumpHeader      = info.dumpHeader    or false
    info.writeArray      = info.writeArray    or false
 
-   local out
+   local out = info.file
 
    if(info.writeArray) then  -- we are writing arrays for C
-      out = assert(io.open('boot_code', "w"))
       out:write('const uint8 bytecode_exampleInstructions[] = {');
    else -- writing bytecode to file or stdout
-      -- select output
-      if (info.filename == 'stdout') then
-         out = io.stdout
-      else
-         out = assert(io.open(info.filename, "wb"))
-      end
       -- print optional header
       if (info.dumpHeader) then
          out:write(info.offsetProcess, '\n') -- offset in mem
@@ -375,11 +369,6 @@ function Linker:dump(info, mem)
    -- and close the file
    if(info.writeArray) then  -- we are writing arrays for C
       out:write('0};\n\n');
-      assert(out:close())
-   else -- writing bytecode to file or stdout
-      if (info.filename ~= 'stdout') then
-         assert(out:close())
-      end
    end
 
    -- check collisions:

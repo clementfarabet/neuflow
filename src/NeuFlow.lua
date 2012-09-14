@@ -378,11 +378,21 @@ end
 function NeuFlow:writeBytecode(args)
    -- parse args
    local filename = args.filename or self.prog_name
+   self.tempfilebin = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
 
    -- generate binary once
-   self.tempfilebin = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
-   self.core.linker:dump({dumpHeader=false, filename=self.tempfilebin, writeArray=false},
-                         self.core.mem)
+   local file = assert(io.open(self.tempfilebin, "wb"))
+
+   self.core.linker:dump(
+      {
+         file        = file,
+         filename    = self.tempfilebin,
+         dumpHeader  = false,
+         writeArray  = false
+      },
+      self.core.mem
+   )
+   assert(file:close())
 
    -- generate all outputs
    for _,args in ipairs(args) do
