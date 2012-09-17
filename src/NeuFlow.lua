@@ -380,10 +380,11 @@ function NeuFlow:writeBytecode(args)
    local filename = args.filename or self.prog_name
    local filepath
    local file
+   local tensor
 
    if next(args) == nil then -- no arguments pasted in
       filepath = 'Torch MemoryFile'
-      file = assert(torch.MemoryFile('rw'):binary())
+      file = assert(torch.MemoryFile(torch.CharStorage(self.bytecodesize), 'rw'):binary())
    else
       filepath = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
       file = assert(torch.DiskFile(filepath,'rw'):binary())
@@ -400,8 +401,13 @@ function NeuFlow:writeBytecode(args)
       self.core.mem
    )
 
-   file:seek(1)
-   local tensor = self:convertBytecodeString(file:readString("*a"))
+   if next(args) == nil then -- no arguments pasted in
+      tensor = torch.ByteTensor(torch.ByteStorage(self.bytecodesize):copy(file:storage()))
+   else
+      file:seek(1)
+      tensor = self:convertBytecodeString(file:readString("*a"))
+   end
+
    assert(file:close())
 
    -- generate all outputs
