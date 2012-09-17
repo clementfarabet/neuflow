@@ -332,11 +332,10 @@ function Linker:dump(info, mem)
    self.processp = #self.instruction_output + 1
 
    -- parse argument
-   info = info or {}
+   assert(info.file)
 
    -- get defaults if nil
-   info.file            = info.file          or io.stdout
-   info.filename        = info.filename      or 'stdout'
+   info.filename        = info.filename      or 'Torch MemoryFile'
    info.offsetData      = info.offsetData    or self.processp
    info.offsetProcess   = info.offsetProcess or 0
    info.bigendian       = info.bigendian     or 0
@@ -346,13 +345,16 @@ function Linker:dump(info, mem)
    local out = info.file
 
    if(info.writeArray) then  -- we are writing arrays for C
-      out:write('const uint8 bytecode_exampleInstructions[] = {');
+      out:writeString('const uint8 bytecode_exampleInstructions[] = {');
    else -- writing bytecode to file or stdout
       -- print optional header
       if (info.dumpHeader) then
-         out:write(info.offsetProcess, '\n') -- offset in mem
-         out:write(info.offsetData - info.offsetProcess + (self.datap - 1)*4, '\n') -- size
-         out:write((self.datap-1)*4, '\n') -- data size
+         out:writeString(tostring(info.offsetProcess)) -- offset in mem
+         out:writeString('\n')
+         out:writeString(tostring(info.offsetData - info.offsetProcess + (self.datap - 1)*4)) -- size
+         out:writeString('\n')
+         out:writeString(tostring((self.datap-1)*4)) -- data size
+         out:writeString('\n')
       end
    end
 
@@ -368,7 +370,7 @@ function Linker:dump(info, mem)
 
    -- and close the file
    if(info.writeArray) then  -- we are writing arrays for C
-      out:write('0};\n\n');
+      out:writeString('0};\n\n');
    end
 
    -- check collisions:
@@ -414,7 +416,7 @@ function Linker:checkCollisions(info, mem)
 
    local c = sys.COLORS
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' Compilation Report ' ..
+   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' Binary Output File ' ..
          c.none ..'[' .. info.filename .. "]\n")
    print(string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
                        offset_bytes_process,
@@ -454,13 +456,13 @@ function Linker:dump_instructions(info, out)
    -- dump
    for i=1,(self.processp-1) do
       if (info.writeArray) then
-         out:write(string.format('0x%02X, ', self.process[i]))
+         out:writeString(string.format('0x%02X, ', self.process[i]))
       else
          -- 0 needs to be handled separately... isn't that crazy ???
          if self.process[i] == 0 then
-            out:write('\0')
+            out:writeString('\0')
          else
-            out:write(string.format("%c", self.process[i]))
+            out:writeString(string.format("%c", self.process[i]))
          end
          self.counter_bytes = self.counter_bytes + 1
       end
@@ -474,8 +476,9 @@ function Linker:dump_RawData(info, out, mem)
    self.logfile:write("Kernels:\n")
    offset_bytes =  mem.start_raw_data_y * streamer.stride_b
                  + mem.start_raw_data_x * streamer.word_b
-   for p=out:seek(),offset_bytes-1 do
-      out:write('\0')
+
+   for p=out:position()-1,offset_bytes-1 do
+      out:writeString('\0')
       self.counter_bytes = self.counter_bytes + 1
    end
 
@@ -486,8 +489,8 @@ function Linker:dump_RawData(info, out, mem)
       -- set offset in file
       offset_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
       -- pad alignment
-      for p=out:seek(),offset_bytes-1 do
-         out:write('\0')
+      for p=out:position()-1,offset_bytes-1 do
+         out:writeString('\0')
          self.counter_bytes = self.counter_bytes + 1
       end
       if (mem_entry.bias ~= nil) then
@@ -504,9 +507,9 @@ function Linker:dump_RawData(info, out, mem)
                end
                -- then dump the char
                if tempchar == 0 then
-                  out:write('\0')
+                  out:writeString('\0')
                else
-                  out:write(string.format("%c", tempchar))
+                  out:writeString(string.format("%c", tempchar))
                end
                self.counter_bytes = self.counter_bytes + 1
             end
@@ -530,9 +533,9 @@ function Linker:dump_RawData(info, out, mem)
                end
                -- then dump the char
                if tempchar == 0 then
-                  out:write('\0')
+                  out:writeString('\0')
                else
-                  out:write(string.format("%c", tempchar))
+                  out:writeString(string.format("%c", tempchar))
                end
                self.counter_bytes = self.counter_bytes + 1
             end
@@ -550,8 +553,8 @@ function Linker:dump_ImageData(info, out, mem)
    end
    -- pad initial offset for raw data
    offset_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
-   for p=out:seek(),offset_bytes-1 do
-      out:write('\0')
+   for p=out:position()-1,offset_bytes-1 do
+      out:writeString('\0')
    end
    mem_entry = mem.data[1]
    self.logfile:write(string.format("Writing images from offset: %d\n",
@@ -561,8 +564,8 @@ function Linker:dump_ImageData(info, out, mem)
       for i=1,(mem.datap-1) do
          mem_entry = mem.data[i]
          offset_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
-         for p=out:seek(),offset_bytes-1 do
-            out:write('\0')
+         for p=out:position()-1,offset_bytes-1 do
+            out:writeString('\0')
          end
          for c=1, mem_entry.w do
             dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
@@ -577,9 +580,9 @@ function Linker:dump_ImageData(info, out, mem)
                end
                -- then dump the char
                if tempchar == 0 then
-                  out:write('\0')
+                  out:writeString('\0')
                else
-                  out:write(string.format("%c", tempchar))
+                  out:writeString(string.format("%c", tempchar))
                end
             end
          end -- column

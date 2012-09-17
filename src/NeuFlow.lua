@@ -378,24 +378,30 @@ end
 function NeuFlow:writeBytecode(args)
    -- parse args
    local filename = args.filename or self.prog_name
-   self.tempfilebin = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
+   local filepath
+   local file
+
+   if next(args) == nil then -- no arguments pasted in
+      filepath = 'Torch MemoryFile'
+      file = assert(torch.MemoryFile('rw'):binary())
+   else
+      filepath = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
+      file = assert(torch.DiskFile(filepath,'rw'):binary())
+   end
 
    -- generate binary once
-   local file = assert(io.open(self.tempfilebin, "wb+"))
-
    self.core.linker:dump(
       {
          file        = file,
-         filename    = self.tempfilebin,
+         filename    = filepath,
          dumpHeader  = false,
          writeArray  = false
       },
       self.core.mem
    )
 
-   file:flush()
-   file:seek('set')
-   local tensor = self:convertBytecodeFile(file)
+   file:seek(1)
+   local tensor = self:convertBytecodeString(file:readString("*a"))
    assert(file:close())
 
    -- generate all outputs
@@ -407,13 +413,13 @@ function NeuFlow:writeBytecode(args)
 
       if format == 'bin' then
          -- simple copy
-         os.execute('cp -v' .. self.tempfilebin .. ' ' .. filename .. '.bin')
+         os.execute('cp -v' .. filepath .. ' ' .. filename .. '.bin')
       elseif format == 'hex' then
          local filehex = filename..'.hex'..tostring(width)
-         neuflow.tools.readBinWriteHex(self.tempfilebin, filehex, width, length)
+         neuflow.tools.readBinWriteHex(filepath, filehex, width, length)
       elseif format == 'rom' then
          local filev = filename..'.v'
-         neuflow.tools.readBinWriteRom(self.tempfilebin, filev, width, 'flow_rom')
+         neuflow.tools.readBinWriteRom(filepath, filev, width, 'flow_rom')
       else
          error('format should be one of: bin | hex')
       end
@@ -502,14 +508,13 @@ end
 --
 function NeuFlow:loadBytecodeFromFile(filename)
    local file = assert(io.open(filename, "r"))
-   local tensor = self:convertBytecodeFile(file)
+   local tensor = self:convertBytecodeString(file:read("*all"))
    file:close()
 
    self:loadBytecode(tensor)
 end
 
-function NeuFlow:convertBytecodeFile(file)
-   local bytes = file:read("*all")
+function NeuFlow:convertBytecodeString(bytes)
    local tensor = torch.ByteTensor(self.bytecodesize)
    local i = 1
    for b in string.gfind(bytes, ".") do
