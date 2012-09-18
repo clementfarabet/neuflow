@@ -23,10 +23,6 @@ function Linker:__init(args)
       end_sentinel   = sentinel_node
    }
 
-   self.instruction_output = {}
-   self.process = {}
-   self.processp = 1
-
    -- initial offsets
    self.start_process_x = 0 -- initial offset here!!!
    self.start_process_y = 0 -- initial offset here!!!
@@ -160,24 +156,27 @@ end
 
 function Linker:genBytecode()
    local node = self.instruction_list.start_node
+   local instruction_output = {}
    local ii = 0
 
    while node do
       if node.bytes ~= nil then
-         self.instruction_output[ii+1] = node.bytes[1]
-         self.instruction_output[ii+2] = node.bytes[2]
-         self.instruction_output[ii+3] = node.bytes[3]
-         self.instruction_output[ii+4] = node.bytes[4]
-         self.instruction_output[ii+5] = node.bytes[5]
-         self.instruction_output[ii+6] = node.bytes[6]
-         self.instruction_output[ii+7] = node.bytes[7]
-         self.instruction_output[ii+8] = node.bytes[8]
+         instruction_output[ii+1] = node.bytes[1]
+         instruction_output[ii+2] = node.bytes[2]
+         instruction_output[ii+3] = node.bytes[3]
+         instruction_output[ii+4] = node.bytes[4]
+         instruction_output[ii+5] = node.bytes[5]
+         instruction_output[ii+6] = node.bytes[6]
+         instruction_output[ii+7] = node.bytes[7]
+         instruction_output[ii+8] = node.bytes[8]
 
          ii = ii + 8
       end
 
       node = node.next
    end
+
+   return instruction_output
 end
 
 function Linker:addProcess()
@@ -325,21 +324,18 @@ function Linker:dump(info, mem)
    --self:cacheConfigOptimization()
    self:alignProcessWithPages()
    self:resolveGotos()
-   self:genBytecode()
-
-   self.process = self.instruction_output
-   self.processp = #self.instruction_output + 1
+   local instr = self:genBytecode()
 
    -- parse argument
    assert(info.tensor)
 
    -- get defaults if nil
    info.filename        = info.filename   or 'temp'
-   info.offsetData      = info.offsetData or self.processp
+   info.offsetData      = info.offsetData or #instr + 1
    info.bigendian       = info.bigendian  or 0
 
    -- print all the instructions
-   self:dump_instructions(info, info.tensor)
+   self:dump_instructions(instr, info.tensor)
 
    -- and raw_data
    self:dump_RawData(info, info.tensor, mem)
@@ -348,10 +344,10 @@ function Linker:dump(info, mem)
    self:dump_ImageData(info, info.tensor, mem)
 
    -- check collisions:
-   self:checkCollisions(info, mem)
+   self:checkCollisions(info.filename, #instr, mem)
 end
 
-function Linker:checkCollisions(info, mem)
+function Linker:checkCollisions(filename, instr_length, mem)
    -- processes are 1 byte long, numbers are 2 (streamer.word_b) bytes long
 
    offset_bytes_process = self.start_process_y * streamer.stride_b
@@ -391,14 +387,14 @@ function Linker:checkCollisions(info, mem)
    local c = sys.COLORS
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
    print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
-         c.none ..'[' .. info.filename .. "]\n")
+         c.none ..'[' .. filename .. "]\n")
    print(
       string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
          offset_bytes_process,
-         (self.processp-offset_bytes_process-1),
-         offset_bytes_process+(self.processp-offset_bytes_process)-1)
+         (instr_length-offset_bytes_process),
+         offset_bytes_process+(instr_length-offset_bytes_process))
    )
-   if ((self.processp-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
+   if (((instr_length+1)-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
       print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
    print(
@@ -432,15 +428,15 @@ function Linker:checkCollisions(info, mem)
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 end
 
-function Linker:dump_instructions(info, tensor)
+function Linker:dump_instructions(instr, tensor)
    -- optional disassemble
    if self.disassemble then
-      neuflow.tools.disassemble(self.process, {length=self.processp-1})
+      neuflow.tools.disassemble(instr, {length = #instr})
    end
 
    -- dump
-   for i=1,(self.processp-1) do
-      tensor[self.counter_bytes+1] = self.process[i]
+   for i=1, #instr do
+      tensor[self.counter_bytes+1] = instr[i]
       self.counter_bytes = self.counter_bytes + 1
    end
 end
