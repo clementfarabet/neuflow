@@ -381,6 +381,7 @@ function NeuFlow:writeBytecode(args)
    local filepath
    local file
    local tensor
+   local tensor_t = torch.ByteTensor(self.bytecodesize):zero()
 
    if next(args) == nil then -- no arguments pasted in
       filepath = 'Torch MemoryFile'
@@ -393,6 +394,7 @@ function NeuFlow:writeBytecode(args)
    -- generate binary once
    self.core.linker:dump(
       {
+         tensor      = tensor_t,
          file        = file,
          filename    = filepath,
          dumpHeader  = false,
@@ -431,7 +433,7 @@ function NeuFlow:writeBytecode(args)
       end
    end
 
-   return tensor
+   return tensor_t
 end
 
 ----------------------------------------------------------------------

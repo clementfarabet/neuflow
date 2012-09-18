@@ -346,6 +346,11 @@ function Linker:dump(info, mem)
 
    if(info.writeArray) then  -- we are writing arrays for C
       out:writeString('const uint8 bytecode_exampleInstructions[] = {');
+
+      for b in string.gfind('const uint8 bytecode_exampleInstructions[] = {', ".") do
+         info.tensor[self.counter_bytes+1] = string.byte(b)
+         self.counter_bytes = self.counter_bytes + 1
+      end
    else -- writing bytecode to file or stdout
       -- print optional header
       if (info.dumpHeader) then
@@ -355,22 +360,37 @@ function Linker:dump(info, mem)
          out:writeString('\n')
          out:writeString(tostring((self.datap-1)*4)) -- data size
          out:writeString('\n')
+
+         local str = tostring(info.offsetProcess) .. '\n' ..
+                     tostring(info.offsetData - info.offsetProcess + (self.datap - 1)*4) .. '\n' ..
+                     tostring((self.datap-1)*4) .. '\n'
+
+         for b in string.gfind(str, ".") do
+            info.tensor[self.counter_bytes+1] = string.byte(b)
+            self.counter_bytes = self.counter_bytes + 1
+         end
       end
    end
 
    -- print all the instructions
-   self:dump_instructions(info, out)
+   self:dump_instructions(info, out, info.tensor)
 
    if(info.writeArray == false)then
       -- and raw_data
-      self:dump_RawData(info, out, mem)
+      self:dump_RawData(info, out, info.tensor, mem)
+
       -- and data (images) for simulation)
-      self:dump_ImageData(info, out, mem)
+      self:dump_ImageData(info, out, info.tensor, mem)
    end
 
    -- and close the file
    if(info.writeArray) then  -- we are writing arrays for C
       out:writeString('0};\n\n');
+
+      for b in string.gfind('0};\n\n', ".") do
+         info.tensor[self.counter_bytes+1] = string.byte(b)
+         self.counter_bytes = self.counter_bytes + 1
+      end
    end
 
    -- check collisions:
@@ -447,7 +467,7 @@ function Linker:checkCollisions(info, mem)
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 end
 
-function Linker:dump_instructions(info, out)
+function Linker:dump_instructions(info, out, tensor)
    -- optional disassemble
    if self.disassemble then
       neuflow.tools.disassemble(self.process, {length=self.processp-1})
@@ -457,19 +477,22 @@ function Linker:dump_instructions(info, out)
    for i=1,(self.processp-1) do
       if (info.writeArray) then
          out:writeString(string.format('0x%02X, ', self.process[i]))
+         tensor[self.counter_bytes+1] = string.byte(string.format('0x%02X, ', self.process[i]))
       else
          -- 0 needs to be handled separately... isn't that crazy ???
          if self.process[i] == 0 then
             out:writeString('\0')
+            tensor[self.counter_bytes+1] = 0
          else
             out:writeString(string.format("%c", self.process[i]))
+            tensor[self.counter_bytes+1] = self.process[i]
          end
          self.counter_bytes = self.counter_bytes + 1
       end
    end
 end
 
-function Linker:dump_RawData(info, out, mem)
+function Linker:dump_RawData(info, out, tensor, mem)
 
 
    -- pad initial offset for raw data
@@ -477,10 +500,12 @@ function Linker:dump_RawData(info, out, mem)
    offset_bytes =  mem.start_raw_data_y * streamer.stride_b
                  + mem.start_raw_data_x * streamer.word_b
 
-   for p=out:position()-1,offset_bytes-1 do
+   for p=self.counter_bytes, offset_bytes-1 do
       out:writeString('\0')
+      tensor[self.counter_bytes+1] = 0
       self.counter_bytes = self.counter_bytes + 1
    end
+   --self.counter_bytes = offset_bytes
 
    for i=1,(mem.raw_datap-1) do
       mem_entry = mem.raw_data[i]
@@ -489,10 +514,14 @@ function Linker:dump_RawData(info, out, mem)
       -- set offset in file
       offset_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
       -- pad alignment
-      for p=out:position()-1,offset_bytes-1 do
+      for p=self.counter_bytes, offset_bytes-1 do
          out:writeString('\0')
+         tensor[self.counter_bytes+1] = 0
          self.counter_bytes = self.counter_bytes + 1
       end
+      --self.counter_bytes = offset_bytes
+
+
       if (mem_entry.bias ~= nil) then
          self.logfile:write("Bias:\n")
          for b = 1,mem_entry.bias:size(1) do
@@ -508,8 +537,10 @@ function Linker:dump_RawData(info, out, mem)
                -- then dump the char
                if tempchar == 0 then
                   out:writeString('\0')
+                  tensor[self.counter_bytes+1] = 0
                else
                   out:writeString(string.format("%c", tempchar))
+                  tensor[self.counter_bytes+1] = tempchar
                end
                self.counter_bytes = self.counter_bytes + 1
             end
@@ -534,8 +565,10 @@ function Linker:dump_RawData(info, out, mem)
                -- then dump the char
                if tempchar == 0 then
                   out:writeString('\0')
+                  tensor[self.counter_bytes+1] = 0
                else
                   out:writeString(string.format("%c", tempchar))
+                  tensor[self.counter_bytes+1] = tempchar
                end
                self.counter_bytes = self.counter_bytes + 1
             end
@@ -547,14 +580,15 @@ function Linker:dump_RawData(info, out, mem)
    end
 end
 
-function Linker:dump_ImageData(info, out, mem)
+function Linker:dump_ImageData(info, out, tensor, mem)
    if (mem.data[1] == nil) then
       return
    end
    -- pad initial offset for raw data
    offset_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
-   for p=out:position()-1,offset_bytes-1 do
+   for p=self.counter_bytes, offset_bytes-1 do
       out:writeString('\0')
+      tensor[self.counter_bytes+1] = 0
    end
    mem_entry = mem.data[1]
    self.logfile:write(string.format("Writing images from offset: %d\n",
@@ -564,8 +598,9 @@ function Linker:dump_ImageData(info, out, mem)
       for i=1,(mem.datap-1) do
          mem_entry = mem.data[i]
          offset_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
-         for p=out:position()-1,offset_bytes-1 do
+         for p=self.counter_bytes, offset_bytes-1 do
             out:writeString('\0')
+            tensor[self.counter_bytes+1] = 0
          end
          for c=1, mem_entry.w do
             dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
@@ -581,8 +616,10 @@ function Linker:dump_ImageData(info, out, mem)
                -- then dump the char
                if tempchar == 0 then
                   out:writeString('\0')
+                  tensor[self.counter_bytes+1] = 0
                else
                   out:writeString(string.format("%c", tempchar))
+                  tensor[self.counter_bytes+1] = tempchar
                end
             end
          end -- column
