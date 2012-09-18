@@ -379,38 +379,25 @@ function NeuFlow:writeBytecode(args)
    -- parse args
    local filename = args.filename or self.prog_name
    local filepath
-   local file
-   local tensor
-   local tensor_t = torch.ByteTensor(self.bytecodesize):zero()
-
-   if next(args) == nil then -- no arguments pasted in
-      filepath = 'Torch MemoryFile'
-      file = assert(torch.MemoryFile(torch.CharStorage(self.bytecodesize), 'rw'):binary())
-   else
-      filepath = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
-      file = assert(torch.DiskFile(filepath,'rw'):binary())
-   end
+   local tensor = torch.ByteTensor(self.bytecodesize):zero()
 
    -- generate binary once
    self.core.linker:dump(
       {
-         tensor      = tensor_t,
-         file        = file,
-         filename    = filepath,
+         tensor      = tensor,
+         filename    = filename,
          dumpHeader  = false,
          writeArray  = false
       },
       self.core.mem
    )
 
-   if next(args) == nil then -- no arguments pasted in
-      tensor = torch.ByteTensor(torch.ByteStorage(self.bytecodesize):copy(file:storage()))
-   else
-      file:seek(1)
-      tensor = self:convertBytecodeString(file:readString("*a"))
+   if next(args) ~= nil then -- called with arguments pasted in
+      filepath = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
+      local file = assert(torch.DiskFile(filepath,'w'):binary())
+      file:writeString(tensor:storage():string())
+      assert(file:close())
    end
-
-   assert(file:close())
 
    -- generate all outputs
    for _,args in ipairs(args) do
@@ -433,7 +420,7 @@ function NeuFlow:writeBytecode(args)
       end
    end
 
-   return tensor_t
+   return tensor
 end
 
 ----------------------------------------------------------------------
