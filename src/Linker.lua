@@ -465,12 +465,7 @@ function Linker:dump_instructions(info, tensor)
       if (info.writeArray) then
          tensor[self.counter_bytes+1] = string.byte(string.format('0x%02X, ', self.process[i]))
       else
-         -- 0 needs to be handled separately... isn't that crazy ???
-         if self.process[i] == 0 then
-            tensor[self.counter_bytes+1] = 0
-         else
-            tensor[self.counter_bytes+1] = self.process[i]
-         end
+         tensor[self.counter_bytes+1] = self.process[i]
          self.counter_bytes = self.counter_bytes + 1
       end
    end
@@ -478,31 +473,17 @@ end
 
 function Linker:dump_RawData(info, tensor, mem)
 
-
    -- pad initial offset for raw data
    self.logfile:write("Kernels:\n")
-   offset_bytes =  mem.start_raw_data_y * streamer.stride_b
+   self.counter_bytes =  mem.start_raw_data_y * streamer.stride_b
                  + mem.start_raw_data_x * streamer.word_b
-
-   for p=self.counter_bytes, offset_bytes-1 do
-      tensor[self.counter_bytes+1] = 0
-      self.counter_bytes = self.counter_bytes + 1
-   end
-   --self.counter_bytes = offset_bytes
 
    for i=1,(mem.raw_datap-1) do
       mem_entry = mem.raw_data[i]
       self.logfile:write(string.format("#%d, offset_x = %d, offset_y = %d\n",
                                        i,mem_entry.x,mem_entry.y))
       -- set offset in file
-      offset_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
-      -- pad alignment
-      for p=self.counter_bytes, offset_bytes-1 do
-         tensor[self.counter_bytes+1] = 0
-         self.counter_bytes = self.counter_bytes + 1
-      end
-      --self.counter_bytes = offset_bytes
-
+      self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
 
       if (mem_entry.bias ~= nil) then
          self.logfile:write("Bias:\n")
@@ -516,12 +497,7 @@ function Linker:dump_RawData(info, tensor, mem)
                else
                   tempchar = math.floor(dataTwos / (256^j)) % 256
                end
-               -- then dump the char
-               if tempchar == 0 then
-                  tensor[self.counter_bytes+1] = 0
-               else
-                  tensor[self.counter_bytes+1] = tempchar
-               end
+               tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes + 1
             end
             -- print the kernel to logFile:
@@ -542,12 +518,7 @@ function Linker:dump_RawData(info, tensor, mem)
                else
                   tempchar = math.floor(dataTwos / (256^j)) % 256
                end
-               -- then dump the char
-               if tempchar == 0 then
-                  tensor[self.counter_bytes+1] = 0
-               else
-                  tensor[self.counter_bytes+1] = tempchar
-               end
+               tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes + 1
             end
             -- print the kernel to logFile:
@@ -563,11 +534,7 @@ function Linker:dump_ImageData(info, tensor, mem)
       return
    end
    -- pad initial offset for raw data
-   offset_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
-   for p=self.counter_bytes, offset_bytes-1 do
-      tensor[self.counter_bytes+1] = 0
-      self.counter_bytes = self.counter_bytes+1
-   end
+   self.counter_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
    mem_entry = mem.data[1]
    self.logfile:write(string.format("Writing images from offset: %d\n",
                                     mem.start_data_y*streamer.stride_w
@@ -575,11 +542,7 @@ function Linker:dump_ImageData(info, tensor, mem)
    for r=1,mem_entry.h do
       for i=1,(mem.datap-1) do
          mem_entry = mem.data[i]
-         offset_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
-         for p=self.counter_bytes, offset_bytes-1 do
-            tensor[self.counter_bytes+1] = 0
-            self.counter_bytes = self.counter_bytes+1
-         end
+         self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
          for c=1, mem_entry.w do
             dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
             dataTwos = bit.band(dataTwos, num.mask)
@@ -591,12 +554,7 @@ function Linker:dump_ImageData(info, tensor, mem)
                else
                   tempchar = math.floor(dataTwos / (256^j)) % 256
                end
-               -- then dump the char
-               if tempchar == 0 then
-                  tensor[self.counter_bytes+1] = 0
-               else
-                  tensor[self.counter_bytes+1] = tempchar
-               end
+               tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes+1
             end
          end -- column
