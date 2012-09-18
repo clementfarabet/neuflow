@@ -337,33 +337,15 @@ function Linker:dump(info, mem)
    info.filename        = info.filename      or 'temp'
    info.offsetData      = info.offsetData    or self.processp
    info.bigendian       = info.bigendian     or 0
-   info.writeArray      = info.writeArray    or false
-
-   if(info.writeArray) then  -- we are writing arrays for C
-      for b in string.gfind('const uint8 bytecode_exampleInstructions[] = {', ".") do
-         info.tensor[self.counter_bytes+1] = string.byte(b)
-         self.counter_bytes = self.counter_bytes + 1
-      end
-   end
 
    -- print all the instructions
    self:dump_instructions(info, info.tensor)
 
-   if(info.writeArray == false)then
-      -- and raw_data
-      self:dump_RawData(info, info.tensor, mem)
+   -- and raw_data
+   self:dump_RawData(info, info.tensor, mem)
 
-      -- and data (images) for simulation)
-      self:dump_ImageData(info, info.tensor, mem)
-   end
-
-   -- and close the file
-   if(info.writeArray) then  -- we are writing arrays for C
-      for b in string.gfind('0};\n\n', ".") do
-         info.tensor[self.counter_bytes+1] = string.byte(b)
-         self.counter_bytes = self.counter_bytes + 1
-      end
-   end
+   -- and data (images) for simulation)
+   self:dump_ImageData(info, info.tensor, mem)
 
    -- check collisions:
    self:checkCollisions(info, mem)
@@ -447,15 +429,8 @@ function Linker:dump_instructions(info, tensor)
 
    -- dump
    for i=1,(self.processp-1) do
-      if (info.writeArray) then
-         for b in string.gfind(string.format('0x%02X, ', self.process[i]), ".") do
-            tensor[self.counter_bytes+1] = string.byte(b)
-            self.counter_bytes = self.counter_bytes + 1
-         end
-      else
-         tensor[self.counter_bytes+1] = self.process[i]
-         self.counter_bytes = self.counter_bytes + 1
-      end
+      tensor[self.counter_bytes+1] = self.process[i]
+      self.counter_bytes = self.counter_bytes + 1
    end
 end
 
