@@ -386,7 +386,6 @@ function NeuFlow:writeBytecode(args)
       {
          tensor      = tensor,
          filename    = filename,
-         dumpHeader  = false,
          writeArray  = false
       },
       self.core.mem

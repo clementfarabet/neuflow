@@ -26,7 +26,6 @@ function Linker:__init(args)
    self.instruction_output = {}
    self.process = {}
    self.processp = 1
-   self.datap = 1 -- unused
 
    -- initial offsets
    self.start_process_x = 0 -- initial offset here!!!
@@ -337,27 +336,13 @@ function Linker:dump(info, mem)
    -- get defaults if nil
    info.filename        = info.filename      or 'temp'
    info.offsetData      = info.offsetData    or self.processp
-   info.offsetProcess   = info.offsetProcess or 0
    info.bigendian       = info.bigendian     or 0
-   info.dumpHeader      = info.dumpHeader    or false
    info.writeArray      = info.writeArray    or false
 
    if(info.writeArray) then  -- we are writing arrays for C
       for b in string.gfind('const uint8 bytecode_exampleInstructions[] = {', ".") do
          info.tensor[self.counter_bytes+1] = string.byte(b)
          self.counter_bytes = self.counter_bytes + 1
-      end
-   else -- writing bytecode to file or stdout
-      -- print optional header
-      if (info.dumpHeader) then
-         local str = tostring(info.offsetProcess) .. '\n' ..
-                     tostring(info.offsetData - info.offsetProcess + (self.datap - 1)*4) .. '\n' ..
-                     tostring((self.datap-1)*4) .. '\n'
-
-         for b in string.gfind(str, ".") do
-            info.tensor[self.counter_bytes+1] = string.byte(b)
-            self.counter_bytes = self.counter_bytes + 1
-         end
       end
    end
 
