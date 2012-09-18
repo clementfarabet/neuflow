@@ -17,16 +17,11 @@ function Linker:__init(args)
    -- the bytecode array
    local sentinel_node = {}
    self.instruction_list = {
-      start_node    = sentinel_node,
+      start_node     = sentinel_node,
       end_node       = sentinel_node,
       start_sentinel = sentinel_node,
       end_sentinel   = sentinel_node
    }
-
-   self.instruction_output = {}
-   self.process = {}
-   self.processp = 1
-   self.datap = 1 -- unused
 
    -- initial offsets
    self.start_process_x = 0 -- initial offset here!!!
@@ -161,24 +156,27 @@ end
 
 function Linker:genBytecode()
    local node = self.instruction_list.start_node
+   local instruction_output = {}
    local ii = 0
 
    while node do
       if node.bytes ~= nil then
-         self.instruction_output[ii+1] = node.bytes[1]
-         self.instruction_output[ii+2] = node.bytes[2]
-         self.instruction_output[ii+3] = node.bytes[3]
-         self.instruction_output[ii+4] = node.bytes[4]
-         self.instruction_output[ii+5] = node.bytes[5]
-         self.instruction_output[ii+6] = node.bytes[6]
-         self.instruction_output[ii+7] = node.bytes[7]
-         self.instruction_output[ii+8] = node.bytes[8]
+         instruction_output[ii+1] = node.bytes[1]
+         instruction_output[ii+2] = node.bytes[2]
+         instruction_output[ii+3] = node.bytes[3]
+         instruction_output[ii+4] = node.bytes[4]
+         instruction_output[ii+5] = node.bytes[5]
+         instruction_output[ii+6] = node.bytes[6]
+         instruction_output[ii+7] = node.bytes[7]
+         instruction_output[ii+8] = node.bytes[8]
 
          ii = ii + 8
       end
 
       node = node.next
    end
+
+   return instruction_output
 end
 
 function Linker:addProcess()
@@ -326,72 +324,30 @@ function Linker:dump(info, mem)
    --self:cacheConfigOptimization()
    self:alignProcessWithPages()
    self:resolveGotos()
-   self:genBytecode()
-
-   self.process = self.instruction_output
-   self.processp = #self.instruction_output + 1
+   local instr = self:genBytecode()
 
    -- parse argument
-   if (info ~= nil) then
-      -- get defaults if nil
-      info.file = info.file or 'stdout'
-      info.offsetData = info.offsetData or self.processp
-      info.offsetProcess = info.offsetProcess or 0
-      info.bigendian = info.bigendian or 0
-      info.dumpHeader = info.dumpHeader or false
-      info.writeArray = info.writeArray or false
-   else
-      -- Default params
-      info = {file='stdout',
-              offsetData=self.processp, offsetProcess=0,
-              bigendian=0, dumpHeader=false, writeArray=false}
-   end
+   assert(info.tensor)
 
-   local out
-
-   if(info.writeArray) then  -- we are writing arrays for C
-      out = assert(io.open('boot_code', "w"))
-      out:write('const uint8 bytecode_exampleInstructions[] = {');
-   else -- writing bytecode to file or stdout
-      -- select output
-      if (info.file == 'stdout') then
-         out = io.stdout
-      else
-         out = assert(io.open(info.file, "wb"))
-      end
-      -- print optional header
-      if (info.dumpHeader) then
-         out:write(info.offsetProcess, '\n') -- offset in mem
-         out:write(info.offsetData - info.offsetProcess + (self.datap - 1)*4, '\n') -- size
-         out:write((self.datap-1)*4, '\n') -- data size
-      end
-   end
+   -- get defaults if nil
+   info.filename        = info.filename   or 'temp'
+   info.offsetData      = info.offsetData or #instr + 1
+   info.bigendian       = info.bigendian  or 0
 
    -- print all the instructions
-   self:dump_instructions(info, out)
+   self:dump_instructions(instr, info.tensor)
 
-   if(info.writeArray == false)then
-      -- and raw_data
-      self:dump_RawData(info, out, mem)
-      -- and data (images) for simulation)
-      self:dump_ImageData(info, out, mem)
-   end
+   -- and raw_data
+   self:dump_RawData(info, info.tensor, mem)
 
-   -- and close the file
-   if(info.writeArray) then  -- we are writing arrays for C
-      out:write('0};\n\n');
-      assert(out:close())
-   else -- writing bytecode to file or stdout
-      if (info.file ~= 'stdout') then
-         assert(out:close())
-      end
-   end
+   -- and data (images) for simulation)
+   self:dump_ImageData(info, info.tensor, mem)
 
    -- check collisions:
-   self:checkCollisions(info, mem)
+   self:checkCollisions(info.filename, #instr, mem)
 end
 
-function Linker:checkCollisions(info, mem)
+function Linker:checkCollisions(filename, instr_length, mem)
    -- processes are 1 byte long, numbers are 2 (streamer.word_b) bytes long
 
    offset_bytes_process = self.start_process_y * streamer.stride_b
@@ -399,13 +355,13 @@ function Linker:checkCollisions(info, mem)
    --+ self.start_process_x * streamer.word_b
 
    offset_bytes_rawData = mem.start_raw_data_y * streamer.stride_b
-                          + mem.start_raw_data_x * streamer.word_b
+                        + mem.start_raw_data_x * streamer.word_b
 
    offset_bytes_data = mem.start_data_y * streamer.stride_b
-                       + mem.start_data_x * streamer.word_b
+                     + mem.start_data_x * streamer.word_b
 
    offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
-                         + mem.start_buff_x * streamer.word_b
+                       + mem.start_buff_x * streamer.word_b
 
    size_raw_data = (mem.raw_data_offset_y - mem.start_raw_data_y) * streamer.stride_b
                  + (mem.raw_data_offset_x - mem.start_raw_data_x - mem.last_align) * streamer.word_b
@@ -430,82 +386,76 @@ function Linker:checkCollisions(info, mem)
 
    local c = sys.COLORS
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' Compilation Report ' ..
-         c.none ..'[' .. info.file .. "]\n")
-   print(string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
-                       offset_bytes_process,
-                       (self.processp-offset_bytes_process-1),
-                       offset_bytes_process+(self.processp-offset_bytes_process)-1))
-   if ((self.processp-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
+   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
+         c.none ..'[' .. filename .. "]\n")
+   print(
+      string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_process,
+         (instr_length-offset_bytes_process),
+         offset_bytes_process+(instr_length-offset_bytes_process))
+   )
+   if (((instr_length+1)-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
       print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
-   print(string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
-                       offset_bytes_rawData,
-                       size_raw_data,
-                       offset_bytes_rawData+size_raw_data))
+   print(
+      string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_rawData,
+         size_raw_data,
+         offset_bytes_rawData+size_raw_data)
+   )
    if (offset_bytes_rawData+size_raw_data > offset_bytes_data) then
       print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
-   print(string.format("  image data segment: start = %10d, size = %10d, end = %10d",
-                       offset_bytes_data,
-                       size_data,
-                       offset_bytes_data+size_data))
+   print(
+      string.format("  image data segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_data,
+         size_data,
+         offset_bytes_data+size_data)
+   )
    if (offset_bytes_data+size_data > offset_bytes_buffer) then
       print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
-   print(string.format("        heap segment: start = %10d, size = %10d, end = %10d",
-                       offset_bytes_buffer, size_buff, memory.size_b))
+   print(
+      string.format("        heap segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_buffer,
+         size_buff, memory.size_b)
+   )
 
-   print(string.format("                                  the binary file size should be = %10d",
-                       self.counter_bytes))
+   print(
+      string.format("                                  the binary file size should be = %10d",
+         self.counter_bytes)
+   )
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 end
 
-function Linker:dump_instructions(info, out)
+function Linker:dump_instructions(instr, tensor)
    -- optional disassemble
    if self.disassemble then
-      neuflow.tools.disassemble(self.process, {length=self.processp-1})
+      neuflow.tools.disassemble(instr, {length = #instr})
    end
 
    -- dump
-   for i=1,(self.processp-1) do
-      if (info.writeArray) then
-         out:write(string.format('0x%02X, ', self.process[i]))
-      else
-         -- 0 needs to be handled separately... isn't that crazy ???
-         if self.process[i] == 0 then
-            out:write('\0')
-         else
-            out:write(string.format("%c", self.process[i]))
-         end
-         self.counter_bytes = self.counter_bytes + 1
-      end
+   for i=1, #instr do
+      tensor[self.counter_bytes+1] = instr[i]
+      self.counter_bytes = self.counter_bytes + 1
    end
 end
 
-function Linker:dump_RawData(info, out, mem)
-
-
+function Linker:dump_RawData(info, tensor, mem)
    -- pad initial offset for raw data
    self.logfile:write("Kernels:\n")
-   offset_bytes =  mem.start_raw_data_y * streamer.stride_b
-                 + mem.start_raw_data_x * streamer.word_b
-   for p=out:seek(),offset_bytes-1 do
-      out:write('\0')
-      self.counter_bytes = self.counter_bytes + 1
-   end
+   self.counter_bytes = mem.start_raw_data_y * streamer.stride_b
+                      + mem.start_raw_data_x * streamer.word_b
 
    for i=1,(mem.raw_datap-1) do
       mem_entry = mem.raw_data[i]
-      self.logfile:write(string.format("#%d, offset_x = %d, offset_y = %d\n",
-                                       i,mem_entry.x,mem_entry.y))
+      self.logfile:write(
+         string.format("#%d, offset_x = %d, offset_y = %d\n", i, mem_entry.x,mem_entry.y)
+      )
+
       -- set offset in file
-      offset_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
-      -- pad alignment
-      for p=out:seek(),offset_bytes-1 do
-         out:write('\0')
-         self.counter_bytes = self.counter_bytes + 1
-      end
+      self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
+
       if (mem_entry.bias ~= nil) then
          self.logfile:write("Bias:\n")
          for b = 1,mem_entry.bias:size(1) do
@@ -518,12 +468,7 @@ function Linker:dump_RawData(info, out, mem)
                else
                   tempchar = math.floor(dataTwos / (256^j)) % 256
                end
-               -- then dump the char
-               if tempchar == 0 then
-                  out:write('\0')
-               else
-                  out:write(string.format("%c", tempchar))
-               end
+               tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes + 1
             end
             -- print the kernel to logFile:
@@ -544,12 +489,7 @@ function Linker:dump_RawData(info, out, mem)
                else
                   tempchar = math.floor(dataTwos / (256^j)) % 256
                end
-               -- then dump the char
-               if tempchar == 0 then
-                  out:write('\0')
-               else
-                  out:write(string.format("%c", tempchar))
-               end
+               tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes + 1
             end
             -- print the kernel to logFile:
@@ -560,26 +500,23 @@ function Linker:dump_RawData(info, out, mem)
    end
 end
 
-function Linker:dump_ImageData(info, out, mem)
+function Linker:dump_ImageData(info, tensor, mem)
    if (mem.data[1] == nil) then
       return
    end
    -- pad initial offset for raw data
-   offset_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
-   for p=out:seek(),offset_bytes-1 do
-      out:write('\0')
-   end
+   self.counter_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
    mem_entry = mem.data[1]
-   self.logfile:write(string.format("Writing images from offset: %d\n",
-                                    mem.start_data_y*streamer.stride_w
-                                       + mem.start_data_x))
+
+   self.logfile:write(
+      string.format("Writing images from offset: %d\n",
+         mem.start_data_y*streamer.stride_w + mem.start_data_x)
+   )
+
    for r=1,mem_entry.h do
       for i=1,(mem.datap-1) do
          mem_entry = mem.data[i]
-         offset_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
-         for p=out:seek(),offset_bytes-1 do
-            out:write('\0')
-         end
+         self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
          for c=1, mem_entry.w do
             dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
             dataTwos = bit.band(dataTwos, num.mask)
@@ -591,73 +528,14 @@ function Linker:dump_ImageData(info, out, mem)
                else
                   tempchar = math.floor(dataTwos / (256^j)) % 256
                end
-               -- then dump the char
-               if tempchar == 0 then
-                  out:write('\0')
-               else
-                  out:write(string.format("%c", tempchar))
-               end
+               tensor[self.counter_bytes+1] = tempchar
+               self.counter_bytes = self.counter_bytes+1
             end
          end -- column
          self.logfile:write(string.format("\t"))
       end -- entry
       self.logfile:write(string.format("\n"))
    end -- row
-end
-
------------- these functions are for testing --------------------------------------
-
-function Linker:dump_instructions_log(out)
-   -- set initial offset for instructions in file
-   --out:seek("set", 1024*2)
-   out:write(string.format("****************instructions****************"))
-   for i=1,(self.processp-1) do
-      out:write(string.format('_%d', self.process[i]))
-   end
-end
-
-function Linker:dump_data_log(mem, out)
-   -- set initial offset for raw data in file
-   offset_bytes =  mem.start_raw_data_y * streamer.stride_b
-                 + mem.start_raw_data_x * streamer.word_b
-   out:seek("set",offset_bytes)
-   --out:write(string.format("****************raw_data****************"))
-   for i=1,(mem.raw_datap-1) do
-      mem_entry = mem.raw_data[i]
-      -- set offset in file
-      offset_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
-      out:seek("set", offset_bytes)
-      print('mem_entry.y = ',mem_entry.y ,'mem_entry.x = ',mem_entry.x)
-      print('for mem_entry #',i,' the offset is = ', offset_bytes)
-      if (mem_entry.bias ~= nil) then
-         for b = 1,mem_entry.bias:size(1) do
-            out:write(string.format("_%d", mem_entry.bias[b]))
-         end
-      end
-      for r=1,mem_entry.data:size(1) do
-         for c=1, mem_entry.data:size(2) do
-            out:write(string.format('_%d', mem_entry.data[r][c]))
-         end
-      end
-   end
-
-   -- set initial offset for data in file
-   -- out:seek("set", ( mem.start_data_y - 1)*streamer.stride_b + mem.start_data_x)
---    out:write(string.format("****************data****************"))
---    for i=1,(mem.datap-1) do
---       mem_entry = mem.data[i]
---       for r=1,mem_entry.data:size(1) do
---          -- set offset in file
---          offset_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
---          out:seek("set", offset_bytes)
---          print('mem_entry.y = ',mem_entry.y ,'mem_entry.x = ',mem_entry.x)
---          print('for mem_entry #',i,'row #', r,' the offset is = ', offset_bytes)
---          for c=1, mem_entry.data:size(2) do
---             out:write(string.format('_%d', mem_entry.data[r][c]/100))
---          end
---       end
---    end
-
 end
 
 function Linker:cacheConfigOptimization()

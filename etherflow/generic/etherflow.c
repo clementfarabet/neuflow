@@ -329,6 +329,9 @@ int etherflow_send_reset_C() {
   unsigned char rst_mac[6] = {0x00,0x00,0x36,0x26,0x00,0x01};
   // buffer to send:
   unsigned char send_buffer[ETH_FRAME_LEN];
+  int exitcode;
+
+  printf("<etherflow> reseting...\n");
 
   // zero frame
   bzero(send_buffer, ETH_FRAME_LEN);
@@ -337,12 +340,16 @@ int etherflow_send_reset_C() {
   memcpy((void*)send_buffer, (void*)rst_mac, ETH_ALEN);
   memcpy((void*)(send_buffer+ETH_ALEN), (void*)host_mac, ETH_ALEN);
 
-  // send packet return error sendto error code
+  // send packet return exitcode
 #ifdef _LINUX_
-  return sendto(sock, send_buffer, ETH_FRAME_LEN, 0, (struct sockaddr*)&sock_address, socklen);
+  exitcode = sendto(sock, send_buffer, ETH_FRAME_LEN, 0, (struct sockaddr*)&sock_address, socklen);
 #else // not _LINUX_ but _APPLE_
-  return write(bpf, send_buffer, ETH_FRAME_LEN);
+  exitcode = write(bpf, send_buffer, ETH_FRAME_LEN);
 #endif // _LINUX_
+
+  usleep(6000000); // give time to the ml605 to come out of reset
+
+  return exitcode;
 }
 
 /***********************************************************
