@@ -17,7 +17,7 @@ function Linker:__init(args)
    -- the bytecode array
    local sentinel_node = {}
    self.instruction_list = {
-      start_node    = sentinel_node,
+      start_node     = sentinel_node,
       end_node       = sentinel_node,
       start_sentinel = sentinel_node,
       end_sentinel   = sentinel_node
@@ -334,9 +334,9 @@ function Linker:dump(info, mem)
    assert(info.tensor)
 
    -- get defaults if nil
-   info.filename        = info.filename      or 'temp'
-   info.offsetData      = info.offsetData    or self.processp
-   info.bigendian       = info.bigendian     or 0
+   info.filename        = info.filename   or 'temp'
+   info.offsetData      = info.offsetData or self.processp
+   info.bigendian       = info.bigendian  or 0
 
    -- print all the instructions
    self:dump_instructions(info, info.tensor)
@@ -359,13 +359,13 @@ function Linker:checkCollisions(info, mem)
    --+ self.start_process_x * streamer.word_b
 
    offset_bytes_rawData = mem.start_raw_data_y * streamer.stride_b
-                          + mem.start_raw_data_x * streamer.word_b
+                        + mem.start_raw_data_x * streamer.word_b
 
    offset_bytes_data = mem.start_data_y * streamer.stride_b
-                       + mem.start_data_x * streamer.word_b
+                     + mem.start_data_x * streamer.word_b
 
    offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
-                         + mem.start_buff_x * streamer.word_b
+                       + mem.start_buff_x * streamer.word_b
 
    size_raw_data = (mem.raw_data_offset_y - mem.start_raw_data_y) * streamer.stride_b
                  + (mem.raw_data_offset_x - mem.start_raw_data_x - mem.last_align) * streamer.word_b
@@ -392,32 +392,43 @@ function Linker:checkCollisions(info, mem)
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
    print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
          c.none ..'[' .. info.filename .. "]\n")
-   print(string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
-                       offset_bytes_process,
-                       (self.processp-offset_bytes_process-1),
-                       offset_bytes_process+(self.processp-offset_bytes_process)-1))
+   print(
+      string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_process,
+         (self.processp-offset_bytes_process-1),
+         offset_bytes_process+(self.processp-offset_bytes_process)-1)
+   )
    if ((self.processp-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
       print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
-   print(string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
-                       offset_bytes_rawData,
-                       size_raw_data,
-                       offset_bytes_rawData+size_raw_data))
+   print(
+      string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_rawData,
+         size_raw_data,
+         offset_bytes_rawData+size_raw_data)
+   )
    if (offset_bytes_rawData+size_raw_data > offset_bytes_data) then
       print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
-   print(string.format("  image data segment: start = %10d, size = %10d, end = %10d",
-                       offset_bytes_data,
-                       size_data,
-                       offset_bytes_data+size_data))
+   print(
+      string.format("  image data segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_data,
+         size_data,
+         offset_bytes_data+size_data)
+   )
    if (offset_bytes_data+size_data > offset_bytes_buffer) then
       print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
-   print(string.format("        heap segment: start = %10d, size = %10d, end = %10d",
-                       offset_bytes_buffer, size_buff, memory.size_b))
+   print(
+      string.format("        heap segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_buffer,
+         size_buff, memory.size_b)
+   )
 
-   print(string.format("                                  the binary file size should be = %10d",
-                       self.counter_bytes))
+   print(
+      string.format("                                  the binary file size should be = %10d",
+         self.counter_bytes)
+   )
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 end
 
@@ -435,16 +446,17 @@ function Linker:dump_instructions(info, tensor)
 end
 
 function Linker:dump_RawData(info, tensor, mem)
-
    -- pad initial offset for raw data
    self.logfile:write("Kernels:\n")
-   self.counter_bytes =  mem.start_raw_data_y * streamer.stride_b
-                 + mem.start_raw_data_x * streamer.word_b
+   self.counter_bytes = mem.start_raw_data_y * streamer.stride_b
+                      + mem.start_raw_data_x * streamer.word_b
 
    for i=1,(mem.raw_datap-1) do
       mem_entry = mem.raw_data[i]
-      self.logfile:write(string.format("#%d, offset_x = %d, offset_y = %d\n",
-                                       i,mem_entry.x,mem_entry.y))
+      self.logfile:write(
+         string.format("#%d, offset_x = %d, offset_y = %d\n", i, mem_entry.x,mem_entry.y)
+      )
+
       -- set offset in file
       self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
 
@@ -499,9 +511,12 @@ function Linker:dump_ImageData(info, tensor, mem)
    -- pad initial offset for raw data
    self.counter_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
    mem_entry = mem.data[1]
-   self.logfile:write(string.format("Writing images from offset: %d\n",
-                                    mem.start_data_y*streamer.stride_w
-                                       + mem.start_data_x))
+
+   self.logfile:write(
+      string.format("Writing images from offset: %d\n",
+         mem.start_data_y*streamer.stride_w + mem.start_data_x)
+   )
+
    for r=1,mem_entry.h do
       for i=1,(mem.datap-1) do
          mem_entry = mem.data[i]
