@@ -463,7 +463,10 @@ function Linker:dump_instructions(info, tensor)
    -- dump
    for i=1,(self.processp-1) do
       if (info.writeArray) then
-         tensor[self.counter_bytes+1] = string.byte(string.format('0x%02X, ', self.process[i]))
+         for b in string.gfind(string.format('0x%02X, ', self.process[i]), ".") do
+            tensor[self.counter_bytes+1] = string.byte(b)
+            self.counter_bytes = self.counter_bytes + 1
+         end
       else
          tensor[self.counter_bytes+1] = self.process[i]
          self.counter_bytes = self.counter_bytes + 1
