@@ -27,41 +27,22 @@ function Linker:__init(args)
    self.start_process_x = 0 -- initial offset here!!!
    self.start_process_y = 0 -- initial offset here!!!
 
-   self.start_text = (args.start_text or linker.offset_text) + 1
+   local start_text = (args.start_text or 0) + 1
 
    -- only if we start NOT from page zero
-   if(self.start_text ~= 1) then
-      -- init with default code
+   if (start_text ~= 1) then
 
-      local ii = 0
-      while ii < (#bootloader.content-1) do
-         local instruction = {
-            bytes = {
-               bootloader.content[ii+1],
-               bootloader.content[ii+2],
-               bootloader.content[ii+3],
-               bootloader.content[ii+4],
-               bootloader.content[ii+5],
-               bootloader.content[ii+6],
-               bootloader.content[ii+7],
-               bootloader.content[ii+8]
-            }
-         }
-
-         self:appendInstruction(instruction)
-         ii = ii + 8
-      end
-
-      for aa = (ii/8), ((self.start_text/8)-1) do
+      -- init padding
+      for aa = 0, ((start_text/8)-1) do
          self:appendInstruction{bytes = {0,0,0,0,0,0,0,0}}
       end
 
-      -- Sentinel to seperate bootloader content from next process
+      -- Sentinel to seperate init padding from next process
       self:appendSentinel()
 
       -- calculate start_x and start_y for collision check
       self.start_process_x = 0
-      self.start_process_y = self.start_text / streamer.stride_b
+      self.start_process_y = start_text / streamer.stride_b
    end
 
    self.counter_bytes = 0
@@ -321,18 +302,19 @@ end
 function Linker:dump(info, mem)
 
    self:linkGotos()
-   --self:cacheConfigOptimization()
    self:alignProcessWithPages()
    self:resolveGotos()
    local instr = self:genBytecode()
 
+   -- optional disassemble
+   if self.disassemble then
+      neuflow.tools.disassemble(instr, {length = #instr})
+   end
+
    -- parse argument
    assert(info.tensor)
-
-   -- get defaults if nil
-   info.filename        = info.filename   or 'temp'
-   info.offsetData      = info.offsetData or #instr + 1
-   info.bigendian       = info.bigendian  or 0
+   info.filename  = info.filename   or 'temp'
+   info.bigendian = info.bigendian  or 0
 
    -- print all the instructions
    self:dump_instructions(instr, info.tensor)
@@ -349,94 +331,8 @@ function Linker:dump(info, mem)
    return self.counter_bytes
 end
 
-function Linker:checkCollisions(filename, instr_length, mem)
-   -- processes are 1 byte long, numbers are 2 (streamer.word_b) bytes long
-
-   offset_bytes_process = self.start_process_y * streamer.stride_b
-                        + self.start_process_x
-   --+ self.start_process_x * streamer.word_b
-
-   offset_bytes_rawData = mem.start_raw_data_y * streamer.stride_b
-                        + mem.start_raw_data_x * streamer.word_b
-
-   offset_bytes_data = mem.start_data_y * streamer.stride_b
-                     + mem.start_data_x * streamer.word_b
-
-   offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
-                       + mem.start_buff_x * streamer.word_b
-
-   size_raw_data = (mem.raw_data_offset_y - mem.start_raw_data_y) * streamer.stride_b
-                 + (mem.raw_data_offset_x - mem.start_raw_data_x - mem.last_align) * streamer.word_b
-
-   size_data = (mem.data_offset_y - mem.start_data_y) * streamer.stride_b
-
-   if (mem.data_offset_x ~= 0) then -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
-      -- if not all the lines are filled till the end we are counting more than we should here,
-      -- but for checking collision it's OK
-      size_data = size_data + mem.data[mem.datap - 1].h * streamer.stride_b
-   end
-
-   size_buff =  (mem.buff_offset_y - mem.start_buff_y) * streamer.stride_b
-
-   if (mem.buff_offset_x ~= 0) then -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
-      -- if not all the lines are filled till the end we are counting more than we should here,
-      -- but for checking collision it's OK
-      size_buff = size_buff + mem.buff[mem.buffp - 1].h * streamer.stride_b
-   end
-
-   local c = sys.COLORS
-   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
-         c.none ..'[' .. filename .. "]\n")
-   print(
-      string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_process,
-         (instr_length-offset_bytes_process),
-         offset_bytes_process+(instr_length-offset_bytes_process))
-   )
-   if (((instr_length+1)-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_rawData,
-         size_raw_data,
-         offset_bytes_rawData+size_raw_data)
-   )
-   if (offset_bytes_rawData+size_raw_data > offset_bytes_data) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("  image data segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_data,
-         size_data,
-         offset_bytes_data+size_data)
-   )
-   if (offset_bytes_data+size_data > offset_bytes_buffer) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("        heap segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_buffer,
-         size_buff, memory.size_b)
-   )
-
-   print(
-      string.format("                                  the binary file size should be = %10d",
-         self.counter_bytes)
-   )
-   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-end
-
 function Linker:dump_instructions(instr, tensor)
-   -- optional disassemble
-   if self.disassemble then
-      neuflow.tools.disassemble(instr, {length = #instr})
-   end
-
-   -- dump
+   -- copy instructions into tensor
    for i=1, #instr do
       tensor[self.counter_bytes+1] = instr[i]
       self.counter_bytes = self.counter_bytes + 1
@@ -540,344 +436,83 @@ function Linker:dump_ImageData(info, tensor, mem)
    end -- row
 end
 
-function Linker:cacheConfigOptimization()
+function Linker:checkCollisions(filename, instr_length, mem)
+   -- processes are 1 byte long, numbers are 2 (streamer.word_b) bytes long
 
-   -- Beginning from the start of list, move along list until dead time is found.
-   -- From that point, descend list looking for configs that can be moved.
-   -- If config that can be moved is found, remove segment and then insert the segment in dead time.
-   -- Repeat until the end of list is reached
+   offset_bytes_process = self.start_process_y * streamer.stride_b
+                        + self.start_process_x
+   --+ self.start_process_x * streamer.word_b
 
+   offset_bytes_rawData = mem.start_raw_data_y * streamer.stride_b
+                        + mem.start_raw_data_x * streamer.word_b
 
-   local function bytesDecode(bytes)
-      -- instr bit packing is hard code, any change in the blast_bus.vh will make errors here
+   offset_bytes_data = mem.start_data_y * streamer.stride_b
+                     + mem.start_data_x * streamer.word_b
 
-      local instr = {}
-      instr.config8_1 = bytes[1]
-      instr.config8_2 = bytes[2]
-      instr.config8_3 = bytes[3]
-      instr.config8_4 = bytes[4]
-      instr.config16_1 = (256^1)*bytes[4]+(256^0)*bytes[3]
-      instr.config32_1 = (256^3)*bytes[4]+(256^2)*bytes[3]+(256^1)*bytes[2]+(256*0)*bytes[1]
+   offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
+                       + mem.start_buff_x * streamer.word_b
 
-      instr.arg8_3 = bytes[5]
-      instr.arg8_2 = bytes[6]
-      instr.arg8_1 = bytes[7] -- config_content
-      instr.of_opcode = bytes[8] -- openflower opcode
+   size_raw_data = (mem.raw_data_offset_y - mem.start_raw_data_y) * streamer.stride_b
+                 + (mem.raw_data_offset_x - mem.start_raw_data_x - mem.last_align) * streamer.word_b
 
-      return instr
+   size_data = (mem.data_offset_y - mem.start_data_y) * streamer.stride_b
+
+   if (mem.data_offset_x ~= 0) then -- if we did not just step a new line
+      -- take into account all the lines we wrote (the last entry's hight is enough)
+      -- if not all the lines are filled till the end we are counting more than we should here,
+      -- but for checking collision it's OK
+      size_data = size_data + mem.data[mem.datap - 1].h * streamer.stride_b
    end
 
-   -- makes a table that holds the current state of all the ports, argument 'state' is an old port
-   -- state table to be cloned
-   local function makePorts(state)
-      if not state then state = {} end
-      local ports = {}
-      ports.addr = state.addr or nil -- if nil no port is being addressed
-      ports.submod = state.addr or nil -- if nil no port sub module is being addressed
+   size_buff =  (mem.buff_offset_y - mem.start_buff_y) * streamer.stride_b
 
-      for aa = 1, (streamer.nb_ports-1) do
-         if not state[aa] then state[aa] = {} end
-         ports[aa] = {}
-         ports[aa].valid = state[aa].valid or 1 -- if 0, no longer in considerion for reordering
-         ports[aa].idle = state[aa].idle or 1 -- if 1, is idle & does not need to be cached set
-         ports[aa].active = state[aa].active or 0
-         ports[aa].cached = state[aa].cached or 0
-         ports[aa].reset = state[aa].reset or 0
-         ports[aa].prefetch = state[aa].prefetch or 0
-      end
-
-      function ports:reset_valid()
-         for aa = 1, (streamer.nb_ports-1) do
-            ports[aa].valid = 1
-         end
-      end
-
-      return ports
+   if (mem.buff_offset_x ~= 0) then -- if we did not just step a new line
+      -- take into account all the lines we wrote (the last entry's hight is enough)
+      -- if not all the lines are filled till the end we are counting more than we should here,
+      -- but for checking collision it's OK
+      size_buff = size_buff + mem.buff[mem.buffp - 1].h * streamer.stride_b
    end
 
-   -- determines how the current instruction affects which end point the config bus
-   -- is interacting with
-   local function addressState(of_opcode, config_content, config_addr, config_submod, ports)
-
-      if of_opcode == oFlower.op_writeConfig then
-         if config_content == blast_bus.content_command then
-            -- last 4 bits of config_addr is the area address
-            local area = (config_addr - (config_addr%(2^12)))/(2^12)
-
-            -- group addr and broadcast addr means more then one port can be active, these will
-            -- be ignored as this version of config optimizer only can deal with a single port
-            -- being addressed
-            if area == blast_bus.area_streamer then
-               -- first 12 bits of config_addr is the port address
-               ports.addr = config_addr%(2^12)
-               ports.submod = config_submod
-
-               if ((ports.addr < 1) or (ports.addr > (streamer.nb_ports-1))) then
-                  -- addr zero is broadcast to all ports while any address above the
-                  -- number of ports is a group addr, both are ignored
-                  ports.addr = nil
-                  ports.submod = nil
-               end
-            else
-               ports.addr = nil
-               ports.submod = nil
-            end
-         end
-      end
+   local c = sys.COLORS
+   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
+         c.none ..'[' .. filename .. "]\n")
+   print(
+      string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_process,
+         (instr_length-offset_bytes_process),
+         offset_bytes_process+(instr_length-offset_bytes_process))
+   )
+   if (((instr_length+1)-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
+      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
-
-   -- determines if the current instruction has a command that will affect the addressed port
-   -- should be called after addressState in case the addring command also had an config_instr
-   local function portCommand(of_opcode, config_content, config_instr, ports)
-      for aa = 1, (streamer.nb_ports-1) do
-         ports[aa].reset = 0
-         ports[aa].prefetch = 0
-      end
-
-      local command = false
-
-      if of_opcode == oFlower.op_writeConfig then
-         if ports.addr and (config_content == blast_bus.content_command or
-                           config_content == blast_bus.content_instruc) then
-
-            command = true
-
-            if config_instr == blast_bus.instruc_config then
-               -- place holder for addressing without an opcode
-            elseif config_instr == blast_bus.instruc_setAdd then
-               -- set group address, defualt is broadcast address
-               -- addr could be set to a different area code which
-               -- would mean the addressState would need to be changed
-            elseif config_instr == blast_bus.instruc_reset then
-               ports[ports.addr].valid = 0
-               ports[ports.addr].reset = 1
-            elseif config_instr == blast_bus.instruc_cacheStart then
-               ports[ports.addr].valid = 0
-               ports[ports.addr].cached = 1
-            elseif config_instr == blast_bus.instruc_cacheFinish then
-               ports[ports.addr].valid = 0
-               ports[ports.addr].cached = 0
-            elseif config_instr == blast_bus.instruc_activate then
-               ports[ports.addr].valid = 0
-               ports[ports.addr].idle = 0
-               ports[ports.addr].active = 1
-            elseif config_instr == blast_bus.instruc_deActivate then
-               ports[ports.addr].active = 0
-            elseif config_instr == blast_bus.instruc_control_1 then
-               -- prefetch
-               ports[ports.addr].valid = 0
-               ports[ports.addr].idle = 0
-               ports[ports.addr].prefetch = 1
-            else
-               print("WARNING: Unknown comand sent to streamer")
-               command = false
-            end
-         end
-      end
-      return command
+   print(
+      string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_rawData,
+         size_raw_data,
+         offset_bytes_rawData+size_raw_data)
+   )
+   if (offset_bytes_rawData+size_raw_data > offset_bytes_data) then
+      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
-
-   local function portConfig(of_opcode, config_content, ports)
-      local config = false
-
-      if of_opcode == oFlower.op_writeConfig then
-         if ports.addr and config_content == blast_bus.content_config then
-            -- sending config words to sub module, currently only can move sub mod 2
-            -- global and timeout config is ignored
-
-            config = true
-         end
-      end
-
-      return config
+   print(
+      string.format("  image data segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_data,
+         size_data,
+         offset_bytes_data+size_data)
+   )
+   if (offset_bytes_data+size_data > offset_bytes_buffer) then
+      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
    end
+   print(
+      string.format("        heap segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_buffer,
+         size_buff, memory.size_b)
+   )
 
-   local function portWaitStatus(of_opcode, config_content, ports)
-      local wait = false
-
-      -- TODO: have estimate of time spent in wait and if there is enough time for
-      -- a config reorder set wait to true
-
-      if ports.addr and (of_opcode == oFlower.op_getStatus) then
-         if config_content == blast_bus.status_primed then
-            wait = true
-         elseif config_content == blast_bus.status_done then
-            wait = true
-         end
-      end
-
-      return wait
-   end
-
-   local function makeCacheSetInstr()
-      local instr_bytes = self:newInstructionBytes {
-         opcode = oFlower.op_writeConfig,
-         arg8_1 = blast_bus.content_instruc,
-         arg32_1 = blast_bus.instruc_cacheStart
-      }
-
-      return {bytes = instr_bytes}
-   end
-
-   local function makeCacheUnsetInstr()
-      local instr_bytes = self:newInstructionBytes {
-         opcode = oFlower.op_writeConfig,
-         arg8_1 = blast_bus.content_instruc,
-         arg32_1 = blast_bus.instruc_cacheFinish
-      }
-
-      return {bytes = instr_bytes}
-   end
-
-   local function makeAddrInstr(addr, submod)
-      submod = submod or 0
-      local configWord = blast_bus.area_streamer*(2^28) + addr*(2^16) + submod*(2^8)
-
-      local instr_bytes = self:newInstructionBytes {
-         opcode = oFlower.op_writeConfig,
-         arg8_1 = blast_bus.content_command,
-         arg32_1 = configWord
-      }
-
-      return {bytes = instr_bytes}
-   end
-
-   local function findConfigSegment(node, ports)
-      -- start_node is an instruction that addressess a port and the 2nd sub mod
-      -- end_node is the last config instruction
-      local start_node = nil
-      local end_node = nil
-      local search = true
-
-      while (search and node) do
-         if node.bytes ~= nil then
-            local instr = bytesDecode(node.bytes)
-
-            addressState(instr.of_opcode, instr.arg8_1, instr.config16_1, instr.config8_2, ports)
-            portCommand(instr.of_opcode, instr.arg8_1, instr.config8_1, ports)
-
-            if (ports.submod == 2 and ports[ports.addr].valid == 1) then
-               start_node = node
-
-               node = node.next
-               local nb_config = 0
-               while (search and node) do
-
-                  if node.bytes == nil then
-                     search = false
-                     break
-                  end
-
-                  local instr = bytesDecode(node.bytes)
-
-                  if portCommand(instr.of_opcode, instr.arg8_1, instr.config8_1, ports) then
-                     search = false
-                     break
-                  end
-
-                  if portConfig(instr.of_opcode, instr.arg8_1, ports) then
-                     nb_config = nb_config + 1
-                  end
-
-                  if nb_config == 5 then
-                     search = false
-                     end_node = node
-                  end
-
-                  node = node.next
-               end
-            end
-         end
-         if node then node = node.next end
-      end
-
-      return start_node, end_node
-   end
-
-   local function findWaitAddrNode(node, target_addr)
-      -- NOTE: if there is any other instr b/w addr instr and wait instr, make a addr
-      --       instr node and insert it before wait instr
-      local ports = makePorts()
-
-      while not ports.addr do
-         node = node.prev
-
-         local instr = bytesDecode(node.bytes)
-         addressState(instr.of_opcode, instr.arg8_1, instr.config16_1, instr.config8_2, ports)
-
-         if ports.addr == target_addr then
-            break
-         else
-            local tmp_ports = makePorts(ports)
-            tmp_ports.addr = target_addr
-
-            local command = portCommand(instr.of_opcode, instr.arg8_1, instr.config8_1, tmp_ports)
-            local config = portConfig(instr.of_opcode, instr.arg8_1, tmp_ports)
-
-            if config or command then
-               local addr_node = makeAddrInstr(target_addr)
-               self:insertInstruction(node, addr_node)
-               node = addr_node
-
-               break
-            end
-         end
-      end
-
-      return node
-   end
-
-   local node = self.instruction_list.start_sentinel
-   local ports = makePorts()
-
-   while node do
-      if node.bytes ~= nil then
-         local instr = bytesDecode(node.bytes)
-
-         addressState(instr.of_opcode, instr.arg8_1, instr.config16_1, instr.config8_2, ports)
-         portCommand(instr.of_opcode, instr.arg8_1, instr.config8_1, ports)
-
-         --while portWaitStatus(instr.of_opcode, instr.arg8_1, ports) do -- only with time estimate
-         if portWaitStatus(instr.of_opcode, instr.arg8_1, ports) then
-            ports:reset_valid()
-            local descent_ports = makePorts(ports)
-            local descent_node = node.next
-            local start_node = nil
-            local end_node = nil
-
-            start_node, end_node = findConfigSegment(descent_node, descent_ports)
-
-            if start_node and end_node then
-               -- find the addr instr node used to addr port for the wait for status instr node
-               local wait_addr_node = findWaitAddrNode(node, ports.addr)
-
-               -- insert instruction to re-addr port after first making it
-               local new_addr = makeAddrInstr(descent_ports.addr, 2)
-               self:insertInstruction(end_node, new_addr)
-
-               -- NOTE: idle/not idle might not be correct, probable sould not use until sure
-               --       and just use the cache every time
-               --if ports[descent_ports.addr].idle then
-                  local cache_set = makeCacheSetInstr()
-                  local cache_unset = makeCacheUnsetInstr()
-
-                  -- insert cache set instr in segment if using caching
-                  self:insertInstruction(start_node, cache_set)
-
-                  -- insert instr to unset cache if using caching
-                  -- (if port is not idle at dead time)
-                  self:insertInstruction(new_addr, cache_unset)
-               --end
-
-               -- remove (cut) the config segment
-               self:removeSegment(start_node, end_node)
-
-               -- re-insert segment in its new place
-               self:insertSegment(wait_addr_node.prev, start_node, end_node)
-            end
-         end
-      end
-
-      node = node.next
-   end
+   print(
+      string.format("                                  the binary file size should be = %10d",
+         self.counter_bytes)
+   )
+   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 end
