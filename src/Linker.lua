@@ -325,6 +325,11 @@ function Linker:dump(info, mem)
    self:resolveGotos()
    local instr = self:genBytecode()
 
+   -- optional disassemble
+   if self.disassemble then
+      neuflow.tools.disassemble(instr, {length = #instr})
+   end
+
    -- parse argument
    assert(info.tensor)
 
@@ -349,12 +354,7 @@ function Linker:dump(info, mem)
 end
 
 function Linker:dump_instructions(instr, tensor)
-   -- optional disassemble
-   if self.disassemble then
-      neuflow.tools.disassemble(instr, {length = #instr})
-   end
-
-   -- dump
+   -- copy instructions into tensor
    for i=1, #instr do
       tensor[self.counter_bytes+1] = instr[i]
       self.counter_bytes = self.counter_bytes + 1
