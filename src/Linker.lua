@@ -27,10 +27,10 @@ function Linker:__init(args)
    self.start_process_x = 0 -- initial offset here!!!
    self.start_process_y = 0 -- initial offset here!!!
 
-   self.start_text = (args.start_text or linker.offset_text) + 1
+   local start_text = (args.start_text or 0) + 1
 
    -- only if we start NOT from page zero
-   if(self.start_text ~= 1) then
+   if (start_text ~= 1) then
       -- init with default code
 
       local ii = 0
@@ -52,7 +52,7 @@ function Linker:__init(args)
          ii = ii + 8
       end
 
-      for aa = (ii/8), ((self.start_text/8)-1) do
+      for aa = (ii/8), ((start_text/8)-1) do
          self:appendInstruction{bytes = {0,0,0,0,0,0,0,0}}
       end
 
@@ -61,7 +61,7 @@ function Linker:__init(args)
 
       -- calculate start_x and start_y for collision check
       self.start_process_x = 0
-      self.start_process_y = self.start_text / streamer.stride_b
+      self.start_process_y = start_text / streamer.stride_b
    end
 
    self.counter_bytes = 0
