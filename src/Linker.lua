@@ -31,32 +31,13 @@ function Linker:__init(args)
 
    -- only if we start NOT from page zero
    if (start_text ~= 1) then
-      -- init with default code
 
-      local ii = 0
-      while ii < (#bootloader.content-1) do
-         local instruction = {
-            bytes = {
-               bootloader.content[ii+1],
-               bootloader.content[ii+2],
-               bootloader.content[ii+3],
-               bootloader.content[ii+4],
-               bootloader.content[ii+5],
-               bootloader.content[ii+6],
-               bootloader.content[ii+7],
-               bootloader.content[ii+8]
-            }
-         }
-
-         self:appendInstruction(instruction)
-         ii = ii + 8
-      end
-
-      for aa = (ii/8), ((start_text/8)-1) do
+      -- init padding
+      for aa = 0, ((start_text/8)-1) do
          self:appendInstruction{bytes = {0,0,0,0,0,0,0,0}}
       end
 
-      -- Sentinel to seperate bootloader content from next process
+      -- Sentinel to seperate init padding from next process
       self:appendSentinel()
 
       -- calculate start_x and start_y for collision check
