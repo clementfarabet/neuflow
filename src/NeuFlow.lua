@@ -384,8 +384,8 @@ function NeuFlow:writeBytecode(args)
    -- generate binary once
    local tensor_size = self.core.linker:dump(
       {
-         tensor      = tensor,
-         filename    = filename,
+         tensor   = tensor,
+         filename = filename,
       },
       self.core.mem
    )

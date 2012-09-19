@@ -332,11 +332,8 @@ function Linker:dump(info, mem)
 
    -- parse argument
    assert(info.tensor)
-
-   -- get defaults if nil
-   info.filename        = info.filename   or 'temp'
-   info.offsetData      = info.offsetData or #instr + 1
-   info.bigendian       = info.bigendian  or 0
+   info.filename  = info.filename   or 'temp'
+   info.bigendian = info.bigendian  or 0
 
    -- print all the instructions
    self:dump_instructions(instr, info.tensor)
