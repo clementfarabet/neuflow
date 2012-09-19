@@ -23,12 +23,12 @@ require 'qtwidget'
 
 local platform = arg[1] or 'xilinx_ml605'
 local network_if_name = arg[2]
-if (network_if_name) then
-   nf = neuflow.init{platform=platform,
-      network_if_name=network_if_name}
-else
-   nf = neuflow.init{platform=platform}
-end
+
+nf = neuflow.init {
+   prog_name         = 'loopback',
+   platform          = platform,
+   network_if_name   = network_if_name
+}
 
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and 
