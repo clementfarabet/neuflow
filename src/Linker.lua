@@ -348,87 +348,6 @@ function Linker:dump(info, mem)
    return self.counter_bytes
 end
 
-function Linker:checkCollisions(filename, instr_length, mem)
-   -- processes are 1 byte long, numbers are 2 (streamer.word_b) bytes long
-
-   offset_bytes_process = self.start_process_y * streamer.stride_b
-                        + self.start_process_x
-   --+ self.start_process_x * streamer.word_b
-
-   offset_bytes_rawData = mem.start_raw_data_y * streamer.stride_b
-                        + mem.start_raw_data_x * streamer.word_b
-
-   offset_bytes_data = mem.start_data_y * streamer.stride_b
-                     + mem.start_data_x * streamer.word_b
-
-   offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
-                       + mem.start_buff_x * streamer.word_b
-
-   size_raw_data = (mem.raw_data_offset_y - mem.start_raw_data_y) * streamer.stride_b
-                 + (mem.raw_data_offset_x - mem.start_raw_data_x - mem.last_align) * streamer.word_b
-
-   size_data = (mem.data_offset_y - mem.start_data_y) * streamer.stride_b
-
-   if (mem.data_offset_x ~= 0) then -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
-      -- if not all the lines are filled till the end we are counting more than we should here,
-      -- but for checking collision it's OK
-      size_data = size_data + mem.data[mem.datap - 1].h * streamer.stride_b
-   end
-
-   size_buff =  (mem.buff_offset_y - mem.start_buff_y) * streamer.stride_b
-
-   if (mem.buff_offset_x ~= 0) then -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
-      -- if not all the lines are filled till the end we are counting more than we should here,
-      -- but for checking collision it's OK
-      size_buff = size_buff + mem.buff[mem.buffp - 1].h * streamer.stride_b
-   end
-
-   local c = sys.COLORS
-   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
-         c.none ..'[' .. filename .. "]\n")
-   print(
-      string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_process,
-         (instr_length-offset_bytes_process),
-         offset_bytes_process+(instr_length-offset_bytes_process))
-   )
-   if (((instr_length+1)-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_rawData,
-         size_raw_data,
-         offset_bytes_rawData+size_raw_data)
-   )
-   if (offset_bytes_rawData+size_raw_data > offset_bytes_data) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("  image data segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_data,
-         size_data,
-         offset_bytes_data+size_data)
-   )
-   if (offset_bytes_data+size_data > offset_bytes_buffer) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("        heap segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_buffer,
-         size_buff, memory.size_b)
-   )
-
-   print(
-      string.format("                                  the binary file size should be = %10d",
-         self.counter_bytes)
-   )
-   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-end
-
 function Linker:dump_instructions(instr, tensor)
    -- optional disassemble
    if self.disassemble then
@@ -537,4 +456,85 @@ function Linker:dump_ImageData(info, tensor, mem)
       end -- entry
       self.logfile:write(string.format("\n"))
    end -- row
+end
+
+function Linker:checkCollisions(filename, instr_length, mem)
+   -- processes are 1 byte long, numbers are 2 (streamer.word_b) bytes long
+
+   offset_bytes_process = self.start_process_y * streamer.stride_b
+                        + self.start_process_x
+   --+ self.start_process_x * streamer.word_b
+
+   offset_bytes_rawData = mem.start_raw_data_y * streamer.stride_b
+                        + mem.start_raw_data_x * streamer.word_b
+
+   offset_bytes_data = mem.start_data_y * streamer.stride_b
+                     + mem.start_data_x * streamer.word_b
+
+   offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
+                       + mem.start_buff_x * streamer.word_b
+
+   size_raw_data = (mem.raw_data_offset_y - mem.start_raw_data_y) * streamer.stride_b
+                 + (mem.raw_data_offset_x - mem.start_raw_data_x - mem.last_align) * streamer.word_b
+
+   size_data = (mem.data_offset_y - mem.start_data_y) * streamer.stride_b
+
+   if (mem.data_offset_x ~= 0) then -- if we did not just step a new line
+      -- take into account all the lines we wrote (the last entry's hight is enough)
+      -- if not all the lines are filled till the end we are counting more than we should here,
+      -- but for checking collision it's OK
+      size_data = size_data + mem.data[mem.datap - 1].h * streamer.stride_b
+   end
+
+   size_buff =  (mem.buff_offset_y - mem.start_buff_y) * streamer.stride_b
+
+   if (mem.buff_offset_x ~= 0) then -- if we did not just step a new line
+      -- take into account all the lines we wrote (the last entry's hight is enough)
+      -- if not all the lines are filled till the end we are counting more than we should here,
+      -- but for checking collision it's OK
+      size_buff = size_buff + mem.buff[mem.buffp - 1].h * streamer.stride_b
+   end
+
+   local c = sys.COLORS
+   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
+         c.none ..'[' .. filename .. "]\n")
+   print(
+      string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_process,
+         (instr_length-offset_bytes_process),
+         offset_bytes_process+(instr_length-offset_bytes_process))
+   )
+   if (((instr_length+1)-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
+      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
+   end
+   print(
+      string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_rawData,
+         size_raw_data,
+         offset_bytes_rawData+size_raw_data)
+   )
+   if (offset_bytes_rawData+size_raw_data > offset_bytes_data) then
+      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
+   end
+   print(
+      string.format("  image data segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_data,
+         size_data,
+         offset_bytes_data+size_data)
+   )
+   if (offset_bytes_data+size_data > offset_bytes_buffer) then
+      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
+   end
+   print(
+      string.format("        heap segment: start = %10d, size = %10d, end = %10d",
+         offset_bytes_buffer,
+         size_buff, memory.size_b)
+   )
+
+   print(
+      string.format("                                  the binary file size should be = %10d",
+         self.counter_bytes)
+   )
+   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 end
