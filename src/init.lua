@@ -52,6 +52,7 @@ torch.include('neuflow', 'DmaInterface.lua')
 torch.include('neuflow', 'Core.lua')
 torch.include('neuflow', 'CoreUser.lua')
 torch.include('neuflow', 'Linker.lua')
+torch.include('neuflow', 'LinkerExtensions.lua')
 torch.include('neuflow', 'Serial.lua')
 torch.include('neuflow', 'NeuFlow.lua')
 
