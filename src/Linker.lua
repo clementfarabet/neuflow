@@ -345,6 +345,8 @@ function Linker:dump(info, mem)
 
    -- check collisions:
    self:checkCollisions(info.filename, #instr, mem)
+
+   return self.counter_bytes
 end
 
 function Linker:checkCollisions(filename, instr_length, mem)

@@ -382,7 +382,7 @@ function NeuFlow:writeBytecode(args)
    local tensor = torch.ByteTensor(self.bytecodesize):zero()
 
    -- generate binary once
-   self.core.linker:dump(
+   local tensor_size = self.core.linker:dump(
       {
          tensor      = tensor,
          filename    = filename,
@@ -393,7 +393,7 @@ function NeuFlow:writeBytecode(args)
    if next(args) ~= nil then -- called with arguments pasted in
       filepath = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
       local file = assert(torch.DiskFile(filepath,'w'):binary())
-      file:writeString(tensor:storage():string())
+      file:writeString(tensor:storage():string():sub(1, tensor_size))
       assert(file:close())
    end
 
