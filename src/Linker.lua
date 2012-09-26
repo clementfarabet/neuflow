@@ -192,9 +192,6 @@ function Linker:appendInstruction(instruction)
 end
 
 function Linker:newInstructionBytes(args)
-   if args.binary then
-      return args.binary
-   end
 
    -- parse args
    local opcode = args.opcode or oFlower.op_nop

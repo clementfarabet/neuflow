@@ -315,7 +315,7 @@ function Core:addDataPAD()
    local ii = 0
    while ii < (#self.binary-1) do
       self:addInstruction {
-         binary = {
+         bytes = {
             self.binary[ii+1],
             self.binary[ii+2],
             self.binary[ii+3],
