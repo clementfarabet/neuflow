@@ -49,8 +49,8 @@ function Memory:__init(args)
    self.buff_prev_layer_h = 0
 
    -- x,y pointers
-   self.raw_data_offset_x = self.start_raw_data_x
-   self.raw_data_offset_y = self.start_raw_data_y
+   self.raw_data_offset_x = 0
+   self.raw_data_offset_y = 0
 
    self.data_offset_x = self.start_data_x
    self.data_offset_y = self.start_data_y
@@ -98,8 +98,20 @@ function Memory:allocKernel(h_, w_, data_, bias_)
    end
 
    self.raw_data[self.raw_datap] = {
-      x        = self.raw_data_offset_x,
-      y        = self.raw_data_offset_y,
+      x = {
+         offset = self.raw_data_offset_x,
+         calc = function(self, mem)
+            return mem.start_raw_data_x + self.offset
+         end
+      },
+
+      y = {
+         offset = self.raw_data_offset_y,
+         calc = function(self, mem)
+            return mem.start_raw_data_y + self.offset
+         end
+      },
+
       w        = data_:size(1)*data_:size(2) + bias_:size(1),
       h        = 1,
       orig_w   = orig_w_,

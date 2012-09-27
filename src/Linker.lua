@@ -135,12 +135,12 @@ function Linker:resolveGotos()
    end
 end
 
-function Linker:resolveMemSegments()
+function Linker:resolveMemSegments(mem)
    local node = self.instruction_list.start_node
 
    while node do
       if node.mem_offset ~= nil then
-         self:rewriteARG32(node.bytes, node.mem_offset)
+         self:rewriteARG32(node.bytes, node.mem_offset:calc(mem))
       end
 
       node = node.next
@@ -313,7 +313,7 @@ function Linker:dump(info, mem)
    self:linkGotos()
    self:alignProcessWithPages()
    self:resolveGotos()
-   self:resolveMemSegments()
+   self:resolveMemSegments(mem)
    local instr = self:genBytecode()
 
    -- optional disassemble
@@ -357,12 +357,19 @@ function Linker:dump_RawData(info, tensor, mem)
 
    for i=1,(mem.raw_datap-1) do
       mem_entry = mem.raw_data[i]
-      self.logfile:write(
-         string.format("#%d, offset_x = %d, offset_y = %d\n", i, mem_entry.x,mem_entry.y)
-      )
 
       -- set offset in file
-      self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
+      if ('number' == type(mem_entry.y)) then
+         self.logfile:write(
+            string.format("#%d, offset_x = %d, offset_y = %d\n", i, mem_entry.x, mem_entry.y)
+         )
+         self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
+      else
+         self.logfile:write(
+            string.format("#%d, offset_x = %d, offset_y = %d\n", i, mem_entry.x:calc(mem), mem_entry.y:calc(mem))
+         )
+         self.counter_bytes = mem_entry.y:calc(mem) * streamer.stride_b + mem_entry.x:calc(mem) * streamer.word_b
+      end
 
       if (mem_entry.bias ~= nil) then
          self.logfile:write("Bias:\n")

@@ -629,8 +629,7 @@ function Core:openPortRd(port, data)
    -- Stream image out
    self:activateStreamerPort(port, 'read', data)
    self.logfile:write("^^^^Core:openPortRd:\n")
-   self.logfile:write(string.format("y = %d, x = %d, h = %d, w = %d\n",
-                                data.y, data.x, data.h, data.w ))
+   self.logfile:write(string.format("y = ?, x = ?, h = %d, w = %d\n", data.h, data.w ))
 end
 
 function Core:openPortRdNoSync(port, data)
@@ -1635,27 +1634,27 @@ end
 
 function Core:send_coordinates(offset_x, offset_y, length_x, length_y, mode)
 
---   if ('number' == type(offset_x)) then
---      self:pushConfig(blast_bus.content_config, offset_x)
---   else
+   if ('number' == type(offset_x)) then
+      self:pushConfig(blast_bus.content_config, offset_x)
+   else
       self:addInstruction {
          mem_offset = offset_x,
          opcode = oFlower.op_writeConfig,
          arg8_1 = blast_bus.content_config,
          --arg32_1 = offset_x
       }
---   end
+   end
 
---   if ('number' == type(offset_y)) then
---      self:pushConfig(blast_bus.content_config, offset_y)
---   else
+   if ('number' == type(offset_y)) then
+      self:pushConfig(blast_bus.content_config, offset_y)
+   else
       self:addInstruction {
          mem_offset = offset_y,
          opcode = oFlower.op_writeConfig,
          arg8_1 = blast_bus.content_config,
          --arg32_1 = offset_y
       }
---   end
+   end
 
    self:pushConfig(blast_bus.content_config, length_x)
    self:pushConfig(blast_bus.content_config, length_y)
