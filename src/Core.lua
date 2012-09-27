@@ -742,7 +742,7 @@ function Core:configureStreamer(offset, length, stride, ports)
 
       -- Coordinates (useless now, but to get the port idle)
       self:send_selectModule(blast_bus.area_streamer, blast_bus.addr_mem_streamer_0 + ports[i], 2)
-      self:send_coordinates(0, 0, 0, 0)
+      self:send_coordinates(0, 0, 0, 0, 'write')
 
       -- Make sure it is configured
       self:getStatus(blast_bus.status_idle)
@@ -1634,8 +1634,29 @@ function Core:send_timeout(timeout)
 end
 
 function Core:send_coordinates(offset_x, offset_y, length_x, length_y, mode)
-   self:pushConfig(blast_bus.content_config, offset_x)
-   self:pushConfig(blast_bus.content_config, offset_y)
+
+--   if ('number' == type(offset_x)) then
+--      self:pushConfig(blast_bus.content_config, offset_x)
+--   else
+      self:addInstruction {
+         mem_offset = offset_x,
+         opcode = oFlower.op_writeConfig,
+         arg8_1 = blast_bus.content_config,
+         --arg32_1 = offset_x
+      }
+--   end
+
+--   if ('number' == type(offset_y)) then
+--      self:pushConfig(blast_bus.content_config, offset_y)
+--   else
+      self:addInstruction {
+         mem_offset = offset_y,
+         opcode = oFlower.op_writeConfig,
+         arg8_1 = blast_bus.content_config,
+         --arg32_1 = offset_y
+      }
+--   end
+
    self:pushConfig(blast_bus.content_config, length_x)
    self:pushConfig(blast_bus.content_config, length_y)
    if mode == 'read' then

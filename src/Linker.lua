@@ -135,6 +135,18 @@ function Linker:resolveGotos()
    end
 end
 
+function Linker:resolveMemSegments()
+   local node = self.instruction_list.start_node
+
+   while node do
+      if node.mem_offset ~= nil then
+         self:rewriteARG32(node.bytes, node.mem_offset)
+      end
+
+      node = node.next
+   end
+end
+
 function Linker:genBytecode()
    local node = self.instruction_list.start_node
    local instruction_output = {}
@@ -301,6 +313,7 @@ function Linker:dump(info, mem)
    self:linkGotos()
    self:alignProcessWithPages()
    self:resolveGotos()
+   self:resolveMemSegments()
    local instr = self:genBytecode()
 
    -- optional disassemble
