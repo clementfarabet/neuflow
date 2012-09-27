@@ -20,8 +20,8 @@ function Memory:__init(args)
 
    -- the raw data segment
    self.raw_data = {}
-   -- the data segment
 
+   -- the data segment
    self.data = {}
 
    -- the garbage buffer (heap)
@@ -33,19 +33,19 @@ function Memory:__init(args)
    self.buffp = 1
 
    -- parse args
-   linker.offset_kernel = args.kernel_offset or linker.offset_kernel
-   linker.offset_image = args.image_offset or linker.offset_image
-   linker.offset_heap = args.heap_offset or linker.offset_heap
+   memory.offset_kernel = args.kernel_offset or memory.offset_kernel
+   memory.offset_image = args.image_offset or memory.offset_image
+   memory.offset_heap = args.heap_offset or memory.offset_heap
 
    -- initial offsets
    self.start_raw_data_x = 0
-   self.start_raw_data_y = linker.offset_kernel / streamer.stride_b
+   self.start_raw_data_y = memory.offset_kernel / streamer.stride_b
 
    self.start_data_x = 0
-   self.start_data_y = linker.offset_image / streamer.stride_b
+   self.start_data_y = memory.offset_image / streamer.stride_b
 
    self.start_buff_x = 0
-   self.start_buff_y = linker.offset_heap / streamer.stride_b
+   self.start_buff_y = memory.offset_heap / streamer.stride_b
    self.buff_prev_layer_h = 0
 
    -- x,y pointers
