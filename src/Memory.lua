@@ -52,11 +52,11 @@ function Memory:__init(args)
    self.raw_data_offset_x = 0
    self.raw_data_offset_y = 0
 
-   self.data_offset_x = self.start_data_x
-   self.data_offset_y = self.start_data_y
+   self.data_offset_x = 0
+   self.data_offset_y = 0
 
-   self.buff_offset_x = self.start_buff_x
-   self.buff_offset_y = self.start_buff_y
+   self.buff_offset_x = 0
+   self.buff_offset_y = 0
    self.buff_prev_layer_h = 0
 
 
@@ -184,8 +184,20 @@ function Memory:allocRawData(h_, w_, data_)
    end
 
    self.raw_data[self.raw_datap] = {
-      x = self.raw_data_offset_x,
-      y = self.raw_data_offset_y,
+      x = {
+         offset = self.raw_data_offset_x,
+         calc = function(self, mem)
+            return mem.start_raw_data_x + self.offset
+         end
+      },
+
+      y = {
+         offset = self.raw_data_offset_y,
+         calc = function(self, mem)
+            return mem.start_raw_data_y + self.offset
+         end
+      },
+
       w = data_:size(1)*data_:size(2),
       h = 1,
       orig_h = orig_h_,
@@ -236,8 +248,20 @@ function Memory:allocImageData(h_, w_, data_)
    end
 
    self.data[self.datap] = {
-      x        = self.data_offset_x,
-      y        = self.data_offset_y,
+      x = {
+         offset = self.data_offset_x,
+         calc = function(self, mem)
+            return mem.start_data_x + self.offset
+         end
+      },
+
+      y = {
+         offset = self.data_offset_y,
+         calc = function(self, mem)
+            return mem.start_data_y + self.offset
+         end
+      },
+
       w        = w_,
       h        = h_,
       orig_w   = w_,
@@ -287,13 +311,25 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
    -- check if there is space in the mem if not start overwriting first layers
    if (self.buff_offset_y + h_) > memory.size_r then
       print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
-      self.buff_offset_y = self.start_buff_y
-      self.buff_offset_x = self.start_buff_x
+      self.buff_offset_y = 0
+      self.buff_offset_x = 0
    end
 
    self.buff[self.buffp] = {
-      x        = self.buff_offset_x,
-      y        = self.buff_offset_y,
+      x = {
+         offset = self.buff_offset_x,
+         calc = function(self, mem)
+            return mem.start_buff_x + self.offset
+         end
+      },
+
+      y = {
+         offset = self.buff_offset_y,
+         calc = function(self, mem)
+            return mem.start_buff_y + self.offset
+         end
+      },
+
       w        = w_,
       h        = h_,
       orig_w   = w_,
@@ -333,14 +369,26 @@ function Memory:allocOnTheHeap(h_, w_, data_)
    -- check if there is space in the mem if not start overwriting first layers
    if (self.buff_offset_y + 1) > memory.size_r then
       print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
-      self.buff_offset_y = self.start_buff_y
-      self.buff_offset_x = self.start_buff_x
+      self.buff_offset_y = 0
+      self.buff_offset_x = 0
    end
 
    -- the pointers for this entry are ready just palce the item in the memory
    self.buff[self.buffp] = {
-      x        = self.buff_offset_x,
-      y        = self.buff_offset_y,
+      x = {
+         offset = self.buff_offset_x,
+         calc = function(self, mem)
+            return mem.start_buff_x + self.offset
+         end
+      },
+
+      y = {
+         offset = self.buff_offset_y,
+         calc = function(self, mem)
+            return mem.start_buff_y + self.offset
+         end
+      },
+
       w        = w_*h_,
       h        = 1,
       orig_w   = w_,
