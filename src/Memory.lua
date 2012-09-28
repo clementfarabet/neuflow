@@ -46,7 +46,6 @@ function Memory:__init(args)
 
    self.start_buff_x = 0
    self.start_buff_y = memory.offset_heap / streamer.stride_b
-   self.buff_prev_layer_h = 0
 
    -- x,y pointers
    self.raw_data_offset_x = 0
