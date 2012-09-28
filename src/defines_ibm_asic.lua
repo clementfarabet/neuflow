@@ -249,10 +249,7 @@ do
    memory.bandwidth_b = memory.bandwidth_ / 8
    memory.bandwidth_w = memory.bandwidth_b / streamer.word_b
 
-   memory.offset_text   =  0
-   memory.offset_kernel =  1*MB
-   memory.offset_image  =  1*MB + memory.offset_kernel
-   memory.offset_heap   =  1*MB + memory.offset_image
+   memory.offset_text = 0
 end
 
 

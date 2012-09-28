@@ -32,20 +32,15 @@ function Memory:__init(args)
    self.datap = 1
    self.buffp = 1
 
-   -- parse args
-   memory.offset_kernel = args.kernel_offset or memory.offset_kernel
-   memory.offset_image = args.image_offset or memory.offset_image
-   memory.offset_heap = args.heap_offset or memory.offset_heap
-
    -- initial offsets
    self.start_raw_data_x = 0
-   self.start_raw_data_y = memory.offset_kernel / streamer.stride_b
+   self.start_raw_data_y = 0
 
    self.start_data_x = 0
-   self.start_data_y = memory.offset_image / streamer.stride_b
+   self.start_data_y = 0
 
    self.start_buff_x = 0
-   self.start_buff_y = memory.offset_heap / streamer.stride_b
+   self.start_buff_y = 0
 
    -- x,y pointers
    self.raw_data_offset_x = 0
@@ -58,15 +53,9 @@ function Memory:__init(args)
    self.buff_offset_y = 0
    self.buff_prev_layer_h = 0
 
-
    -- we want to keep this value for the
    -- final report sizes to be accurate
    self.last_align = 0
-
-   -- segment indicators
-   self.seg_raw_data = 0
-   self.seg_data = 1
-   self.seg_buff = 2
 end
 
 function Memory:allocKernel(h_, w_, data_, bias_)

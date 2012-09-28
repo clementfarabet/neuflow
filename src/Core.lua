@@ -29,9 +29,6 @@ function Core:__init(args)
    self.logfile = args.logfile
 
    self.offset_code = args.offset_code
-   self.offset_data_1D = args.offset_data_1D
-   self.offset_data_2D = args.offset_data_2D
-   self.offset_heap = args.offset_heap
 
    self.disassemble = args.disassemble
 
@@ -60,10 +57,7 @@ function Core:__init(args)
 
    -- memory manager
    self.mem = neuflow.Memory {
-      logfile       =  self.logfile,
-      kernel_offset =  self.offset_data_1D,
-      image_offset  =  self.offset_data_2D,
-      heap_offset   =  self.offset_heap
+      logfile = self.logfile,
    }
 
    -- sys reg allocator

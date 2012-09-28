@@ -24,10 +24,6 @@ function NeuFlow:__init(args)
 
    -- default offsets, for conveniency
    args.offset_code = args.offset_code or bootloader.entry_point_b
-   args.offset_data_1D = args.offset_data_1D or bootloader.entry_point_b + 16*MB
-   args.offset_data_2D = args.offset_data_2D or bootloader.entry_point_b + 22*MB
-   args.offset_heap = args.offset_heap or bootloader.entry_point_b + 24*MB
-
    -- in simul, bypass header
    if self.mode == 'simulation' then
       args.offset_code = 0
