@@ -215,23 +215,20 @@ function NeuFlow:allocData(tensor)
          if tensor[i]:nDimension() ~= 2 then
             xlua.error('only supports list of 2D tensors','NeuFlow.allocHeap')
          end
-         local idx = self.core.mem:allocImageData(tensor[i]:size(1), tensor[i]:size(2),
+         local segment = self.core.mem:allocImageData(tensor[i]:size(1), tensor[i]:size(2),
                                                   tensor[i])
-         self.core.mem.data[idx].id = idx
-         table.insert(alloc_list, self.core.mem.data[idx])
+         table.insert(alloc_list, segment)
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local idx = self.core.mem:allocImageData(tensor:size(1), tensor:size(2), tensor)
-         self.core.mem.data[idx].id = idx
-         table.insert(alloc_list, self.core.mem.data[idx])
+         local segment = self.core.mem:allocImageData(tensor:size(1), tensor:size(2), tensor)
+         table.insert(alloc_list, segment)
       elseif dims == 3 then
          for i = 1,tensor:size(1) do
-            local idx = self.core.mem:allocImageData(tensor:size(2), tensor:size(3),
+            local segment = self.core.mem:allocImageData(tensor:size(2), tensor:size(3),
                                                      tensor[i])
-            self.core.mem.data[idx].id = idx
-            table.insert(alloc_list, self.core.mem.data[idx])
+            table.insert(alloc_list, segment)
          end
       else
          error('tensors must have 2 or 3 dimensions')

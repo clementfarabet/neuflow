@@ -281,7 +281,7 @@ function Memory:allocImageData(h_, w_, data_)
          self.data_offset_x = 0
       end
    end
-   return self.datap - 1
+   return self.data[(self.datap - 1)]
 end
 
 function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
