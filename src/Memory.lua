@@ -27,11 +27,6 @@ function Memory:__init(args)
    -- the garbage buffer (heap)
    self.buff = {}
 
-   -- id pointers
-   self.raw_datap = 1
-   self.datap = 1
-   self.buffp = 1
-
    -- initial offsets
    self.start_raw_data_x = 0
    self.start_raw_data_y = 0
@@ -85,7 +80,7 @@ function Memory:allocKernel(h_, w_, data_, bias_)
       self.raw_data_offset_y = self.raw_data_offset_y + 1
    end
 
-   self.raw_data[self.raw_datap] = {
+   self.raw_data[ #self.raw_data+1 ] = {
       x = {
          offset = self.raw_data_offset_x,
          calc = function(self, mem)
@@ -111,11 +106,11 @@ function Memory:allocKernel(h_, w_, data_, bias_)
    -- log the information
    self.logfile:write(
       string.format("kernel id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         self.raw_datap,
+         #self.raw_data,
          self.raw_data_offset_x,
          self.raw_data_offset_y,
-         self.raw_data[self.raw_datap].w,
-         self.raw_data[self.raw_datap].h)
+         self.raw_data[ #self.raw_data ].w,
+         self.raw_data[ #self.raw_data ].h)
    )
 
    for i=1,h_ do
@@ -124,8 +119,6 @@ function Memory:allocKernel(h_, w_, data_, bias_)
       end
       self.logfile:write("\n")
    end
-   -- update pointers
-   self.raw_datap = self.raw_datap + 1
    self.raw_data_offset_x = self.raw_data_offset_x + w_*h_ + bias_:size(1)
    -- check allignment
    if (self.raw_data_offset_x % streamer.align_w) ~= 0 then
@@ -139,7 +132,7 @@ function Memory:allocKernel(h_, w_, data_, bias_)
          self.last_align = 0
       end
    end
-   return self.raw_data[(self.raw_datap - 1)]
+   return self.raw_data[ #self.raw_data ]
 end
 
 function Memory:allocRawData(h_, w_, data_)
@@ -171,7 +164,7 @@ function Memory:allocRawData(h_, w_, data_)
        self.raw_data_offset_y = self.raw_data_offset_y + 1
    end
 
-   self.raw_data[self.raw_datap] = {
+   self.raw_data[ #self.raw_data+1 ] = {
       x = {
          offset = self.raw_data_offset_x,
          calc = function(self, mem)
@@ -196,11 +189,11 @@ function Memory:allocRawData(h_, w_, data_)
    -- log the information
    self.logfile:write(
       string.format("kernel id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         self.raw_datap,
+         #self.raw_data,
          self.raw_data_offset_x,
          self.raw_data_offset_y,
-         self.raw_data[self.raw_datap].w,
-         self.raw_data[self.raw_datap].h)
+         self.raw_data[ #self.raw_data ].w,
+         self.raw_data[ #self.raw_data ].h)
    )
 
    for i=1,h_ do
@@ -209,8 +202,6 @@ function Memory:allocRawData(h_, w_, data_)
       end
       self.logfile:write("\n")
    end
-   -- update pointers
-   self.raw_datap = self.raw_datap + 1
    self.raw_data_offset_x = self.raw_data_offset_x + w_*h_
    -- check allignment
    if (self.raw_data_offset_x % streamer.align_w) ~= 0 then
@@ -224,7 +215,7 @@ function Memory:allocRawData(h_, w_, data_)
          self.last_align = 0
       end
    end
-   return self.raw_data[(self.raw_datap - 1)]
+   return self.raw_data[ #self.raw_data ]
 end
 
 function Memory:allocImageData(h_, w_, data_)
@@ -235,7 +226,7 @@ function Memory:allocImageData(h_, w_, data_)
       self.data_offset_y = self.data_offset_y + h_
    end
 
-   self.data[self.datap] = {
+   self.data[ #self.data+1 ] = {
       x = {
          offset = self.data_offset_x,
          calc = function(self, mem)
@@ -260,15 +251,13 @@ function Memory:allocImageData(h_, w_, data_)
    -- log the information
    self.logfile:write(
       string.format("image id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         self.datap,
+         #self.data,
          self.data_offset_x,
          self.data_offset_y,
          w_,
          h_)
    )
 
-   -- update pointers
-   self.datap = self.datap + 1
    self.data_offset_x = self.data_offset_x + w_
    -- if we also assume that the width of the data cannot exceed the line,
    -- we don't need to check if we steped out of the line here
@@ -281,7 +270,7 @@ function Memory:allocImageData(h_, w_, data_)
          self.data_offset_x = 0
       end
    end
-   return self.data[(self.datap - 1)]
+   return self.data[ #self.data ]
 end
 
 function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
@@ -303,7 +292,7 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
       self.buff_offset_x = 0
    end
 
-   self.buff[self.buffp] = {
+   self.buff[ #self.buff+1 ] = {
       x = {
          offset = self.buff_offset_x,
          calc = function(self, mem)
@@ -328,15 +317,13 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
    -- log the information
    self.logfile:write(
       string.format("heap id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         self.buffp,
+         #self.buff,
          self.buff_offset_x,
          self.buff_offset_y,
          w_,
          h_)
    )
 
-   -- update pointers
-   self.buffp = self.buffp + 1
    self.buff_offset_x = self.buff_offset_x + w_
    -- we also assume that the width of the data cannot exceed the line,
    -- we don't need to check if we steped out of the line here
@@ -349,7 +336,7 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
          self.buff_offset_x = 0
       end
    end
-   return self.buff[(self.buffp - 1)]
+   return self.buff[#self.buff]
 end
 
 function Memory:allocOnTheHeap(h_, w_, data_)
@@ -361,7 +348,7 @@ function Memory:allocOnTheHeap(h_, w_, data_)
    end
 
    -- the pointers for this entry are ready just palce the item in the memory
-   self.buff[self.buffp] = {
+   self.buff[ #self.buff+1 ] = {
       x = {
          offset = self.buff_offset_x,
          calc = function(self, mem)
@@ -386,15 +373,12 @@ function Memory:allocOnTheHeap(h_, w_, data_)
    -- log the information
    self.logfile:write(
       string.format("heap_1D id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         self.buffp,
+         #self.buff,
          self.buff_offset_x,
          self.buff_offset_y,
          w_,
          h_)
    )
-
-   -- update pointers (for the next entry)
-   self.buffp = self.buffp + 1
 
    local length = w_*h_
    local num_of_lines = math.floor(length / streamer.stride_w)
@@ -429,7 +413,7 @@ function Memory:allocOnTheHeap(h_, w_, data_)
    end
    --DEBUG
    --print('after alignment offset: x = '.. self.buff_offset_x.. ' y = '..self.buff_offset_y)
-   return self.buff[(self.buffp - 1)]
+   return self.buff[#self.buff]
 end
 
 function Memory:printHeap()

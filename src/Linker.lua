@@ -359,7 +359,7 @@ function Linker:dump_RawData(info, tensor, mem)
    self.counter_bytes = mem.start_raw_data_y * streamer.stride_b
                       + mem.start_raw_data_x * streamer.word_b
 
-   for i=1,(mem.raw_datap-1) do
+   for i=1, #mem.raw_data do
       mem_entry = mem.raw_data[i]
 
       -- set offset in file
@@ -433,7 +433,7 @@ function Linker:dump_ImageData(info, tensor, mem)
    )
 
    for r=1,mem_entry.h do
-      for i=1,(mem.datap-1) do
+      for i=1, #mem.data do
          mem_entry = mem.data[i]
          self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
          for c=1, mem_entry.w do
@@ -476,7 +476,7 @@ function Linker:checkCollisions(filename, instr_length, mem)
       -- take into account all the lines we wrote (the last entry's hight is enough)
       -- if not all the lines are filled till the end we are counting more than we should here,
       -- but for checking collision it's OK
-      size_data = size_data + mem.data[mem.datap - 1].h * streamer.stride_b
+      size_data = size_data + mem.data[#mem.data].h * streamer.stride_b
    end
 
    size_buff = mem.buff_offset_y * streamer.stride_b
@@ -484,7 +484,7 @@ function Linker:checkCollisions(filename, instr_length, mem)
       -- take into account all the lines we wrote (the last entry's hight is enough)
       -- if not all the lines are filled till the end we are counting more than we should here,
       -- but for checking collision it's OK
-      size_buff = size_buff + (mem.buff[mem.buffp - 1].h * streamer.stride_b)
+      size_buff = size_buff + (mem.buff[#mem.buff].h * streamer.stride_b)
    end
 
    local c = sys.COLORS
