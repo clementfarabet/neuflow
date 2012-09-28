@@ -170,39 +170,36 @@ function NeuFlow:allocDataPacked(tensor,bias)
          if tensor[i]:nDimension() ~= 2 then
             xlua.error('only supports list of 2D tensors','NeuFlow.allocHeap')
          end
-         local idx
+         local segment
          if bias then
-            idx = self.core.mem:allocKernel(tensor[i]:size(1), tensor[i]:size(2),
+            segment = self.core.mem:allocKernel(tensor[i]:size(1), tensor[i]:size(2),
                                             tensor[i], bias[i])
          else
-            idx = self.core.mem:allocRawData(tensor[i]:size(1), tensor[i]:size(2), tensor[i])
+            segment = self.core.mem:allocRawData(tensor[i]:size(1), tensor[i]:size(2), tensor[i])
          end
-         self.core.mem.raw_data[idx].id = idx
-         table.insert(alloc_list, self.core.mem.raw_data[idx])
+         table.insert(alloc_list, segment)
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local idx
+         local segment
          if bias then
-            idx = self.core.mem:allocKernel(tensor:size(1), tensor:size(2), tensor, bias)
+            segment = self.core.mem:allocKernel(tensor:size(1), tensor:size(2), tensor, bias)
          else
-            idx = self.core.mem:allocRawData(tensor:size(1), tensor:size(2), tensor)
+            segment = self.core.mem:allocRawData(tensor:size(1), tensor:size(2), tensor)
          end
-         self.core.mem.raw_data[idx].id = idx
-         table.insert(alloc_list, self.core.mem.raw_data[idx])
+         table.insert(alloc_list, segment)
       elseif dims == 3 then
          for i = 1,tensor:size(1) do
-            local idx
+            local segment
             if bias then
-               idx = self.core.mem:allocKernel(tensor:size(2), tensor:size(3),
+               segment = self.core.mem:allocKernel(tensor:size(2), tensor:size(3),
                                                tensor[i], bias:narrow(1,i,1))
             else
-               idx = self.core.mem:allocRawData(tensor:size(2), tensor:size(3),
+               segment = self.core.mem:allocRawData(tensor:size(2), tensor:size(3),
                                                 tensor[i])
             end
-            self.core.mem.raw_data[idx].id = idx
-            table.insert(alloc_list, self.core.mem.raw_data[idx])
+            table.insert(alloc_list, segment)
          end
       else
          error('tensors must have 2 or 3 dimensions')

@@ -206,10 +206,10 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
          -- allocate kernel
          local kernel = conv_module.weight[o][i]
          local bias = conv_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, kernel, bias)
+         local kernel_mem = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, kernel, bias)
 
          -- collect connections
-         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+         table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
@@ -299,13 +299,13 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = conv_module.weight[current_op]
          local bias = conv_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
+         local kernel_mem = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
                                                      kernel, bias)
 
          -- collect connections
          table.insert(input_list, self.core.mem.buff[inputs[o]])
          table.insert(output_list, self.core.mem.buff[outputs[o]])
-         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+         table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
@@ -346,12 +346,12 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                -- allocate kernel + bias
                local kernel = conv_module.weight[current_op]
                local bias = conv_module.bias:narrow(1,o,1)
-               local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
+               local kernel_mem = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
                                                            kernel, bias)
 
                -- collect connections
                table.insert(input_list, self.core.mem.buff[inputs[input_p]])
-               table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+               table.insert(kernel_list, kernel_mem)
 
                -- for info, update the number of ops
                self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
@@ -392,12 +392,12 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                -- allocate kernel + bias
                local kernel = conv_module.weight[o]
                local bias = conv_module.bias:narrow(1,o,1)
-               local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
+               local kernel_mem = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
                                                            kernel, bias)
 
                -- collect connections
                table.insert(output_list, self.core.mem.buff[id_output])
-               table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+               table.insert(kernel_list, kernel_mem)
 
                -- for info, update the number of ops
                self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
@@ -479,13 +479,13 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = torch.Tensor(sub_module.kW, sub_module.kH):fill(sub_module.weight[o])
          local bias = sub_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(sub_module.kH, sub_module.kW,
+         local kernel_mem = self.core.mem:allocKernel(sub_module.kH, sub_module.kW,
                                                      kernel, bias)
 
          -- collect connections
          table.insert(input_list, input)
          table.insert(output_list, self.core.mem.buff[outputs[o]])
-         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+         table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*sub_module.kW*sub_module.kH*2
@@ -566,14 +566,14 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = sub_module.modules[2].weight[o]
          local bias = sub_module.modules[2].bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(sub_module.modules[2].kH, 
+         local kernel_mem = self.core.mem:allocKernel(sub_module.modules[2].kH,
                                                      sub_module.modules[2].kW,
                                                      kernel, bias)
 
          -- collect connections
          table.insert(input_list, input)
          table.insert(output_list, self.core.mem.buff[outputs[o]])
-         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+         table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*sub_module.modules[2].kW*sub_module.modules[2].kH*2
@@ -615,8 +615,8 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    local kernel = sub_module.kernel
    local kernel_w = kernel:size(1)
    local kernel_h = kernel:size(2)
-   local id_kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
-   local id_kernel_std = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
+   local kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
+   local kernel_std = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
 
    -- alloc one intermediate map (to hold zero-mean feature map)
    local zerom_w = self.core.mem.buff[inputs[1]].orig_w
@@ -647,8 +647,8 @@ function Compiler:SpatialNormalization(sub_module, inputs)
       table.insert(input_maps, self.core.mem.buff[inputs[i]])
       table.insert(zero_maps, self.core.mem.buff[zeros[i]])
       table.insert(output_maps, self.core.mem.buff[outputs[i]])
-      table.insert(mean_kernels, self.core.mem.raw_data[id_kernel_mean])
-      table.insert(std_kernels, self.core.mem.raw_data[id_kernel_std])
+      table.insert(mean_kernels, kernel_mean)
+      table.insert(std_kernels, kernel_std)
    end
 
    -- get threshold
@@ -725,7 +725,7 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    local kernel = sub_module.kernel
    local kernel_h = kernel:size(1)
    local kernel_w = kernel:size(2)
-   local id_kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
+   local kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
 
    -- alloc output maps
    local output_w = self.core.mem.buff[inputs[1]].orig_w
@@ -744,7 +744,7 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    for i = 1,sub_module.nInputPlane do
       table.insert(input_maps, self.core.mem.buff[inputs[i]])
       table.insert(output_maps, self.core.mem.buff[outputs[i]])
-      table.insert(mean_kernels, self.core.mem.raw_data[id_kernel_mean])
+      table.insert(mean_kernels, kernel_mean)
    end
 
    -- get coefs for mapping
@@ -934,7 +934,7 @@ function Compiler:SpatialLinear(linear_module, inputs)
          -- allocate kernel
          local kernel = torch.Tensor(1, 1):fill(linear_module.weight[o][i])
          local bias = linear_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(1, 1, kernel, bias)
+         local kernel_mem = self.core.mem:allocKernel(1, 1, kernel, bias)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*3
@@ -942,12 +942,12 @@ function Compiler:SpatialLinear(linear_module, inputs)
          -- generate code for convolution
          if (i == 1) then
             self.core:convolve(self.core.mem.buff[inputs[i]],
-                               self.core.mem.raw_data[id_kernel],
+                               kernel_mem,
                                self.core.mem.buff[id_output],
                                {bias = 'on'})
          else
             self.core:convolveAndAcc(self.core.mem.buff[inputs[i]],
-                                     self.core.mem.raw_data[id_kernel],
+                                     kernel_mem,
                                      self.core.mem.buff[outputs[o]],
                                      self.core.mem.buff[outputs[o]])
             -- nb of ops

@@ -139,7 +139,7 @@ function Memory:allocKernel(h_, w_, data_, bias_)
          self.last_align = 0
       end
    end
-   return self.raw_datap - 1
+   return self.raw_data[(self.raw_datap - 1)]
 end
 
 function Memory:allocRawData(h_, w_, data_)
@@ -224,7 +224,7 @@ function Memory:allocRawData(h_, w_, data_)
          self.last_align = 0
       end
    end
-   return self.raw_datap - 1
+   return self.raw_data[(self.raw_datap - 1)]
 end
 
 function Memory:allocImageData(h_, w_, data_)
