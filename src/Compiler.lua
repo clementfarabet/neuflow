@@ -180,13 +180,13 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
 
    -- store inputs
    for i = 1,conv_module.nInputPlane do
-      table.insert(input_list, self.core.mem.buff[inputs[i]])
+      table.insert(input_list, inputs[i])
    end
 
    -- parse connections
    for o = 1,conv_module.nOutputPlane do
       -- allocate output
-      local item = self.core.mem.buff[inputs[1]]
+      local item = inputs[1]
       local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
       local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
       if output_height ~= math.floor(output_height) then
@@ -194,12 +194,11 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
                .. item.orig_h .. ', sub_h=' ..
                conv_module.kH .. ', out_h=' .. output_height)
       end
-      local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-      outputs[o] = id_output
+      outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
       new_layer = false
 
       -- store output
-      table.insert(output_list, self.core.mem.buff[outputs[o]])
+      table.insert(output_list, outputs[o])
 
       -- store kernels
       for i = 1,conv_module.nInputPlane do
@@ -286,15 +285,14 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
 
       for o = 1,conv_module.nOutputPlane do
          -- allocate output
-         local item = self.core.mem.buff[inputs[1]]
+         local item = inputs[1]
          local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
          local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
          if output_height ~= math.floor(output_height) then
             error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                   conv_module.kH .. ', out_h=' .. output_height)
          end
-         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         outputs[o] = id_output
+         outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
 
          -- allocate kernel + bias
          local kernel = conv_module.weight[current_op]
@@ -303,8 +301,8 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                                                      kernel, bias)
 
          -- collect connections
-         table.insert(input_list, self.core.mem.buff[inputs[o]])
-         table.insert(output_list, self.core.mem.buff[outputs[o]])
+         table.insert(input_list, inputs[o])
+         table.insert(output_list, outputs[o])
          table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
@@ -321,21 +319,20 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
    elseif output_reuse then
       for o = 1,conv_module.nOutputPlane do
          -- allocate output
-         local item = self.core.mem.buff[inputs[1]]
+         local item = inputs[1]
          local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
          local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
          if output_height ~= math.floor(output_height) then
             error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                   conv_module.kH .. ', out_h=' .. output_height)
          end
-         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         outputs[o] = id_output
+         outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
          new_layer = false
          new_output = true
 
          local input_list = {}
          local kernel_list = {}
-         local output_list = {self.core.mem.buff[id_output]}
+         local output_list = {outputs[o]}
 
          -- find all inputs
          for i = 1,conv_module.connTable:size(1) do
@@ -350,7 +347,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                                                            kernel, bias)
 
                -- collect connections
-               table.insert(input_list, self.core.mem.buff[inputs[input_p]])
+               table.insert(input_list, inputs[input_p])
                table.insert(kernel_list, kernel_mem)
 
                -- for info, update the number of ops
@@ -369,7 +366,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
    else -- input reuse
       for i = 1,conv_module.nInputPlane do
          -- lists of outputs/kernels
-         local input_list = {self.core.mem.buff[inputs[i]]}
+         local input_list = {inputs[i]}
          local kernel_list = {}
          local output_list = {}
 
@@ -378,16 +375,15 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
             local o = conv_module.connTable[oidx][2]
             if (i == conv_module.connTable[o][1]) then
                -- allocate output
-               local item = self.core.mem.buff[inputs[1]]
+               local item = inputs[1]
                local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
                local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
                if output_height ~= math.floor(output_height) then
                   error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                         conv_module.kH .. ', out_h=' .. output_height)
                end
-               local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {},
+               outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {},
                                                               new_layer)
-               outputs[o] = id_output
 
                -- allocate kernel + bias
                local kernel = conv_module.weight[o]
@@ -396,7 +392,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                                                            kernel, bias)
 
                -- collect connections
-               table.insert(output_list, self.core.mem.buff[id_output])
+               table.insert(output_list, output[o])
                table.insert(kernel_list, kernel_mem)
 
                -- for info, update the number of ops
@@ -458,7 +454,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
       for o = 1,sub_module.nInputPlane do
          -- allocate output
-         local input = self.core.mem.buff[inputs[o]]
+         local input = inputs[o]
          local output_width = math.floor( (input.orig_w-sub_module.kW)/sub_module.dW + 1)
          local output_height = (input.orig_h-sub_module.kH)/sub_module.dH + 1
          if output_height ~= math.floor(output_height) then
@@ -473,8 +469,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
             newinput.w = newinput.orig_w * newinput.orig_h
             input = newinput
          end
-         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         outputs[o] = id_output
+         outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
 
          -- allocate kernel + bias
          local kernel = torch.Tensor(sub_module.kW, sub_module.kH):fill(sub_module.weight[o])
@@ -484,7 +479,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
          -- collect connections
          table.insert(input_list, input)
-         table.insert(output_list, self.core.mem.buff[outputs[o]])
+         table.insert(output_list, outputs[o])
          table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
@@ -545,7 +540,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
 
       for o = 1,sub_module.nInputPlane do
          -- allocate output
-         local input = self.core.mem.buff[inputs[o]]
+         local input = inputs[o]
          local output_width = math.floor( (input.orig_w-sub_module.modules[2].kW)/sub_module.modules[2].dW + 1)
          local output_height = (input.orig_h-sub_module.modules[2].kH)/sub_module.modules[2].dH + 1
          if output_height ~= math.floor(output_height) then
@@ -560,8 +555,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
             newinput.w = newinput.orig_w * newinput.orig_h
             input = newinput
          end
-         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         outputs[o] = id_output
+         outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
 
          -- allocate kernel + bias
          local kernel = sub_module.modules[2].weight[o]
@@ -572,7 +566,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
 
          -- collect connections
          table.insert(input_list, input)
-         table.insert(output_list, self.core.mem.buff[outputs[o]])
+         table.insert(output_list, outputs[o])
          table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
@@ -619,8 +613,8 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    local kernel_std = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
 
    -- alloc one intermediate map (to hold zero-mean feature map)
-   local zerom_w = self.core.mem.buff[inputs[1]].orig_w
-   local zerom_h = self.core.mem.buff[inputs[1]].orig_h
+   local zerom_w = inputs[1].orig_w
+   local zerom_h = inputs[1].orig_h
    local zeros = {}
    local new_layer = true
    for i = 1,sub_module.nfeatures do
@@ -631,8 +625,8 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    -- alloc all output maps
    local outputs = {}
    local new_layer = true
-   local output_w = self.core.mem.buff[inputs[1]].orig_w
-   local output_h = self.core.mem.buff[inputs[1]].orig_h
+   local output_w = inputs[1].orig_w
+   local output_h = inputs[1].orig_h
    for i = 1,sub_module.nfeatures do
       outputs[i] = self.core.mem:allocOnTheHeap(output_h, output_w, {}, new_layer)
    end
@@ -644,9 +638,9 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    local mean_kernels = {}
    local std_kernels = {}
    for i = 1,sub_module.nfeatures do
-      table.insert(input_maps, self.core.mem.buff[inputs[i]])
-      table.insert(zero_maps, self.core.mem.buff[zeros[i]])
-      table.insert(output_maps, self.core.mem.buff[outputs[i]])
+      table.insert(input_maps, inputs[i])
+      table.insert(zero_maps, zeros[i])
+      table.insert(output_maps, outputs[i])
       table.insert(mean_kernels, kernel_mean)
       table.insert(std_kernels, kernel_std)
    end
@@ -728,8 +722,8 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    local kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
 
    -- alloc output maps
-   local output_w = self.core.mem.buff[inputs[1]].orig_w
-   local output_h = self.core.mem.buff[inputs[1]].orig_h
+   local output_w = inputs[1].orig_w
+   local output_h = inputs[1].orig_h
    local outputs = {}
    local new_layer = true
    for i = 1,sub_module.nInputPlane do
@@ -742,8 +736,8 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    local output_maps = {}
    local mean_kernels = {}
    for i = 1,sub_module.nInputPlane do
-      table.insert(input_maps, self.core.mem.buff[inputs[i]])
-      table.insert(output_maps, self.core.mem.buff[outputs[i]])
+      table.insert(input_maps, inputs[i])
+      table.insert(output_maps, outputs[i])
       table.insert(mean_kernels, kernel_mean)
    end
 
@@ -923,11 +917,10 @@ function Compiler:SpatialLinear(linear_module, inputs)
 
    for o = 1,linear_module.fanout do
       -- allocate output
-      local item = self.core.mem.buff[inputs[1]]
+      local item = inputs[1]
       local output_width = item.orig_w
       local output_height = item.orig_h
-      local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-      outputs[o] = id_output
+      outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
       new_layer = false
 
       for i = 1,linear_module.fanin do
@@ -941,15 +934,15 @@ function Compiler:SpatialLinear(linear_module, inputs)
 
          -- generate code for convolution
          if (i == 1) then
-            self.core:convolve(self.core.mem.buff[inputs[i]],
+            self.core:convolve(inputs[i],
                                kernel_mem,
-                               self.core.mem.buff[id_output],
+                               outputs[o],
                                {bias = 'on'})
          else
-            self.core:convolveAndAcc(self.core.mem.buff[inputs[i]],
+            self.core:convolveAndAcc(inputs[i],
                                      kernel_mem,
-                                     self.core.mem.buff[outputs[o]],
-                                     self.core.mem.buff[outputs[o]])
+                                     outputs[o],
+                                     outputs[o])
             -- nb of ops
             self.ops = self.ops + output_width*output_height
          end
@@ -1037,9 +1030,8 @@ function Compiler:Mapping(module, inputs, type)
 
    -- generate code
    for i = 1,#inputs do
-      local id_output = self.core.mem:allocOnTheHeap(self.core.mem.buff[inputs[i]].orig_h,
-                                                     self.core.mem.buff[inputs[i]].orig_w , {}, false)
-      self.core:mapping(self.core.mem.buff[inputs[i]], self.core.mem.buff[id_output], coefs)
+      outputs[i] = self.core.mem:allocOnTheHeap(inputs[i].orig_h, inputs[i].orig_w , {}, false)
+      self.core:mapping(inputs[i], outputs[i], coefs)
 
       -- optional time
       if (self.msg_level == 'detailled') then
@@ -1047,10 +1039,9 @@ function Compiler:Mapping(module, inputs, type)
          self.core:messagebody('.')
          self.core:endProcess()
       end
-      outputs[i] = id_output
 
       -- for info (16 is approx here, it's hard to say what a mapping takes)
-      self.ops = self.ops + self.core.mem.buff[inputs[i]].orig_h*self.core.mem.buff[inputs[i]].orig_w*16
+      self.ops = self.ops + inputs[i].orig_h*inputs[i].orig_w*16
    end
    return outputs
 end
@@ -1070,13 +1061,10 @@ function Compiler:CCSub(module, inputs)
    end
 
    -- alloc output
-   outputs[1] = self.core.mem:allocOnTheHeap(self.core.mem.buff[inputs[1]].orig_h,
-                                             self.core.mem.buff[inputs[1]].orig_w , {}, false)
+   outputs[1] = self.core.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w , {}, false)
 
    -- generate code
-   self.core:subtract(self.core.mem.buff[inputs[1]],
-                      self.core.mem.buff[inputs[2]],
-                      self.core.mem.buff[outputs[1]])
+   self.core:subtract(inputs[1], inputs[2], outputs[1])
 
    -- optional time
    if (self.msg_level == 'detailled') then
@@ -1086,7 +1074,7 @@ function Compiler:CCSub(module, inputs)
    end
 
    -- for info
-   self.ops = self.ops + self.core.mem.buff[inputs[1]].orig_h*self.core.mem.buff[inputs[1]].orig_w
+   self.ops = self.ops + inputs[1].orig_h*inputs[1].orig_w
    return outputs
 end
 
@@ -1105,13 +1093,10 @@ function Compiler:CCAdd(module, inputs)
    end
 
    -- alloc output
-   outputs[1] = self.core.mem:allocOnTheHeap(self.core.mem.buff[inputs[1]].orig_h,
-                                             self.core.mem.buff[inputs[1]].orig_w , {}, false)
+   outputs[1] = self.core.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w , {}, false)
 
    -- generate code
-   self.core:add(self.core.mem.buff[inputs[1]],
-                 self.core.mem.buff[inputs[2]],
-                 self.core.mem.buff[outputs[1]])
+   self.core:add(inputs[1], inputs[2], outputs[1])
 
    -- optional time
    if (self.msg_level == 'detailled') then
@@ -1121,7 +1106,7 @@ function Compiler:CCAdd(module, inputs)
    end
 
    -- for info
-   self.ops = self.ops + self.core.mem.buff[inputs[1]].orig_h*self.core.mem.buff[inputs[1]].orig_w
+   self.ops = self.ops + inputs[1].orig_h*inputs[1].orig_w
    return outputs
 end
 

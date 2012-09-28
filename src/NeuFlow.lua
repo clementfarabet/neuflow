@@ -137,23 +137,20 @@ function NeuFlow:allocHeap(tensor)
          if tensor[i]:nDimension() ~= 2 then
             xlua.error('only supports list of 2D tensors','NeuFlow.allocHeap')
          end
-         local idx = self.core.mem:allocOnTheHeap(tensor[i]:size(1), tensor[i]:size(2), nil, first)
-         self.core.mem.buff[idx].id = idx
-         table.insert(alloc_list, self.core.mem.buff[idx])
+         local segment = self.core.mem:allocOnTheHeap(tensor[i]:size(1), tensor[i]:size(2), nil, first)
+         table.insert(alloc_list, segment)
          first = false
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local idx = self.core.mem:allocOnTheHeap(tensor:size(1), tensor:size(2), nil, true)
-         self.core.mem.buff[idx].id = idx
-         table.insert(alloc_list, self.core.mem.buff[idx])
+         local segment = self.core.mem:allocOnTheHeap(tensor:size(1), tensor:size(2), nil, true)
+         table.insert(alloc_list, segment)
       elseif dims == 3 then
          local first = true
          for i = 1,tensor:size(1) do
-            local idx = self.core.mem:allocOnTheHeap(tensor:size(2), tensor:size(3), nil, first)
-            self.core.mem.buff[idx].id = idx
-            table.insert(alloc_list, self.core.mem.buff[idx])
+            local segment = self.core.mem:allocOnTheHeap(tensor:size(2), tensor:size(3), nil, first)
+            table.insert(alloc_list, segment)
             first = false
          end
       else
@@ -323,19 +320,18 @@ end
 ----------------------------------------------------------------------
 -- wrappers for compilers
 --
-function NeuFlow:compile(network, inputs)
+function NeuFlow:compile(network, input)
    -- retrieve IDs
-   input_ids = {}
-   for i = 1,#inputs do
-      input_ids[i] = inputs[i].id
+   local inputs
+   if #input == 0 then
+      inputs = { input }
+   else
+      inputs = input
    end
-   local output_ids
-   output_ids, self.gops = self.compiler:processNetwork(network, input_ids)
-   -- return actual list of outputs
-   local outputs = {}
-   for i = 1,#output_ids do
-      outputs[i] = self.core.mem.buff[output_ids[i]]
-   end
+
+   local outputs
+   outputs, self.gops = self.compiler:processNetwork(network, inputs)
+
    return outputs
 end
 

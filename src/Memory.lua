@@ -349,9 +349,8 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
          self.buff_offset_x = 0
       end
    end
-   return self.buffp - 1
+   return self.buff[(self.buffp - 1)]
 end
-
 
 function Memory:allocOnTheHeap(h_, w_, data_)
    -- check if there is space in the mem if not start overwriting first layers
@@ -430,7 +429,7 @@ function Memory:allocOnTheHeap(h_, w_, data_)
    end
    --DEBUG
    --print('after alignment offset: x = '.. self.buff_offset_x.. ' y = '..self.buff_offset_y)
-   return self.buffp - 1
+   return self.buff[(self.buffp - 1)]
 end
 
 function Memory:printHeap()
