@@ -308,14 +308,7 @@ function Linker:dump(info, mem)
    self:alignProcessWithPages()
    local instr_nb = self:resolveGotos()
 
-   mem.start_raw_data_x = 0
-   mem.start_raw_data_y =  math.ceil(((instr_nb+1) * 8) / streamer.stride_b)
-
-   mem.start_data_x = 0
-   mem.start_data_y = mem.start_raw_data_y + mem.raw_data_offset_y + 1
-
-   mem.start_buff_x = 0
-   mem.start_buff_y = mem.start_data_y + mem.data_offset_y + 1
+   mem:adjustBytecodeSize(instr_nb*8)
 
    self:resolveMemSegments(mem)
    local instr = self:genBytecode()

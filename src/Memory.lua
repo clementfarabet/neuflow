@@ -53,6 +53,18 @@ function Memory:__init(args)
    self.last_align = 0
 end
 
+function Memory:adjustBytecodeSize(size)
+
+   self.start_raw_data_x = 0
+   self.start_raw_data_y =  math.ceil((size + 8) / streamer.stride_b)
+
+   self.start_data_x = 0
+   self.start_data_y = self.start_raw_data_y + self.raw_data_offset_y + 1
+
+   self.start_buff_x = 0
+   self.start_buff_y = self.start_data_y + self.data_offset_y + 1
+end
+
 function Memory:allocKernel(h_, w_, data_, bias_)
    orig_h_ = data_:size(1)
    orig_w_ = data_:size(2)
