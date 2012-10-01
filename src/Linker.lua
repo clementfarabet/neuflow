@@ -413,21 +413,21 @@ function Linker:dump_RawData(info, tensor, mem)
 end
 
 function Linker:dump_ImageData(info, tensor, mem)
-   if (mem.data[1] == nil) then
+   if (mem.persistent[1] == nil) then
       return
    end
    -- pad initial offset for raw data
-   self.counter_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
-   mem_entry = mem.data[1]
+   self.counter_bytes =  mem.persistent_start_y*streamer.stride_b + mem.persistent_start_x*streamer.word_b
+   mem_entry = mem.persistent[1]
 
    self.logfile:write(
       string.format("Writing images from offset: %d\n",
-         mem.start_data_y*streamer.stride_w + mem.start_data_x)
+         mem.persistent_start_y*streamer.stride_w + mem.persistent_start_x)
    )
 
    for r=1,mem_entry.h do
-      for i=1, #mem.data do
-         mem_entry = mem.data[i]
+      for i=1, #mem.persistent do
+         mem_entry = mem.persistent[i]
          self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
          for c=1, mem_entry.w do
             dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
@@ -455,8 +455,8 @@ function Linker:checkCollisions(filename, instr_length, mem)
    offset_bytes_rawData = mem.embedded_start_y * streamer.stride_b
                         + mem.embedded_start_x * streamer.word_b
 
-   offset_bytes_data = mem.start_data_y * streamer.stride_b
-                     + mem.start_data_x * streamer.word_b
+   offset_bytes_data = mem.persistent_start_y * streamer.stride_b
+                     + mem.persistent_start_x * streamer.word_b
 
    offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
                        + mem.start_buff_x * streamer.word_b
@@ -464,12 +464,12 @@ function Linker:checkCollisions(filename, instr_length, mem)
    size_embedded = mem.embedded_offset_y * streamer.stride_b
                  + (mem.embedded_offset_x - mem.last_align) * streamer.word_b
 
-   size_data = mem.data_offset_y * streamer.stride_b
-   if (mem.data_offset_x ~= 0) then -- if we did not just step a new line
+   size_data = mem.persistent_offset_y * streamer.stride_b
+   if (mem.persistent_offset_x ~= 0) then -- if we did not just step a new line
       -- take into account all the lines we wrote (the last entry's hight is enough)
       -- if not all the lines are filled till the end we are counting more than we should here,
       -- but for checking collision it's OK
-      size_data = size_data + mem.data[#mem.data].h * streamer.stride_b
+      size_data = size_data + mem.persistent[#mem.persistent].h * streamer.stride_b
    end
 
    size_buff = mem.buff_offset_y * streamer.stride_b

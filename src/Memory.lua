@@ -38,7 +38,7 @@ function Memory:__init(args)
    self.embedded = {}
 
    -- the data segment
-   self.data = {}
+   self.persistent = {}
 
    -- the garbage buffer (heap)
    self.buff = {}
@@ -47,8 +47,8 @@ function Memory:__init(args)
    self.embedded_start_x = 0
    self.embedded_start_y = 0
 
-   self.start_data_x = 0
-   self.start_data_y = 0
+   self.persistent_start_x = 0
+   self.persistent_start_y = 0
 
    self.start_buff_x = 0
    self.start_buff_y = 0
@@ -57,8 +57,8 @@ function Memory:__init(args)
    self.embedded_offset_x = 0
    self.embedded_offset_y = 0
 
-   self.data_offset_x = 0
-   self.data_offset_y = 0
+   self.persistent_offset_x = 0
+   self.persistent_offset_y = 0
 
    self.buff_offset_x = 0
    self.buff_offset_y = 0
@@ -74,11 +74,11 @@ function Memory:adjustBytecodeSize(size_in_bytes)
    self.embedded_start_x = 0
    self.embedded_start_y =  math.ceil((size_in_bytes + 1) / streamer.stride_b)
 
-   self.start_data_x = 0
-   self.start_data_y = self.embedded_start_y + self.embedded_offset_y + 1
+   self.persistent_start_x = 0
+   self.persistent_start_y = self.embedded_start_y + self.embedded_offset_y + 1
 
    self.start_buff_x = 0
-   self.start_buff_y = self.start_data_y + self.data_offset_y + 1
+   self.start_buff_y = self.persistent_start_y + self.persistent_offset_y + 1
 end
 
 function Memory:allocKernel(h_, w_, data_, bias_)
@@ -249,23 +249,23 @@ end
 function Memory:allocImageData(h_, w_, data_)
    -- we assume that all the data of the same size
    -- check if current data fits in the line
-   if (self.data_offset_x + w_) > streamer.stride_w then
-      self.data_offset_x = 0
-      self.data_offset_y = self.data_offset_y + h_
+   if (self.persistent_offset_x + w_) > streamer.stride_w then
+      self.persistent_offset_x = 0
+      self.persistent_offset_y = self.persistent_offset_y + h_
    end
 
-   self.data[ #self.data+1 ] = {
+   self.persistent[ #self.persistent+1 ] = {
       x = {
-         offset = self.data_offset_x,
+         offset = self.persistent_offset_x,
          calc = function(self, mem)
-            return mem.start_data_x + self.offset
+            return mem.persistent_start_x + self.offset
          end
       },
 
       y = {
-         offset = self.data_offset_y,
+         offset = self.persistent_offset_y,
          calc = function(self, mem)
-            return mem.start_data_y + self.offset
+            return mem.persistent_start_y + self.offset
          end
       },
 
@@ -279,26 +279,26 @@ function Memory:allocImageData(h_, w_, data_)
    -- log the information
    self.logfile:write(
       string.format("image id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.data,
-         self.data_offset_x,
-         self.data_offset_y,
+         #self.persistent,
+         self.persistent_offset_x,
+         self.persistent_offset_y,
          w_,
          h_)
    )
 
-   self.data_offset_x = self.data_offset_x + w_
+   self.persistent_offset_x = self.persistent_offset_x + w_
    -- if we also assume that the width of the data cannot exceed the line,
    -- we don't need to check if we steped out of the line here
    -- check allignment
-   if (self.data_offset_x % streamer.align_w) ~= 0 then
-      self.data_offset_x = (math.floor(self.data_offset_x/streamer.align_w) + 1)*streamer.align_w
+   if (self.persistent_offset_x % streamer.align_w) ~= 0 then
+      self.persistent_offset_x = (math.floor(self.persistent_offset_x/streamer.align_w) + 1)*streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.data_offset_x > streamer.stride_w) then
-         self.data_offset_y = self.data_offset_y + h_
-         self.data_offset_x = 0
+      if (self.persistent_offset_x > streamer.stride_w) then
+         self.persistent_offset_y = self.persistent_offset_y + h_
+         self.persistent_offset_x = 0
       end
    end
-   return self.data[ #self.data ]
+   return self.persistent[ #self.persistent ]
 end
 
 function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
