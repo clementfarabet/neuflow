@@ -34,13 +34,13 @@ function Memory:__init(args)
    -- args
    self.logfile = args.logfile or nil
 
-   -- the raw data segment
+   -- table of embedded data segments
    self.embedded = {}
 
-   -- the data segment
+   -- table of persistent data segments
    self.persistent = {}
 
-   -- the garbage buffer (heap)
+   -- table of managed data segments
    self.managed = {}
 
    -- initial offsets
