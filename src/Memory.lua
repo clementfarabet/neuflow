@@ -1,17 +1,33 @@
+--[[ Class: Memory
 
-----------------------------------------------------------------------
---- Class: Memory
---
--- This class is used to allocate memory correctly with all the constraints preserved.
--- The class contains 3 tabels with pointers to obejts stored in the memory
--- one table is for raw_data segment (kernels)
--- another is for data segment (images),
--- and another one is for garbage buffer (intermediate results, outputs).
--- The class is used only to generate offsets, the acctual data writing is done in the
--- ByteCode class.
--- Offsets are in pixels!!! when writing to file need to adjust to bytes (mult by pixel value)
--- One line has 1024 pixels = 2048 bytes = 512 integers.
---
+This class is used to allocate areas of memory in a controlled manner. It
+generate offsets and areas. If data needs to be written to the bytecode start
+up stream, that is done in the Linker class.
+
+The offsets and memory areas are represented in pixels. Conceptually the memory
+is considered to be a large rectangular matrix.
+
+The requirements for the memory that gets allocation vary but for our purposes
+they can be grouped into three broad types. As such when requesting a memory
+allocation the way that memory will be used needs to be considered and the
+correct alloc function selected. The definition of these 3 type are as follows:
+
+1) Embedded data (e.g., kernels) whose value is know at compile time and thus
+   would benefit by being written to memory when the bytecode is sent at start
+   up.
+
+2) Persistent data (e.g., circular image buffers). The contents of this memory
+   may be updated or change in time but the area addressing it does not. This
+   allocation is used when data needs to be preserved between multiples layers
+   in a conv net or between multiple runs of the program.
+
+3) Managed data (e.g., intermediate results). The contents of which only need
+   to exist to pass data between operations or layers in a program. Area
+   allocations of this type can be freed and reused in a managed fashion as the
+   need arises.
+
+--]]
+
 local Memory = torch.class('neuflow.Memory')
 
 function Memory:__init(args)
