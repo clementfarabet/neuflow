@@ -349,8 +349,8 @@ end
 function Linker:dump_RawData(info, tensor, mem)
    -- pad initial offset for raw data
    self.logfile:write("Kernels:\n")
-   self.counter_bytes = mem.embedded_start_y * streamer.stride_b
-                      + mem.embedded_start_x * streamer.word_b
+   self.counter_bytes = mem.embedded.start.y * streamer.stride_b
+                      + mem.embedded.start.x * streamer.word_b
 
    for i=1, #mem.embedded do
       mem_entry = mem.embedded[i]
@@ -417,12 +417,12 @@ function Linker:dump_ImageData(info, tensor, mem)
       return
    end
    -- pad initial offset for raw data
-   self.counter_bytes =  mem.persistent_start_y*streamer.stride_b + mem.persistent_start_x*streamer.word_b
+   self.counter_bytes =  mem.persistent.start.y*streamer.stride_b + mem.persistent.start.x*streamer.word_b
    mem_entry = mem.persistent[1]
 
    self.logfile:write(
       string.format("Writing images from offset: %d\n",
-         mem.persistent_start_y*streamer.stride_w + mem.persistent_start_x)
+         mem.persistent.start.y*streamer.stride_w + mem.persistent.start.x)
    )
 
    for r=1,mem_entry.h do
@@ -452,28 +452,28 @@ end
 
 function Linker:printMemAreaStatistics(filename, instr_length, mem)
 
-   embedded_start_b = mem.embedded_start_y * streamer.stride_b
-                    + mem.embedded_start_x * streamer.word_b
+   embedded_start_b = mem.embedded.start.y * streamer.stride_b
+                    + mem.embedded.start.x * streamer.word_b
 
-   persistent_start_b = mem.persistent_start_y * streamer.stride_b
-                      + mem.persistent_start_x * streamer.word_b
+   persistent_start_b = mem.persistent.start.y * streamer.stride_b
+                      + mem.persistent.start.x * streamer.word_b
 
-   managed_start_b = mem.menaged_start_y * streamer.stride_b
-                   + mem.menaged_start_x * streamer.word_b
+   managed_start_b = mem.managed.start.y * streamer.stride_b
+                   + mem.managed.start.x * streamer.word_b
 
-   embedded_size_b = mem.embedded_offset_y * streamer.stride_b
-                  + (mem.embedded_offset_x - mem.last_align) * streamer.word_b
+   embedded_size_b = mem.embedded.current.y * streamer.stride_b
+                  + (mem.embedded.current.x - mem.last_align) * streamer.word_b
 
-   persistent_size_b = mem.persistent_offset_y * streamer.stride_b
-   if (mem.persistent_offset_x ~= 0) then -- if we did not just step a new line
+   persistent_size_b = mem.persistent.current.y * streamer.stride_b
+   if (mem.persistent.current.x ~= 0) then -- if we did not just step a new line
       -- take into account all the lines we wrote (the last entry's hight is enough)
       -- if not all the lines are filled till the end we are counting more than we should here,
       -- but for checking collision it's OK
       persistent_size_b = persistent_size_b + mem.persistent[#mem.persistent].h * streamer.stride_b
    end
 
-   managed_size_b = mem.managed_offset_y * streamer.stride_b
-   if (mem.managed_offset_x ~= 0) then -- if we did not just step a new line
+   managed_size_b = mem.managed.current.y * streamer.stride_b
+   if (mem.managed.current.x ~= 0) then -- if we did not just step a new line
       -- take into account all the lines we wrote (the last entry's hight is enough)
       -- if not all the lines are filled till the end we are counting more than we should here,
       -- but for checking collision it's OK

@@ -35,33 +35,41 @@ function Memory:__init(args)
    self.logfile = args.logfile or nil
 
    -- table of embedded data segments
-   self.embedded = {}
+   self.embedded = {
+      ['start'] = {
+         ['x'] = 0,
+         ['y'] = 0
+      },
+      ['current'] = {
+         ['x'] = 0,
+         ['y'] = 0
+      }
+   }
 
    -- table of persistent data segments
-   self.persistent = {}
+   self.persistent = {
+      ['start'] = {
+         ['x'] = 0,
+         ['y'] = 0
+      },
+      ['current'] = {
+         ['x'] = 0,
+         ['y'] = 0
+      }
+   }
 
    -- table of managed data segments
-   self.managed = {}
+   self.managed = {
+      ['start'] = {
+         ['x'] = 0,
+         ['y'] = 0
+      },
+      ['current'] = {
+         ['x'] = 0,
+         ['y'] = 0
+      }
+   }
 
-   -- initial offsets
-   self.embedded_start_x = 0
-   self.embedded_start_y = 0
-
-   self.persistent_start_x = 0
-   self.persistent_start_y = 0
-
-   self.menaged_start_x = 0
-   self.menaged_start_y = 0
-
-   -- x,y pointers
-   self.embedded_offset_x = 0
-   self.embedded_offset_y = 0
-
-   self.persistent_offset_x = 0
-   self.persistent_offset_y = 0
-
-   self.managed_offset_x = 0
-   self.managed_offset_y = 0
    self.managed_prev_layer_h = 0
 
    -- we want to keep this value for the
@@ -71,14 +79,14 @@ end
 
 function Memory:adjustBytecodeSize(size_in_bytes)
 
-   self.embedded_start_x = 0
-   self.embedded_start_y =  math.ceil((size_in_bytes + 1) / streamer.stride_b)
+   self.embedded.start.x = 0
+   self.embedded.start.y =  math.ceil((size_in_bytes + 1) / streamer.stride_b)
 
-   self.persistent_start_x = 0
-   self.persistent_start_y = self.embedded_start_y + self.embedded_offset_y + 1
+   self.persistent.start.x = 0
+   self.persistent.start.y = self.embedded.start.y + self.embedded.current.y + 1
 
-   self.menaged_start_x = 0
-   self.menaged_start_y = self.persistent_start_y + self.persistent_offset_y + 1
+   self.managed.start.x = 0
+   self.managed.start.y = self.persistent.start.y + self.persistent.current.y + 1
 end
 
 function Memory:allocKernel(h_, w_, data_, bias_)
@@ -103,23 +111,23 @@ function Memory:allocKernel(h_, w_, data_, bias_)
    end
 
    -- check if current data fits in the line
-   if (self.embedded_offset_x + w_*h_ + bias_:size(1)) > streamer.stride_w then
-      self.embedded_offset_x = 0
-      self.embedded_offset_y = self.embedded_offset_y + 1
+   if (self.embedded.current.x + w_*h_ + bias_:size(1)) > streamer.stride_w then
+      self.embedded.current.x = 0
+      self.embedded.current.y = self.embedded.current.y + 1
    end
 
    self.embedded[ #self.embedded+1 ] = {
       x = {
-         offset = self.embedded_offset_x,
+         offset = self.embedded.current.x,
          calc = function(self, mem)
-            return mem.embedded_start_x + self.offset
+            return mem.embedded.start.x + self.offset
          end
       },
 
       y = {
-         offset = self.embedded_offset_y,
+         offset = self.embedded.current.y,
          calc = function(self, mem)
-            return mem.embedded_start_y + self.offset
+            return mem.embedded.start.y + self.offset
          end
       },
 
@@ -135,8 +143,8 @@ function Memory:allocKernel(h_, w_, data_, bias_)
    self.logfile:write(
       string.format("kernel id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
          #self.embedded,
-         self.embedded_offset_x,
-         self.embedded_offset_y,
+         self.embedded.current.x,
+         self.embedded.current.y,
          self.embedded[ #self.embedded ].w,
          self.embedded[ #self.embedded ].h)
    )
@@ -147,16 +155,17 @@ function Memory:allocKernel(h_, w_, data_, bias_)
       end
       self.logfile:write("\n")
    end
-   self.embedded_offset_x = self.embedded_offset_x + w_*h_ + bias_:size(1)
+
+   self.embedded.current.x = self.embedded.current.x + w_*h_ + bias_:size(1)
    -- check allignment
-   if (self.embedded_offset_x % streamer.align_w) ~= 0 then
-      self.last_align = (math.floor(self.embedded_offset_x/streamer.align_w) + 1) * streamer.align_w
-                        - self.embedded_offset_x
-      self.embedded_offset_x = (math.floor(self.embedded_offset_x/streamer.align_w) + 1) * streamer.align_w
+   if (self.embedded.current.x % streamer.align_w) ~= 0 then
+      self.last_align = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
+                        - self.embedded.current.x
+      self.embedded.current.x = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.embedded_offset_x > streamer.stride_w) then
-         self.embedded_offset_y = self.embedded_offset_y + 1
-         self.embedded_offset_x = 0
+      if (self.embedded.current.x > streamer.stride_w) then
+         self.embedded.current.y = self.embedded.current.y + 1
+         self.embedded.current.x = 0
          self.last_align = 0
       end
    end
@@ -187,23 +196,23 @@ function Memory:allocRawData(h_, w_, data_)
    end
 
    -- check if current data fits in the line
-   if (self.embedded_offset_x + w_*h_) > streamer.stride_w then
-       self.embedded_offset_x = 0
-       self.embedded_offset_y = self.embedded_offset_y + 1
+   if (self.embedded.current.x + w_*h_) > streamer.stride_w then
+       self.embedded.current.x = 0
+       self.embedded.current.y = self.embedded.current.y + 1
    end
 
    self.embedded[ #self.embedded+1 ] = {
       x = {
-         offset = self.embedded_offset_x,
+         offset = self.embedded.current.x,
          calc = function(self, mem)
-            return mem.embedded_start_x + self.offset
+            return mem.embedded.start.x + self.offset
          end
       },
 
       y = {
-         offset = self.embedded_offset_y,
+         offset = self.embedded.current.y,
          calc = function(self, mem)
-            return mem.embedded_start_y + self.offset
+            return mem.embedded.start.y + self.offset
          end
       },
 
@@ -218,8 +227,8 @@ function Memory:allocRawData(h_, w_, data_)
    self.logfile:write(
       string.format("kernel id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
          #self.embedded,
-         self.embedded_offset_x,
-         self.embedded_offset_y,
+         self.embedded.current.x,
+         self.embedded.current.y,
          self.embedded[ #self.embedded ].w,
          self.embedded[ #self.embedded ].h)
    )
@@ -230,16 +239,17 @@ function Memory:allocRawData(h_, w_, data_)
       end
       self.logfile:write("\n")
    end
-   self.embedded_offset_x = self.embedded_offset_x + w_*h_
+
+   self.embedded.current.x = self.embedded.current.x + w_*h_
    -- check allignment
-   if (self.embedded_offset_x % streamer.align_w) ~= 0 then
-      self.last_align = (math.floor(self.embedded_offset_x/streamer.align_w) + 1) * streamer.align_w
-                        - self.embedded_offset_x
-      self.embedded_offset_x = (math.floor(self.embedded_offset_x/streamer.align_w) + 1) * streamer.align_w
+   if (self.embedded.current.x % streamer.align_w) ~= 0 then
+      self.last_align = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
+                        - self.embedded.current.x
+      self.embedded.current.x = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.embedded_offset_x > streamer.stride_w) then
-         self.embedded_offset_y = self.embedded_offset_y + 1
-         self.embedded_offset_x = 0
+      if (self.embedded.current.x > streamer.stride_w) then
+         self.embedded.current.y = self.embedded.current.y + 1
+         self.embedded.current.x = 0
          self.last_align = 0
       end
    end
@@ -249,23 +259,23 @@ end
 function Memory:allocImageData(h_, w_, data_)
    -- we assume that all the data of the same size
    -- check if current data fits in the line
-   if (self.persistent_offset_x + w_) > streamer.stride_w then
-      self.persistent_offset_x = 0
-      self.persistent_offset_y = self.persistent_offset_y + h_
+   if (self.persistent.current.x + w_) > streamer.stride_w then
+      self.persistent.current.x = 0
+      self.persistent.current.y = self.persistent.current.y + h_
    end
 
    self.persistent[ #self.persistent+1 ] = {
       x = {
-         offset = self.persistent_offset_x,
+         offset = self.persistent.current.x,
          calc = function(self, mem)
-            return mem.persistent_start_x + self.offset
+            return mem.persistent.start.x + self.offset
          end
       },
 
       y = {
-         offset = self.persistent_offset_y,
+         offset = self.persistent.current.y,
          calc = function(self, mem)
-            return mem.persistent_start_y + self.offset
+            return mem.persistent.start.y + self.offset
          end
       },
 
@@ -280,22 +290,22 @@ function Memory:allocImageData(h_, w_, data_)
    self.logfile:write(
       string.format("image id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
          #self.persistent,
-         self.persistent_offset_x,
-         self.persistent_offset_y,
+         self.persistent.current.x,
+         self.persistent.current.y,
          w_,
          h_)
    )
 
-   self.persistent_offset_x = self.persistent_offset_x + w_
+   self.persistent.current.x = self.persistent.current.x + w_
    -- if we also assume that the width of the data cannot exceed the line,
    -- we don't need to check if we steped out of the line here
    -- check allignment
-   if (self.persistent_offset_x % streamer.align_w) ~= 0 then
-      self.persistent_offset_x = (math.floor(self.persistent_offset_x/streamer.align_w) + 1)*streamer.align_w
+   if (self.persistent.current.x % streamer.align_w) ~= 0 then
+      self.persistent.current.x = (math.floor(self.persistent.current.x/streamer.align_w) + 1)*streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.persistent_offset_x > streamer.stride_w) then
-         self.persistent_offset_y = self.persistent_offset_y + h_
-         self.persistent_offset_x = 0
+      if (self.persistent.current.x > streamer.stride_w) then
+         self.persistent.current.y = self.persistent.current.y + h_
+         self.persistent.current.x = 0
       end
    end
    return self.persistent[ #self.persistent ]
@@ -304,34 +314,34 @@ end
 function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
    -- we assume that all the data of one layer of the same size
    if (new_layer) then
-      self.managed_offset_y = self.managed_offset_y + self.managed_prev_layer_h
-      self.managed_offset_x = 0
+      self.managed.current.y = self.managed.current.y + self.managed_prev_layer_h
+      self.managed.current.x = 0
       self.managed_prev_layer_h = h_
    end
    -- check if current data fits in the line
-   if (self.managed_offset_x + w_) > streamer.stride_w then
-      self.managed_offset_x = 0
-      self.managed_offset_y = self.managed_offset_y + h_
+   if (self.managed.current.x + w_) > streamer.stride_w then
+      self.managed.current.x = 0
+      self.managed.current.y = self.managed.current.y + h_
    end
    -- check if there is space in the mem if not start overwriting first layers
-   if (self.managed_offset_y + h_) > memory.size_r then
+   if (self.managed.current.y + h_) > memory.size_r then
       print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
-      self.managed_offset_y = 0
-      self.managed_offset_x = 0
+      self.managed.current.y = 0
+      self.managed.current.x = 0
    end
 
    self.managed[ #self.managed+1 ] = {
       x = {
-         offset = self.managed_offset_x,
+         offset = self.managed.current.x,
          calc = function(self, mem)
-            return mem.menaged_start_x + self.offset
+            return mem.managed.start.x + self.offset
          end
       },
 
       y = {
-         offset = self.managed_offset_y,
+         offset = self.managed.current.y,
          calc = function(self, mem)
-            return mem.menaged_start_y + self.offset
+            return mem.managed.start.y + self.offset
          end
       },
 
@@ -346,22 +356,22 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
    self.logfile:write(
       string.format("heap id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
          #self.managed,
-         self.managed_offset_x,
-         self.managed_offset_y,
+         self.managed.current.x,
+         self.managed.current.y,
          w_,
          h_)
    )
 
-   self.managed_offset_x = self.managed_offset_x + w_
+   self.managed.current.x = self.managed.current.x + w_
    -- we also assume that the width of the data cannot exceed the line,
    -- we don't need to check if we steped out of the line here
    -- check allignment
-   if (self.managed_offset_x % streamer.align_w) ~= 0 then
-      self.managed_offset_x = (math.floor(self.managed_offset_x/streamer.align_w) + 1)*streamer.align_w
+   if (self.managed.current.x % streamer.align_w) ~= 0 then
+      self.managed.current.x = (math.floor(self.managed.current.x/streamer.align_w) + 1)*streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.managed_offset_x > streamer.stride_w) then
-         self.managed_offset_y = self.managed_offset_y + h_
-         self.managed_offset_x = 0
+      if (self.managed.current.x > streamer.stride_w) then
+         self.managed.current.y = self.managed.current.y + h_
+         self.managed.current.x = 0
       end
    end
    return self.managed[#self.managed]
@@ -369,25 +379,25 @@ end
 
 function Memory:allocOnTheHeap(h_, w_, data_)
    -- check if there is space in the mem if not start overwriting first layers
-   if (self.managed_offset_y + 1) > memory.size_r then
+   if (self.managed.current.y + 1) > memory.size_r then
       print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
-      self.managed_offset_y = 0
-      self.managed_offset_x = 0
+      self.managed.current.y = 0
+      self.managed.current.x = 0
    end
 
    -- the pointers for this entry are ready just palce the item in the memory
    self.managed[ #self.managed+1 ] = {
       x = {
-         offset = self.managed_offset_x,
+         offset = self.managed.current.x,
          calc = function(self, mem)
-            return mem.menaged_start_x + self.offset
+            return mem.managed.start.x + self.offset
          end
       },
 
       y = {
-         offset = self.managed_offset_y,
+         offset = self.managed.current.y,
          calc = function(self, mem)
-            return mem.menaged_start_y + self.offset
+            return mem.managed.start.y + self.offset
          end
       },
 
@@ -402,8 +412,8 @@ function Memory:allocOnTheHeap(h_, w_, data_)
    self.logfile:write(
       string.format("heap_1D id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
          #self.managed,
-         self.managed_offset_x,
-         self.managed_offset_y,
+         self.managed.current.x,
+         self.managed.current.y,
          w_,
          h_)
    )
@@ -418,29 +428,29 @@ function Memory:allocOnTheHeap(h_, w_, data_)
 
    --DEBUG
    --print('length = '.. length..' , num_of_lines = '.. num_of_lines.. ', last_line = '.. last_line)
-   --print('current offset: x = '.. self.managed_offset_x.. ' y = '..self.managed_offset_y)
+   --print('current offset: x = '.. self.managed.current.x.. ' y = '..self.managed.current.y)
 
-   self.managed_offset_x = self.managed_offset_x + last_line
-   self.managed_offset_y = self.managed_offset_y + num_of_lines
+   self.managed.current.x = self.managed.current.x + last_line
+   self.managed.current.y = self.managed.current.y + num_of_lines
    --DEBUG
-   --print('after update offset: x = '.. self.managed_offset_x.. ' y = '..self.managed_offset_y)
+   --print('after update offset: x = '.. self.managed.current.x.. ' y = '..self.managed.current.y)
 
    --  check if we did not step out of the line
-   if (self.managed_offset_x > streamer.stride_w) then
-      self.managed_offset_y = self.managed_offset_y + 1
-      self.managed_offset_x = self.managed_offset_x - streamer.stride_w
+   if (self.managed.current.x > streamer.stride_w) then
+      self.managed.current.y = self.managed.current.y + 1
+      self.managed.current.x = self.managed.current.x - streamer.stride_w
    end
    -- check allignment
-   if (self.managed_offset_x % streamer.align_w) ~= 0 then
-      self.managed_offset_x = (math.floor(self.managed_offset_x/streamer.align_w) + 1)*streamer.align_w
+   if (self.managed.current.x % streamer.align_w) ~= 0 then
+      self.managed.current.x = (math.floor(self.managed.current.x/streamer.align_w) + 1)*streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.managed_offset_x > streamer.stride_w) then
-         self.managed_offset_y = self.managed_offset_y + 1
-         self.managed_offset_x = 0
+      if (self.managed.current.x > streamer.stride_w) then
+         self.managed.current.y = self.managed.current.y + 1
+         self.managed.current.x = 0
       end
    end
    --DEBUG
-   --print('after alignment offset: x = '.. self.managed_offset_x.. ' y = '..self.managed_offset_y)
+   --print('after alignment offset: x = '.. self.managed.current.x.. ' y = '..self.managed.current.y)
    return self.managed[#self.managed]
 end
 
