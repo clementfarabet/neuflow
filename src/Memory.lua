@@ -35,7 +35,7 @@ function Memory:__init(args)
    self.logfile = args.logfile or nil
 
    -- the raw data segment
-   self.raw_data = {}
+   self.embedded = {}
 
    -- the data segment
    self.data = {}
@@ -44,8 +44,8 @@ function Memory:__init(args)
    self.buff = {}
 
    -- initial offsets
-   self.start_raw_data_x = 0
-   self.start_raw_data_y = 0
+   self.embedded_start_x = 0
+   self.embedded_start_y = 0
 
    self.start_data_x = 0
    self.start_data_y = 0
@@ -54,8 +54,8 @@ function Memory:__init(args)
    self.start_buff_y = 0
 
    -- x,y pointers
-   self.raw_data_offset_x = 0
-   self.raw_data_offset_y = 0
+   self.embedded_offset_x = 0
+   self.embedded_offset_y = 0
 
    self.data_offset_x = 0
    self.data_offset_y = 0
@@ -69,13 +69,13 @@ function Memory:__init(args)
    self.last_align = 0
 end
 
-function Memory:adjustBytecodeSize(size)
+function Memory:adjustBytecodeSize(size_in_bytes)
 
-   self.start_raw_data_x = 0
-   self.start_raw_data_y =  math.ceil((size + 8) / streamer.stride_b)
+   self.embedded_start_x = 0
+   self.embedded_start_y =  math.ceil((size_in_bytes + 1) / streamer.stride_b)
 
    self.start_data_x = 0
-   self.start_data_y = self.start_raw_data_y + self.raw_data_offset_y + 1
+   self.start_data_y = self.embedded_start_y + self.embedded_offset_y + 1
 
    self.start_buff_x = 0
    self.start_buff_y = self.start_data_y + self.data_offset_y + 1
@@ -103,23 +103,23 @@ function Memory:allocKernel(h_, w_, data_, bias_)
    end
 
    -- check if current data fits in the line
-   if (self.raw_data_offset_x + w_*h_ + bias_:size(1)) > streamer.stride_w then
-      self.raw_data_offset_x = 0
-      self.raw_data_offset_y = self.raw_data_offset_y + 1
+   if (self.embedded_offset_x + w_*h_ + bias_:size(1)) > streamer.stride_w then
+      self.embedded_offset_x = 0
+      self.embedded_offset_y = self.embedded_offset_y + 1
    end
 
-   self.raw_data[ #self.raw_data+1 ] = {
+   self.embedded[ #self.embedded+1 ] = {
       x = {
-         offset = self.raw_data_offset_x,
+         offset = self.embedded_offset_x,
          calc = function(self, mem)
-            return mem.start_raw_data_x + self.offset
+            return mem.embedded_start_x + self.offset
          end
       },
 
       y = {
-         offset = self.raw_data_offset_y,
+         offset = self.embedded_offset_y,
          calc = function(self, mem)
-            return mem.start_raw_data_y + self.offset
+            return mem.embedded_start_y + self.offset
          end
       },
 
@@ -134,11 +134,11 @@ function Memory:allocKernel(h_, w_, data_, bias_)
    -- log the information
    self.logfile:write(
       string.format("kernel id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.raw_data,
-         self.raw_data_offset_x,
-         self.raw_data_offset_y,
-         self.raw_data[ #self.raw_data ].w,
-         self.raw_data[ #self.raw_data ].h)
+         #self.embedded,
+         self.embedded_offset_x,
+         self.embedded_offset_y,
+         self.embedded[ #self.embedded ].w,
+         self.embedded[ #self.embedded ].h)
    )
 
    for i=1,h_ do
@@ -147,20 +147,20 @@ function Memory:allocKernel(h_, w_, data_, bias_)
       end
       self.logfile:write("\n")
    end
-   self.raw_data_offset_x = self.raw_data_offset_x + w_*h_ + bias_:size(1)
+   self.embedded_offset_x = self.embedded_offset_x + w_*h_ + bias_:size(1)
    -- check allignment
-   if (self.raw_data_offset_x % streamer.align_w) ~= 0 then
-      self.last_align = (math.floor(self.raw_data_offset_x/streamer.align_w) + 1) * streamer.align_w
-                        - self.raw_data_offset_x
-      self.raw_data_offset_x = (math.floor(self.raw_data_offset_x/streamer.align_w) + 1) * streamer.align_w
+   if (self.embedded_offset_x % streamer.align_w) ~= 0 then
+      self.last_align = (math.floor(self.embedded_offset_x/streamer.align_w) + 1) * streamer.align_w
+                        - self.embedded_offset_x
+      self.embedded_offset_x = (math.floor(self.embedded_offset_x/streamer.align_w) + 1) * streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.raw_data_offset_x > streamer.stride_w) then
-         self.raw_data_offset_y = self.raw_data_offset_y + 1
-         self.raw_data_offset_x = 0
+      if (self.embedded_offset_x > streamer.stride_w) then
+         self.embedded_offset_y = self.embedded_offset_y + 1
+         self.embedded_offset_x = 0
          self.last_align = 0
       end
    end
-   return self.raw_data[ #self.raw_data ]
+   return self.embedded[ #self.embedded ]
 end
 
 function Memory:allocRawData(h_, w_, data_)
@@ -187,23 +187,23 @@ function Memory:allocRawData(h_, w_, data_)
    end
 
    -- check if current data fits in the line
-   if (self.raw_data_offset_x + w_*h_) > streamer.stride_w then
-       self.raw_data_offset_x = 0
-       self.raw_data_offset_y = self.raw_data_offset_y + 1
+   if (self.embedded_offset_x + w_*h_) > streamer.stride_w then
+       self.embedded_offset_x = 0
+       self.embedded_offset_y = self.embedded_offset_y + 1
    end
 
-   self.raw_data[ #self.raw_data+1 ] = {
+   self.embedded[ #self.embedded+1 ] = {
       x = {
-         offset = self.raw_data_offset_x,
+         offset = self.embedded_offset_x,
          calc = function(self, mem)
-            return mem.start_raw_data_x + self.offset
+            return mem.embedded_start_x + self.offset
          end
       },
 
       y = {
-         offset = self.raw_data_offset_y,
+         offset = self.embedded_offset_y,
          calc = function(self, mem)
-            return mem.start_raw_data_y + self.offset
+            return mem.embedded_start_y + self.offset
          end
       },
 
@@ -217,11 +217,11 @@ function Memory:allocRawData(h_, w_, data_)
    -- log the information
    self.logfile:write(
       string.format("kernel id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.raw_data,
-         self.raw_data_offset_x,
-         self.raw_data_offset_y,
-         self.raw_data[ #self.raw_data ].w,
-         self.raw_data[ #self.raw_data ].h)
+         #self.embedded,
+         self.embedded_offset_x,
+         self.embedded_offset_y,
+         self.embedded[ #self.embedded ].w,
+         self.embedded[ #self.embedded ].h)
    )
 
    for i=1,h_ do
@@ -230,20 +230,20 @@ function Memory:allocRawData(h_, w_, data_)
       end
       self.logfile:write("\n")
    end
-   self.raw_data_offset_x = self.raw_data_offset_x + w_*h_
+   self.embedded_offset_x = self.embedded_offset_x + w_*h_
    -- check allignment
-   if (self.raw_data_offset_x % streamer.align_w) ~= 0 then
-      self.last_align = (math.floor(self.raw_data_offset_x/streamer.align_w) + 1) * streamer.align_w
-                        - self.raw_data_offset_x
-      self.raw_data_offset_x = (math.floor(self.raw_data_offset_x/streamer.align_w) + 1) * streamer.align_w
+   if (self.embedded_offset_x % streamer.align_w) ~= 0 then
+      self.last_align = (math.floor(self.embedded_offset_x/streamer.align_w) + 1) * streamer.align_w
+                        - self.embedded_offset_x
+      self.embedded_offset_x = (math.floor(self.embedded_offset_x/streamer.align_w) + 1) * streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.raw_data_offset_x > streamer.stride_w) then
-         self.raw_data_offset_y = self.raw_data_offset_y + 1
-         self.raw_data_offset_x = 0
+      if (self.embedded_offset_x > streamer.stride_w) then
+         self.embedded_offset_y = self.embedded_offset_y + 1
+         self.embedded_offset_x = 0
          self.last_align = 0
       end
    end
-   return self.raw_data[ #self.raw_data ]
+   return self.embedded[ #self.embedded ]
 end
 
 function Memory:allocImageData(h_, w_, data_)

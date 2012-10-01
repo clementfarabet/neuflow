@@ -326,7 +326,7 @@ function Linker:dump(info, mem)
    -- print all the instructions
    self:dump_instructions(instr, info.tensor)
 
-   -- and raw_data
+   -- and embedded
    self:dump_RawData(info, info.tensor, mem)
 
    -- and data (images) for simulation)
@@ -349,11 +349,11 @@ end
 function Linker:dump_RawData(info, tensor, mem)
    -- pad initial offset for raw data
    self.logfile:write("Kernels:\n")
-   self.counter_bytes = mem.start_raw_data_y * streamer.stride_b
-                      + mem.start_raw_data_x * streamer.word_b
+   self.counter_bytes = mem.embedded_start_y * streamer.stride_b
+                      + mem.embedded_start_x * streamer.word_b
 
-   for i=1, #mem.raw_data do
-      mem_entry = mem.raw_data[i]
+   for i=1, #mem.embedded do
+      mem_entry = mem.embedded[i]
 
       -- set offset in file
       if ('number' == type(mem_entry.y)) then
@@ -452,8 +452,8 @@ end
 
 function Linker:checkCollisions(filename, instr_length, mem)
 
-   offset_bytes_rawData = mem.start_raw_data_y * streamer.stride_b
-                        + mem.start_raw_data_x * streamer.word_b
+   offset_bytes_rawData = mem.embedded_start_y * streamer.stride_b
+                        + mem.embedded_start_x * streamer.word_b
 
    offset_bytes_data = mem.start_data_y * streamer.stride_b
                      + mem.start_data_x * streamer.word_b
@@ -461,8 +461,8 @@ function Linker:checkCollisions(filename, instr_length, mem)
    offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
                        + mem.start_buff_x * streamer.word_b
 
-   size_raw_data = mem.raw_data_offset_y * streamer.stride_b
-                 + (mem.raw_data_offset_x - mem.last_align) * streamer.word_b
+   size_embedded = mem.embedded_offset_y * streamer.stride_b
+                 + (mem.embedded_offset_x - mem.last_align) * streamer.word_b
 
    size_data = mem.data_offset_y * streamer.stride_b
    if (mem.data_offset_x ~= 0) then -- if we did not just step a new line
@@ -493,8 +493,8 @@ function Linker:checkCollisions(filename, instr_length, mem)
    print(
       string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
          offset_bytes_rawData,
-         size_raw_data,
-         offset_bytes_rawData+size_raw_data)
+         size_embedded,
+         offset_bytes_rawData+size_embedded)
    )
    print(
       string.format("  image data segment: start = %10d, size = %10d, end = %10d",
