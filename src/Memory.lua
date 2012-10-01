@@ -93,6 +93,17 @@ function Memory:adjustBytecodeSize(size_in_bytes)
    self.managed.start.y = self.persistent.start.y + self.persistent.current.y + 1
 end
 
+function Memory:constructCoordinate(area, coor)
+   return {
+      coor = coor,
+      start = self[area].start,
+      offset = self[area].current[coor],
+      calc = function(self)
+         return self.start[self.coor] + self.offset
+      end
+   }
+end
+
 function Memory:allocKernel(h_, w_, data_, bias_)
    orig_h_ = data_:size(1)
    orig_w_ = data_:size(2)
@@ -121,20 +132,8 @@ function Memory:allocKernel(h_, w_, data_, bias_)
    end
 
    self.embedded[ #self.embedded+1 ] = {
-      x = {
-         offset = self.embedded.current.x,
-         calc = function(self, mem)
-            return mem.embedded.start.x + self.offset
-         end
-      },
-
-      y = {
-         offset = self.embedded.current.y,
-         calc = function(self, mem)
-            return mem.embedded.start.y + self.offset
-         end
-      },
-
+      x        = self:constructCoordinate('embedded', 'x'),
+      y        = self:constructCoordinate('embedded', 'y'),
       w        = data_:size(1)*data_:size(2) + bias_:size(1),
       h        = 1,
       orig_w   = orig_w_,
@@ -189,25 +188,13 @@ function Memory:allocRawData(h_, w_, data_)
    end
 
    self.embedded[ #self.embedded+1 ] = {
-      x = {
-         offset = self.embedded.current.x,
-         calc = function(self, mem)
-            return mem.embedded.start.x + self.offset
-         end
-      },
-
-      y = {
-         offset = self.embedded.current.y,
-         calc = function(self, mem)
-            return mem.embedded.start.y + self.offset
-         end
-      },
-
-      w = data_:size(1)*data_:size(2),
-      h = 1,
-      orig_h = orig_h_,
-      orig_w = orig_w_,
-      data = data_
+      x        = self:constructCoordinate('embedded', 'x'),
+      y        = self:constructCoordinate('embedded', 'y'),
+      w        = data_:size(1)*data_:size(2),
+      h        = 1,
+      orig_h   = orig_h_,
+      orig_w   = orig_w_,
+      data     = data_
    }
 
    self.embedded.current.x = self.embedded.current.x + w_*h_
@@ -235,20 +222,8 @@ function Memory:allocImageData(h_, w_, data_)
    end
 
    self.persistent[ #self.persistent+1 ] = {
-      x = {
-         offset = self.persistent.current.x,
-         calc = function(self, mem)
-            return mem.persistent.start.x + self.offset
-         end
-      },
-
-      y = {
-         offset = self.persistent.current.y,
-         calc = function(self, mem)
-            return mem.persistent.start.y + self.offset
-         end
-      },
-
+      x        = self:constructCoordinate('persistent', 'x'),
+      y        = self:constructCoordinate('persistent', 'y'),
       w        = w_,
       h        = h_,
       orig_w   = w_,
@@ -291,20 +266,8 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
    end
 
    self.managed[ #self.managed+1 ] = {
-      x = {
-         offset = self.managed.current.x,
-         calc = function(self, mem)
-            return mem.managed.start.x + self.offset
-         end
-      },
-
-      y = {
-         offset = self.managed.current.y,
-         calc = function(self, mem)
-            return mem.managed.start.y + self.offset
-         end
-      },
-
+      x        = self:constructCoordinate('managed', 'x'),
+      y        = self:constructCoordinate('managed', 'y'),
       w        = w_,
       h        = h_,
       orig_w   = w_,
@@ -337,20 +300,8 @@ function Memory:allocOnTheHeap(h_, w_, data_)
 
    -- the pointers for this entry are ready just palce the item in the memory
    self.managed[ #self.managed+1 ] = {
-      x = {
-         offset = self.managed.current.x,
-         calc = function(self, mem)
-            return mem.managed.start.x + self.offset
-         end
-      },
-
-      y = {
-         offset = self.managed.current.y,
-         calc = function(self, mem)
-            return mem.managed.start.y + self.offset
-         end
-      },
-
+      x        = self:constructCoordinate('managed', 'x'),
+      y        = self:constructCoordinate('managed', 'y'),
       w        = w_*h_,
       h        = 1,
       orig_w   = w_,

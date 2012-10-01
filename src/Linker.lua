@@ -128,12 +128,12 @@ function Linker:resolveGotos()
    return ii
 end
 
-function Linker:resolveMemSegments(mem)
+function Linker:resolveMemSegments()
    local node = self.instruction_list.start_node
 
    while node do
       if node.mem_offset ~= nil then
-         self:rewriteARG32(node.bytes, node.mem_offset:calc(mem))
+         self:rewriteARG32(node.bytes, node.mem_offset:calc())
       end
 
       node = node.next
@@ -309,7 +309,7 @@ function Linker:dump(info, mem)
 
    mem:adjustBytecodeSize(instr_nb*8)
 
-   self:resolveMemSegments(mem)
+   self:resolveMemSegments()
    local instr = self:genBytecode()
 
    -- optional disassemble
@@ -356,7 +356,7 @@ function Linker:dump_RawData(info, tensor, mem)
       if ('number' == type(mem_entry.y)) then
          self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
       else
-         self.counter_bytes = mem_entry.y:calc(mem) * streamer.stride_b + mem_entry.x:calc(mem) * streamer.word_b
+         self.counter_bytes = mem_entry.y:calc() * streamer.stride_b + mem_entry.x:calc() * streamer.word_b
       end
 
       if (mem_entry.bias ~= nil) then
@@ -406,7 +406,13 @@ function Linker:dump_ImageData(info, tensor, mem)
    for r=1,mem_entry.h do
       for i=1, #mem.persistent do
          mem_entry = mem.persistent[i]
-         self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
+
+         if ('number' == type(mem_entry.y)) then
+            self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
+         else
+            self.counter_bytes = (mem_entry.y:calc() + r - 1)*streamer.stride_b + mem_entry.x:calc()*streamer.word_b
+         end
+
          for c=1, mem_entry.w do
             dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
             dataTwos = bit.band(dataTwos, num.mask)
