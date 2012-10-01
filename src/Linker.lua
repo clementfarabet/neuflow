@@ -458,8 +458,8 @@ function Linker:checkCollisions(filename, instr_length, mem)
    offset_bytes_data = mem.persistent_start_y * streamer.stride_b
                      + mem.persistent_start_x * streamer.word_b
 
-   offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
-                       + mem.start_buff_x * streamer.word_b
+   offset_bytes_buffer = mem.menaged_start_y * streamer.stride_b
+                       + mem.menaged_start_x * streamer.word_b
 
    size_embedded = mem.embedded_offset_y * streamer.stride_b
                  + (mem.embedded_offset_x - mem.last_align) * streamer.word_b
@@ -472,12 +472,12 @@ function Linker:checkCollisions(filename, instr_length, mem)
       size_data = size_data + mem.persistent[#mem.persistent].h * streamer.stride_b
    end
 
-   size_buff = mem.buff_offset_y * streamer.stride_b
-   if (mem.buff_offset_x ~= 0) then -- if we did not just step a new line
+   size_buff = mem.managed_offset_y * streamer.stride_b
+   if (mem.managed_offset_x ~= 0) then -- if we did not just step a new line
       -- take into account all the lines we wrote (the last entry's hight is enough)
       -- if not all the lines are filled till the end we are counting more than we should here,
       -- but for checking collision it's OK
-      size_buff = size_buff + (mem.buff[#mem.buff].h * streamer.stride_b)
+      size_buff = size_buff + (mem.managed[#mem.managed].h * streamer.stride_b)
    end
 
    local c = sys.COLORS

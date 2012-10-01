@@ -41,7 +41,7 @@ function Memory:__init(args)
    self.persistent = {}
 
    -- the garbage buffer (heap)
-   self.buff = {}
+   self.managed = {}
 
    -- initial offsets
    self.embedded_start_x = 0
@@ -50,8 +50,8 @@ function Memory:__init(args)
    self.persistent_start_x = 0
    self.persistent_start_y = 0
 
-   self.start_buff_x = 0
-   self.start_buff_y = 0
+   self.menaged_start_x = 0
+   self.menaged_start_y = 0
 
    -- x,y pointers
    self.embedded_offset_x = 0
@@ -60,9 +60,9 @@ function Memory:__init(args)
    self.persistent_offset_x = 0
    self.persistent_offset_y = 0
 
-   self.buff_offset_x = 0
-   self.buff_offset_y = 0
-   self.buff_prev_layer_h = 0
+   self.managed_offset_x = 0
+   self.managed_offset_y = 0
+   self.managed_prev_layer_h = 0
 
    -- we want to keep this value for the
    -- final report sizes to be accurate
@@ -77,8 +77,8 @@ function Memory:adjustBytecodeSize(size_in_bytes)
    self.persistent_start_x = 0
    self.persistent_start_y = self.embedded_start_y + self.embedded_offset_y + 1
 
-   self.start_buff_x = 0
-   self.start_buff_y = self.persistent_start_y + self.persistent_offset_y + 1
+   self.menaged_start_x = 0
+   self.menaged_start_y = self.persistent_start_y + self.persistent_offset_y + 1
 end
 
 function Memory:allocKernel(h_, w_, data_, bias_)
@@ -304,34 +304,34 @@ end
 function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
    -- we assume that all the data of one layer of the same size
    if (new_layer) then
-      self.buff_offset_y = self.buff_offset_y + self.buff_prev_layer_h
-      self.buff_offset_x = 0
-      self.buff_prev_layer_h = h_
+      self.managed_offset_y = self.managed_offset_y + self.managed_prev_layer_h
+      self.managed_offset_x = 0
+      self.managed_prev_layer_h = h_
    end
    -- check if current data fits in the line
-   if (self.buff_offset_x + w_) > streamer.stride_w then
-      self.buff_offset_x = 0
-      self.buff_offset_y = self.buff_offset_y + h_
+   if (self.managed_offset_x + w_) > streamer.stride_w then
+      self.managed_offset_x = 0
+      self.managed_offset_y = self.managed_offset_y + h_
    end
    -- check if there is space in the mem if not start overwriting first layers
-   if (self.buff_offset_y + h_) > memory.size_r then
+   if (self.managed_offset_y + h_) > memory.size_r then
       print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
-      self.buff_offset_y = 0
-      self.buff_offset_x = 0
+      self.managed_offset_y = 0
+      self.managed_offset_x = 0
    end
 
-   self.buff[ #self.buff+1 ] = {
+   self.managed[ #self.managed+1 ] = {
       x = {
-         offset = self.buff_offset_x,
+         offset = self.managed_offset_x,
          calc = function(self, mem)
-            return mem.start_buff_x + self.offset
+            return mem.menaged_start_x + self.offset
          end
       },
 
       y = {
-         offset = self.buff_offset_y,
+         offset = self.managed_offset_y,
          calc = function(self, mem)
-            return mem.start_buff_y + self.offset
+            return mem.menaged_start_y + self.offset
          end
       },
 
@@ -345,49 +345,49 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
    -- log the information
    self.logfile:write(
       string.format("heap id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.buff,
-         self.buff_offset_x,
-         self.buff_offset_y,
+         #self.managed,
+         self.managed_offset_x,
+         self.managed_offset_y,
          w_,
          h_)
    )
 
-   self.buff_offset_x = self.buff_offset_x + w_
+   self.managed_offset_x = self.managed_offset_x + w_
    -- we also assume that the width of the data cannot exceed the line,
    -- we don't need to check if we steped out of the line here
    -- check allignment
-   if (self.buff_offset_x % streamer.align_w) ~= 0 then
-      self.buff_offset_x = (math.floor(self.buff_offset_x/streamer.align_w) + 1)*streamer.align_w
+   if (self.managed_offset_x % streamer.align_w) ~= 0 then
+      self.managed_offset_x = (math.floor(self.managed_offset_x/streamer.align_w) + 1)*streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.buff_offset_x > streamer.stride_w) then
-         self.buff_offset_y = self.buff_offset_y + h_
-         self.buff_offset_x = 0
+      if (self.managed_offset_x > streamer.stride_w) then
+         self.managed_offset_y = self.managed_offset_y + h_
+         self.managed_offset_x = 0
       end
    end
-   return self.buff[#self.buff]
+   return self.managed[#self.managed]
 end
 
 function Memory:allocOnTheHeap(h_, w_, data_)
    -- check if there is space in the mem if not start overwriting first layers
-   if (self.buff_offset_y + 1) > memory.size_r then
+   if (self.managed_offset_y + 1) > memory.size_r then
       print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
-      self.buff_offset_y = 0
-      self.buff_offset_x = 0
+      self.managed_offset_y = 0
+      self.managed_offset_x = 0
    end
 
    -- the pointers for this entry are ready just palce the item in the memory
-   self.buff[ #self.buff+1 ] = {
+   self.managed[ #self.managed+1 ] = {
       x = {
-         offset = self.buff_offset_x,
+         offset = self.managed_offset_x,
          calc = function(self, mem)
-            return mem.start_buff_x + self.offset
+            return mem.menaged_start_x + self.offset
          end
       },
 
       y = {
-         offset = self.buff_offset_y,
+         offset = self.managed_offset_y,
          calc = function(self, mem)
-            return mem.start_buff_y + self.offset
+            return mem.menaged_start_y + self.offset
          end
       },
 
@@ -401,9 +401,9 @@ function Memory:allocOnTheHeap(h_, w_, data_)
    -- log the information
    self.logfile:write(
       string.format("heap_1D id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.buff,
-         self.buff_offset_x,
-         self.buff_offset_y,
+         #self.managed,
+         self.managed_offset_x,
+         self.managed_offset_y,
          w_,
          h_)
    )
@@ -418,35 +418,35 @@ function Memory:allocOnTheHeap(h_, w_, data_)
 
    --DEBUG
    --print('length = '.. length..' , num_of_lines = '.. num_of_lines.. ', last_line = '.. last_line)
-   --print('current offset: x = '.. self.buff_offset_x.. ' y = '..self.buff_offset_y)
+   --print('current offset: x = '.. self.managed_offset_x.. ' y = '..self.managed_offset_y)
 
-   self.buff_offset_x = self.buff_offset_x + last_line
-   self.buff_offset_y = self.buff_offset_y + num_of_lines
+   self.managed_offset_x = self.managed_offset_x + last_line
+   self.managed_offset_y = self.managed_offset_y + num_of_lines
    --DEBUG
-   --print('after update offset: x = '.. self.buff_offset_x.. ' y = '..self.buff_offset_y)
+   --print('after update offset: x = '.. self.managed_offset_x.. ' y = '..self.managed_offset_y)
 
    --  check if we did not step out of the line
-   if (self.buff_offset_x > streamer.stride_w) then
-      self.buff_offset_y = self.buff_offset_y + 1
-      self.buff_offset_x = self.buff_offset_x - streamer.stride_w
+   if (self.managed_offset_x > streamer.stride_w) then
+      self.managed_offset_y = self.managed_offset_y + 1
+      self.managed_offset_x = self.managed_offset_x - streamer.stride_w
    end
    -- check allignment
-   if (self.buff_offset_x % streamer.align_w) ~= 0 then
-      self.buff_offset_x = (math.floor(self.buff_offset_x/streamer.align_w) + 1)*streamer.align_w
+   if (self.managed_offset_x % streamer.align_w) ~= 0 then
+      self.managed_offset_x = (math.floor(self.managed_offset_x/streamer.align_w) + 1)*streamer.align_w
       -- and check if we did not step out of the line again
-      if (self.buff_offset_x > streamer.stride_w) then
-         self.buff_offset_y = self.buff_offset_y + 1
-         self.buff_offset_x = 0
+      if (self.managed_offset_x > streamer.stride_w) then
+         self.managed_offset_y = self.managed_offset_y + 1
+         self.managed_offset_x = 0
       end
    end
    --DEBUG
-   --print('after alignment offset: x = '.. self.buff_offset_x.. ' y = '..self.buff_offset_y)
-   return self.buff[#self.buff]
+   --print('after alignment offset: x = '.. self.managed_offset_x.. ' y = '..self.managed_offset_y)
+   return self.managed[#self.managed]
 end
 
 function Memory:printHeap()
    print('<neuflow.Memory> allocated on the heap:')
-   for i = 1,#self.buff do
-      p(self.buff[i])
+   for i = 1,#self.managed do
+      p(self.managed[i])
    end
 end
