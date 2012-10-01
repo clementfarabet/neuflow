@@ -34,9 +34,11 @@ function NeuFlow:__init(args)
    self.core = neuflow.Core(args)
 
    -- instantiate the compiler, relies on the core
-   self.compiler = neuflow.Compiler{optimize_across_layers = true,
-                                    core = self.core,
-                                    msg_level = args.compiler_msg_level or self.global_msg_level}
+   self.compiler = neuflow.Compiler {
+      optimize_across_layers = true,
+      core = self.core,
+      msg_level = args.compiler_msg_level or self.global_msg_level
+   }
 
    -- use a profiler
    self.profiler = neuflow.Profiler()
@@ -44,14 +46,18 @@ function NeuFlow:__init(args)
    -- instantiate the interface
    if (self.core.platform == 'pico_m503') or (self.core.platform == 'xilinx_ml605_tbsp') then
       self.handshake = false
-      self.ethernet = neuflow.DmaEthernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
-                                          core = self.core,
-                                          nf = self}
+      self.ethernet = neuflow.DmaEthernet {
+         msg_level = args.ethernet_msg_level or self.global_msg_level,
+         core = self.core,
+         nf = self
+      }
    else
       self.handshake = true
-      self.ethernet = neuflow.Ethernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
-                                       core = self.core,
-                                       nf = self}
+      self.ethernet = neuflow.Ethernet {
+         msg_level = args.ethernet_msg_level or self.global_msg_level,
+         core = self.core,
+         nf = self
+      }
    end
 
    -- for loops: this retains a list of jump locations

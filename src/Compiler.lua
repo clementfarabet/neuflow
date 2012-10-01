@@ -458,13 +458,15 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
          local output_height = (input.orig_h-sub_module.kH)/sub_module.dH + 1
          if output_height ~= math.floor(output_height) then
             output_height = math.floor(output_height)
-            local newinput = {y = input.y,
-                              x = input.x,
-                              data = input.data,
-                              orig_h = (output_height - 1)*sub_module.dH + sub_module.kH,
-                              orig_w = input.orig_w,
-                              w = 1,
-                              h = 1}
+            local newinput = {
+               y        = input.y,
+               x        = input.x,
+               data     = input.data,
+               orig_h   = (output_height - 1)*sub_module.dH + sub_module.kH,
+               orig_w   = input.orig_w,
+               w        = 1,
+               h        = 1
+            }
             newinput.w = newinput.orig_w * newinput.orig_h
             input = newinput
          end
@@ -473,8 +475,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = torch.Tensor(sub_module.kW, sub_module.kH):fill(sub_module.weight[o])
          local bias = sub_module.bias:narrow(1,o,1)
-         local kernel_mem = self.core.mem:allocKernel(sub_module.kH, sub_module.kW,
-                                                     kernel, bias)
+         local kernel_mem = self.core.mem:allocKernel(sub_module.kH, sub_module.kW, kernel, bias)
 
          -- collect connections
          table.insert(input_list, input)
@@ -544,13 +545,15 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
          local output_height = (input.orig_h-sub_module.modules[2].kH)/sub_module.modules[2].dH + 1
          if output_height ~= math.floor(output_height) then
             output_height = math.floor(output_height)
-            local newinput = {y = input.y,
-                              x = input.x,
-                              data = input.data,
-                              orig_h = (output_height - 1)*sub_module.modules[2].dH + sub_module.modules[2].kH,
-                              orig_w = input.orig_w,
-                              w = 1,
-                              h = 1}
+            local newinput = {
+               y        = input.y,
+               x        = input.x,
+               data     = input.data,
+               orig_h   = (output_height - 1)*sub_module.modules[2].dH + sub_module.modules[2].kH,
+               orig_w   = input.orig_w,
+               w        = 1,
+               h        = 1
+            }
             newinput.w = newinput.orig_w * newinput.orig_h
             input = newinput
          end
@@ -559,8 +562,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = sub_module.modules[2].weight[o]
          local bias = sub_module.modules[2].bias:narrow(1,o,1)
-         local kernel_mem = self.core.mem:allocKernel(sub_module.modules[2].kH,
-                                                     sub_module.modules[2].kW,
+         local kernel_mem = self.core.mem:allocKernel(sub_module.modules[2].kH, sub_module.modules[2].kW,
                                                      kernel, bias)
 
          -- collect connections
@@ -658,23 +660,42 @@ function Compiler:SpatialNormalization(sub_module, inputs)
       local xN = function (x)
                     return x / #mean_kernels
                  end
-      xN_coefs = math.approx_line{mapping=xN, min=num.min, max=num.max, odd = true,
-                                  nbSegments=grid.mapper_segs, Q=num.frac_,
-                                  verbose=true, a = 1/#mean_kernels, b = 0}
+      xN_coefs = math.approx_line {
+         mapping     = xN,
+         min         = num.min,
+         max         = num.max,
+         odd         = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         a           = 1/#mean_kernels,
+         b           = 0
+      }
 
       -- generate coefs for sqrt
       local mapping
       threshold = threshold or 1/256
       if (threshold == 0) then threshold = 1/256 end
       mapping = function (x)
-                   x = x / #std_kernels
-                   if x < threshold then return math.sqrt(threshold)
-                   else return math.sqrt(x) end
-                end
-      sqrtCoefs = math.approx{mapping=mapping, min=0, max=num.max,
-                              nbSegments=grid.mapper_segs, Q=num.frac_,
-                              verbose=true, epsilon=25/256,error_type = 0,
-                              name = 'Sqrt_th_div_'..#std_kernels..'_s_'..threshold}
+         x = x / #std_kernels
+         if x < threshold then
+            return math.sqrt(threshold)
+         else
+            return math.sqrt(x)
+         end
+      end
+
+      sqrtCoefs = math.approx {
+         mapping     = mapping,
+         min         = 0,
+         max         = num.max,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 25/256,
+         error_type  = 0,
+         name        = 'Sqrt_th_div_'..#std_kernels..'_s_'..threshold
+      }
 
    end
 
@@ -744,9 +765,18 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    local xN = function (x)
       return x / #mean_kernels
    end
-   local xN_coefs = math.approx_line{mapping=xN, min=num.min, max=num.max, odd = true,
-                                     nbSegments=grid.mapper_segs, Q=num.frac_,
-                                     verbose=true, a = 1/#mean_kernels, b = 0}
+
+   local xN_coefs = math.approx_line {
+      mapping     = xN,
+      min         = num.min,
+      max         = num.max,
+      odd         = true,
+      nbSegments  = grid.mapper_segs,
+      Q           = num.frac_,
+      verbose     = true,
+      a           = 1/#mean_kernels,
+      b           = 0
+   }
 
    -- local norm mean
    self.core:localNormalizeMeanBank(input_maps, mean_kernels, output_maps, xN_coefs)
@@ -963,10 +993,17 @@ function Compiler:getCoefs(mapping,params)
    -- generate coefs for this non-linear mapping
    local coefs
    if type == 'Tanh' then
-      coefs=math.approx{mapping=math.tanh, min=-5, max=5, odd=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, error_type = 0,
-                        name = type}
+      coefs = math.approx {
+         mapping     = math.tanh,
+         min         = -5,
+         max         = 5,
+         odd         = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'Threshold' then
       local val = params.val
       local threshold = params.threshold
@@ -974,38 +1011,83 @@ function Compiler:getCoefs(mapping,params)
          if x < threshold then return val
          else return x end
       end
-      coefs = math.approx{mapping=mapping, min=num.min, max=num.max,
-                          nbSegments=grid.mapper_segs, Q=num.frac_,
-                          verbose=true, epsilon=25/256,error_type = 0,
-                          name = type .. '-' .. threshold .. '-' .. val}
+      coefs = math.approx {
+         mapping     = mapping,
+         min         = num.min,
+         max         = num.max,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 25/256,
+         error_type  = 0,
+         name        = type .. '-' .. threshold .. '-' .. val
+      }
    elseif type == 'Abs' then
-      coefs=math.approx{mapping=math.abs, min=num.min, max=num.max, even=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, error_type = 0,
-                        name = type}
+      coefs=math.approx {
+         mapping     = math.abs,
+         min         = num.min,
+         max         = num.max,
+         even        = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'TanhAbs' then
       function tanhabs (x) return math.abs(math.tanh(x)) end
-      coefs=math.approx{mapping=tanhabs, min=-5, max=5, even=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, epsilon = 11.7/256, error_type = 0,
-                        name = type}
+      coefs=math.approx {
+         mapping     = tanhabs,
+         min         = -5,
+         max         = 5,
+         even        = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 11.7/256,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'StdSigm' then
       function stdsigm (x) return 1.71593428 * math.tanh(0.66666666*x) end
-      coefs=math.approx{mapping=stdsigm, min=num.min, max=num.max, odd=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true,epsilon = 4/256, error_type = 1,
-                        name = 'StdSigm_abs_err_all_range'}--type}
+      coefs=math.approx {
+         mapping     = stdsigm,
+         min         = num.min,
+         max         = num.max,
+         odd         = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 4/256,
+         error_type  = 1,
+         name        = 'StdSigm_abs_err_all_range'
+      }--type}
    elseif type == 'StdSigmAbs' then
       function stdsigm (x) return 1.71593428 * math.tanh(0.66666666*x) end
-      coefs=math.approx{mapping=stdsigm, min=-5.5, max=5.5, even=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, epsilon = 32.21/256, error_type = 0,
-                        name = type}
+      coefs=math.approx {
+         mapping     = stdsigm,
+         min         = -5.5,
+         max         = 5.5,
+         even        = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 32.21/256,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'Sqrt' then
-      coefs=math.approx{mapping=math.sqrt, min=0, max=num.max,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, epsilon = 19.7/256, error_type = 0,
-                        name = type}
+      coefs=math.approx {
+         mapping     = math.sqrt,
+         min         = 0,
+         max         = num.max,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 19.7/256,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'HardTanh' then
       coefs=math.approx_HardTanh{nbSegments=grid.mapper_segs}
    else
@@ -1112,8 +1194,7 @@ end
 function Compiler:Reshape(reshape_module, inputs)
    -- warning: only handle dim reshape
    local outputs = {}
-   outputs[1] = self.core.mem:allocOnTheHeap(reshape_module.output:size(1),
-                                             reshape_module.output:size(2),
+   outputs[1] = self.core.mem:allocOnTheHeap(reshape_module.output:size(1), reshape_module.output:size(2),
                                              reshape_module.output, true)
    return outputs
 end
