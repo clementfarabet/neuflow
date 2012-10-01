@@ -29,17 +29,12 @@ function NeuFlow:__init(args)
       args.offset_code = 0
    end
 
-   -- use a log file
-   self.logfile = neuflow.Log('/tmp/' .. self.prog_name .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.log')
-
    -- instantiate core, with all args
    args.msg_level = args.core_msg_level or self.global_msg_level
-   args.logfile = self.logfile
    self.core = neuflow.Core(args)
 
    -- instantiate the compiler, relies on the core
    self.compiler = neuflow.Compiler{optimize_across_layers = true,
-                                    logfile = self.logfile,
                                     core = self.core,
                                     msg_level = args.compiler_msg_level or self.global_msg_level}
 
@@ -470,12 +465,6 @@ function NeuFlow:loadBytecode(bytecode)
       -- then transmit bytecode
       print('<neuflow.NeuFlow> transmitting bytecode')
       self.ethernet:host_sendBytecode(bytecode)
-      -- we are already transmitting the bytecode
-      -- we can close the log file now
-      -- the way it was done before in cleanup
-      -- it was never closed, that is why we didn't see
-      -- all of the data in log file
-      self.logfile:close()
    else
       -- if no bytecode given, first dump it to file, then load it from there
       self:loadBytecode(self:writeBytecode{})

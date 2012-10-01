@@ -11,7 +11,6 @@ local Linker = torch.class('neuflow.Linker')
 
 function Linker:__init(args)
    -- args
-   self.logfile = args.logfile
    self.disassemble = args.disassemble
 
    -- the bytecode array
@@ -348,7 +347,6 @@ end
 
 function Linker:dump_RawData(info, tensor, mem)
    -- pad initial offset for raw data
-   self.logfile:write("Kernels:\n")
    self.counter_bytes = mem.embedded.start.y * streamer.stride_b
                       + mem.embedded.start.x * streamer.word_b
 
@@ -357,19 +355,12 @@ function Linker:dump_RawData(info, tensor, mem)
 
       -- set offset in file
       if ('number' == type(mem_entry.y)) then
-         self.logfile:write(
-            string.format("#%d, offset_x = %d, offset_y = %d\n", i, mem_entry.x, mem_entry.y)
-         )
          self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
       else
-         self.logfile:write(
-            string.format("#%d, offset_x = %d, offset_y = %d\n", i, mem_entry.x:calc(mem), mem_entry.y:calc(mem))
-         )
          self.counter_bytes = mem_entry.y:calc(mem) * streamer.stride_b + mem_entry.x:calc(mem) * streamer.word_b
       end
 
       if (mem_entry.bias ~= nil) then
-         self.logfile:write("Bias:\n")
          for b = 1,mem_entry.bias:size(1) do
             dataTwos = math.floor(mem_entry.bias[b] * num.one + 0.5)
             dataTwos = bit.band(dataTwos, num.mask)
@@ -383,13 +374,9 @@ function Linker:dump_RawData(info, tensor, mem)
                tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes + 1
             end
-            -- print the kernel to logFile:
-            self.logfile:write(string.format("%d ", mem_entry.bias[b]))
          end
-         self.logfile:write(string.format("\n"))
       end
 
-      self.logfile:write("Kernel:\n")
       for r=1,mem_entry.data:size(1) do
          for c=1,mem_entry.data:size(2) do
             dataTwos = math.floor(mem_entry.data[r][c] * num.one + 0.5)
@@ -404,10 +391,7 @@ function Linker:dump_RawData(info, tensor, mem)
                tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes + 1
             end
-            -- print the kernel to logFile:
-            self.logfile:write(string.format("%d ", mem_entry.data[r][c]))
          end
-         self.logfile:write(string.format("\n"))
       end
    end
 end
@@ -420,11 +404,6 @@ function Linker:dump_ImageData(info, tensor, mem)
    self.counter_bytes =  mem.persistent.start.y*streamer.stride_b + mem.persistent.start.x*streamer.word_b
    mem_entry = mem.persistent[1]
 
-   self.logfile:write(
-      string.format("Writing images from offset: %d\n",
-         mem.persistent.start.y*streamer.stride_w + mem.persistent.start.x)
-   )
-
    for r=1,mem_entry.h do
       for i=1, #mem.persistent do
          mem_entry = mem.persistent[i]
@@ -432,7 +411,6 @@ function Linker:dump_ImageData(info, tensor, mem)
          for c=1, mem_entry.w do
             dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
             dataTwos = bit.band(dataTwos, num.mask)
-            self.logfile:write(string.format("%d ",dataTwos))--mem_entry.data[r][c]))
             for j=0,(num.size_b - 1) do
                -- get char from short
                if (info.bigendian == 1) then
@@ -444,9 +422,7 @@ function Linker:dump_ImageData(info, tensor, mem)
                self.counter_bytes = self.counter_bytes+1
             end
          end -- column
-         self.logfile:write(string.format("\t"))
       end -- entry
-      self.logfile:write(string.format("\n"))
    end -- row
 end
 

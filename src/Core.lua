@@ -26,10 +26,7 @@ function Core:__init(args)
    self.period_ns = args.period_ns or 1e9/oFlower.clock_freq
    self.sys_period_ns = args.sys_period_ns or 1e9/grid.clock_freq
    self.uart_freq = args.uart_freq or 57600
-   self.logfile = args.logfile
-
    self.offset_code = args.offset_code
-
    self.disassemble = args.disassemble
 
    grid.nb_grids = args.nb_grids or grid.nb_grids
@@ -50,15 +47,12 @@ function Core:__init(args)
 
    -- linker
    self.linker = neuflow.Linker {
-      logfile     =  self.logfile,
       start_text  =  self.offset_code,
       disassemble =  self.disassemble
    }
 
    -- memory manager
-   self.mem = neuflow.Memory {
-      logfile = self.logfile,
-   }
+   self.mem = neuflow.Memory {}
 
    -- sys reg allocator
    self.alloc_sr = self:RegAllocator {
@@ -622,8 +616,6 @@ end
 function Core:openPortRd(port, data)
    -- Stream image out
    self:activateStreamerPort(port, 'read', data)
-   self.logfile:write("^^^^Core:openPortRd:\n")
-   self.logfile:write(string.format("y = ?, x = ?, h = %d, w = %d\n", data.h, data.w ))
 end
 
 function Core:openPortRdNoSync(port, data)

@@ -31,8 +31,6 @@ correct alloc function selected. The definition of these 3 type are as follows:
 local Memory = torch.class('neuflow.Memory')
 
 function Memory:__init(args)
-   -- args
-   self.logfile = args.logfile or nil
 
    -- table of embedded data segments
    self.embedded = {
@@ -139,23 +137,6 @@ function Memory:allocKernel(h_, w_, data_, bias_)
       bias     = bias_
    }
 
-   -- log the information
-   self.logfile:write(
-      string.format("kernel id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.embedded,
-         self.embedded.current.x,
-         self.embedded.current.y,
-         self.embedded[ #self.embedded ].w,
-         self.embedded[ #self.embedded ].h)
-   )
-
-   for i=1,h_ do
-      for j=1,w_ do
-         self.logfile:write(string.format("%.02f ",data_[i][j]))
-      end
-      self.logfile:write("\n")
-   end
-
    self.embedded.current.x = self.embedded.current.x + w_*h_ + bias_:size(1)
    -- check allignment
    if (self.embedded.current.x % streamer.align_w) ~= 0 then
@@ -223,23 +204,6 @@ function Memory:allocRawData(h_, w_, data_)
       data = data_
    }
 
-   -- log the information
-   self.logfile:write(
-      string.format("kernel id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.embedded,
-         self.embedded.current.x,
-         self.embedded.current.y,
-         self.embedded[ #self.embedded ].w,
-         self.embedded[ #self.embedded ].h)
-   )
-
-   for i=1,h_ do
-      for j=1,w_ do
-         self.logfile:write(string.format("%.02f ",data_[i][j]))
-      end
-      self.logfile:write("\n")
-   end
-
    self.embedded.current.x = self.embedded.current.x + w_*h_
    -- check allignment
    if (self.embedded.current.x % streamer.align_w) ~= 0 then
@@ -285,16 +249,6 @@ function Memory:allocImageData(h_, w_, data_)
       orig_h   = h_,
       data     = data_
    }
-
-   -- log the information
-   self.logfile:write(
-      string.format("image id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.persistent,
-         self.persistent.current.x,
-         self.persistent.current.y,
-         w_,
-         h_)
-   )
 
    self.persistent.current.x = self.persistent.current.x + w_
    -- if we also assume that the width of the data cannot exceed the line,
@@ -352,16 +306,6 @@ function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
       data     = data_
    }
 
-   -- log the information
-   self.logfile:write(
-      string.format("heap id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.managed,
-         self.managed.current.x,
-         self.managed.current.y,
-         w_,
-         h_)
-   )
-
    self.managed.current.x = self.managed.current.x + w_
    -- we also assume that the width of the data cannot exceed the line,
    -- we don't need to check if we steped out of the line here
@@ -407,16 +351,6 @@ function Memory:allocOnTheHeap(h_, w_, data_)
       orig_h   = h_,
       data     = data_
    }
-
-   -- log the information
-   self.logfile:write(
-      string.format("heap_1D id = %d, x = %d, y = %d, w = %d, h = %d, data = \n",
-         #self.managed,
-         self.managed.current.x,
-         self.managed.current.y,
-         w_,
-         h_)
-   )
 
    local length = w_*h_
    local num_of_lines = math.floor(length / streamer.stride_w)

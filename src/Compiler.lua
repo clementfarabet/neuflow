@@ -15,11 +15,10 @@ local message = {
 function Compiler:__init(args)
    -- args:
    self.opt_across_layers = args.optimize_across_layers or false
-   self.logfile = args.logfile or nil
    self.core = args.core
    self.msg_level = args.msg_level or 'concise' -- can be 'none' or 'detailled'
 
-   if (self.core == nil or self.logfile == nil) then
+   if (self.core == nil) then
       error('<neuflow.Compiler> ERROR: please provide DataflowComputer + Log')
    end
 
