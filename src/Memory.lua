@@ -352,13 +352,69 @@ function Memory:printHeap()
    end
 end
 
+function Memory:allocEmbeddedData(data_, bias_)
+   local w_       = data_:size(2)
+   local h_       = data_:size(1)
+   local orig_w_  = data_:size(2)
+   local orig_h_  = data_:size(1)
+
+   -- bias indicates that incoming embedded data is a kernel and thus must be transformed
+--   if bias_ then
+      local dh = grid.kernel_height - data_:size(1)
+      local kernel = torch.zeros(grid.kernel_height, grid.kernel_width)
+
+      -- copy incoming data to the bottom left corner of kernel
+      for r = 1, orig_h_ do
+         for c = 1, orig_w_ do
+            kernel[r+dh][c] = data_[r][c]
+         end
+      end
+
+      -- overwrite with new transformed values
+      data_ = kernel
+      w_    = kernel:size(1)*kernel:size(2) + bias_:size(1)
+      h_    = 1
+--   end
+
+   -- check if current data fits in the line
+   if (self.embedded.current.x + w_) > streamer.stride_w then
+      self.embedded.current.x = 0
+      self.embedded.current.y = self.embedded.current.y + 1
+   end
+
+   self.embedded[ #self.embedded+1 ] = {
+      x        = self:constructCoordinate('embedded', 'x'),
+      y        = self:constructCoordinate('embedded', 'y'),
+      w        = w_,
+      h        = h_,
+      orig_w   = orig_w_,
+      orig_h   = orig_h_,
+      data     = data_,
+      bias     = bias_
+   }
+
+   self.embedded.current.x = self.embedded.current.x + w_
+
+   -- allignment of addresses to physical memory pages
+   if (self.embedded.current.x % streamer.align_w) ~= 0 then
+      self.embedded.current.x = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
+      -- and check if we did not step out of the line again
+      if (self.embedded.current.x > streamer.stride_w) then
+         self.embedded.current.y = self.embedded.current.y + 1
+         self.embedded.current.x = 0
+      end
+   end
+
+   return self.embedded[ #self.embedded ]
+end
+
 function Memory:printAreaStatistics()
 
    embedded_start_b = self.embedded.start.y * streamer.stride_b
                     + self.embedded.start.x * streamer.word_b
 
    embedded_size_b = self.embedded.current.y * streamer.stride_b
-                   + (self.embedded.current.x - self.last_align) * streamer.word_b
+                   + self.embedded.current.x * streamer.word_b
 
    persistent_start_b = self.persistent.start.y * streamer.stride_b
                       + self.persistent.start.x * streamer.word_b
