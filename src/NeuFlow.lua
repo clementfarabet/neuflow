@@ -170,8 +170,7 @@ function NeuFlow:allocDataPacked(tensor,bias)
          end
          local segment
          if bias then
-            segment = self.core.mem:allocKernel(tensor[i]:size(1), tensor[i]:size(2),
-                                            tensor[i], bias[i])
+            segment = self.core.mem:allocEmbeddedData(tensor[i], bias[i])
          else
             segment = self.core.mem:allocRawData(tensor[i]:size(1), tensor[i]:size(2), tensor[i])
          end
@@ -182,7 +181,7 @@ function NeuFlow:allocDataPacked(tensor,bias)
       if dims == 2 then
          local segment
          if bias then
-            segment = self.core.mem:allocKernel(tensor:size(1), tensor:size(2), tensor, bias)
+            segment = self.core.mem:allocEmbeddedData(tensor, bias)
          else
             segment = self.core.mem:allocRawData(tensor:size(1), tensor:size(2), tensor)
          end
@@ -191,8 +190,7 @@ function NeuFlow:allocDataPacked(tensor,bias)
          for i = 1,tensor:size(1) do
             local segment
             if bias then
-               segment = self.core.mem:allocKernel(tensor:size(2), tensor:size(3),
-                                               tensor[i], bias:narrow(1,i,1))
+               segment = self.core.mem:allocEmbeddedData(tensor[i], bias:narrow(1,i,1))
             else
                segment = self.core.mem:allocRawData(tensor:size(2), tensor:size(3),
                                                 tensor[i])

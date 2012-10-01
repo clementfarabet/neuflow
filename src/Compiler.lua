@@ -204,7 +204,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
          -- allocate kernel
          local kernel = conv_module.weight[o][i]
          local bias = conv_module.bias:narrow(1,o,1)
-         local kernel_mem = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- collect connections
          table.insert(kernel_list, kernel_mem)
@@ -296,8 +296,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = conv_module.weight[current_op]
          local bias = conv_module.bias:narrow(1,o,1)
-         local kernel_mem = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
-                                                     kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- collect connections
          table.insert(input_list, inputs[o])
@@ -342,8 +341,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                -- allocate kernel + bias
                local kernel = conv_module.weight[current_op]
                local bias = conv_module.bias:narrow(1,o,1)
-               local kernel_mem = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
-                                                           kernel, bias)
+               local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
                -- collect connections
                table.insert(input_list, inputs[input_p])
@@ -387,8 +385,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                -- allocate kernel + bias
                local kernel = conv_module.weight[o]
                local bias = conv_module.bias:narrow(1,o,1)
-               local kernel_mem = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
-                                                           kernel, bias)
+               local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
                -- collect connections
                table.insert(output_list, output[o])
@@ -475,7 +472,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = torch.Tensor(sub_module.kW, sub_module.kH):fill(sub_module.weight[o])
          local bias = sub_module.bias:narrow(1,o,1)
-         local kernel_mem = self.core.mem:allocKernel(sub_module.kH, sub_module.kW, kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- collect connections
          table.insert(input_list, input)
@@ -562,8 +559,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
          -- allocate kernel + bias
          local kernel = sub_module.modules[2].weight[o]
          local bias = sub_module.modules[2].bias:narrow(1,o,1)
-         local kernel_mem = self.core.mem:allocKernel(sub_module.modules[2].kH, sub_module.modules[2].kW,
-                                                     kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- collect connections
          table.insert(input_list, input)
@@ -956,7 +952,7 @@ function Compiler:SpatialLinear(linear_module, inputs)
          -- allocate kernel
          local kernel = torch.Tensor(1, 1):fill(linear_module.weight[o][i])
          local bias = linear_module.bias:narrow(1,o,1)
-         local kernel_mem = self.core.mem:allocKernel(1, 1, kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*3
