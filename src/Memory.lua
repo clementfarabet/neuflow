@@ -104,61 +104,6 @@ function Memory:constructCoordinate(area, coor)
    }
 end
 
-function Memory:allocRawData(h_, w_, data_)
-   orig_h_ = data_:size(1)
-   orig_w_ = data_:size(2)
-   -- transpose kernel to go to inner dim last
-   if((data_:size(2) < grid.kernel_width) or (data_:size(1) < grid.kernel_height)) then
-      data_ker_size = torch.zeros(grid.kernel_height, grid.kernel_width)
-      -- now need to save to bottom left corner!!!!!
-      big_i = grid.kernel_width - h_ + 1 -- bottom
-      for i=1,h_ do
-         big_j = 1 -- bottom left corner
-         --big_j = grid.kernel_width - w_ + 1 -- bottom right corner
-         for j=1,w_ do
-            --print("i = ", i, "j = ", j, "big_i = ", big_i, "big_j = ", big_j)
-            data_ker_size[big_i][big_j] = data_[i][j]
-            big_j = big_j + 1
-         end
-         big_i = big_i + 1
-      end
-      data_ = data_ker_size
-      h_ = data_:size(1)
-      w_ = data_:size(2)
-   end
-
-   -- check if current data fits in the line
-   if (self.embedded.current.x + w_*h_) > streamer.stride_w then
-       self.embedded.current.x = 0
-       self.embedded.current.y = self.embedded.current.y + 1
-   end
-
-   self.embedded[ #self.embedded+1 ] = {
-      x        = self:constructCoordinate('embedded', 'x'),
-      y        = self:constructCoordinate('embedded', 'y'),
-      w        = data_:size(1)*data_:size(2),
-      h        = 1,
-      orig_h   = orig_h_,
-      orig_w   = orig_w_,
-      data     = data_
-   }
-
-   self.embedded.current.x = self.embedded.current.x + w_*h_
-   -- check allignment
-   if (self.embedded.current.x % streamer.align_w) ~= 0 then
-      self.last_align = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
-                        - self.embedded.current.x
-      self.embedded.current.x = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
-      -- and check if we did not step out of the line again
-      if (self.embedded.current.x > streamer.stride_w) then
-         self.embedded.current.y = self.embedded.current.y + 1
-         self.embedded.current.x = 0
-         self.last_align = 0
-      end
-   end
-   return self.embedded[ #self.embedded ]
-end
-
 function Memory:allocImageData(h_, w_, data_)
    -- we assume that all the data of the same size
    -- check if current data fits in the line
@@ -298,29 +243,33 @@ function Memory:printHeap()
    end
 end
 
+--[[ Allocate Embedded Data
+
+   Current assumption is that all data being writen is a kernel.
+--]]
 function Memory:allocEmbeddedData(data_, bias_)
-   local w_       = data_:size(2)
-   local h_       = data_:size(1)
    local orig_w_  = data_:size(2)
    local orig_h_  = data_:size(1)
 
-   -- bias indicates that incoming embedded data is a kernel and thus must be transformed
---   if bias_ then
-      local dh = grid.kernel_height - data_:size(1)
-      local kernel = torch.zeros(grid.kernel_height, grid.kernel_width)
+   local dh = grid.kernel_height - data_:size(1)
+   local kernel = torch.zeros(grid.kernel_height, grid.kernel_width)
 
-      -- copy incoming data to the bottom left corner of kernel
-      for r = 1, orig_h_ do
-         for c = 1, orig_w_ do
-            kernel[r+dh][c] = data_[r][c]
-         end
+   -- copy incoming data to the bottom left corner of kernel
+   for r = 1, orig_h_ do
+      for c = 1, orig_w_ do
+         kernel[r+dh][c] = data_[r][c]
       end
+   end
 
-      -- overwrite with new transformed values
-      data_ = kernel
-      w_    = kernel:size(1)*kernel:size(2) + bias_:size(1)
-      h_    = 1
---   end
+   -- overwrite with new transformed values
+   data_ = kernel
+   h_ = 1
+
+   if bias_ then
+      w_ = kernel:size(1)*kernel:size(2) + bias_:size(1)
+   else
+      w_ = data_:size(1) * data_:size(2)
+   end
 
    -- check if current data fits in the line
    if (self.embedded.current.x + w_) > streamer.stride_w then

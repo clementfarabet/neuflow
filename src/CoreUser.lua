@@ -1019,6 +1019,6 @@ function CoreUser:multiplyScalar(input, scalar, output)
    end
 
    -- for now, we use the convolver grid to do that task
-   local kernel = self.mem:allocRawData(1, 1, torch.Tensor(1,1):fill(scalar))
+   local kernel = self.mem:allocEmbeddedData(torch.Tensor(1,1):fill(scalar))
    self:convolBank({input}, {kernel}, {output})
 end

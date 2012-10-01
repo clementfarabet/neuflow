@@ -606,8 +606,8 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    local kernel = sub_module.kernel
    local kernel_w = kernel:size(1)
    local kernel_h = kernel:size(2)
-   local kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
-   local kernel_std = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
+   local kernel_mean = self.core.mem:allocEmbeddedData(kernel)
+   local kernel_std = self.core.mem:allocEmbeddedData(kernel)
 
    -- alloc one intermediate map (to hold zero-mean feature map)
    local zerom_w = inputs[1].orig_w
@@ -735,7 +735,7 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    local kernel = sub_module.kernel
    local kernel_h = kernel:size(1)
    local kernel_w = kernel:size(2)
-   local kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
+   local kernel_mean = self.core.mem:allocEmbeddedData(kernel)
 
    -- alloc output maps
    local output_w = inputs[1].orig_w
