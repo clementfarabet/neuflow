@@ -22,13 +22,13 @@ function Linker:__init(args)
       end_sentinel   = sentinel_node
    }
 
-   self.start_text = (args.start_text or 0) + 1
+   self.init_offset = (args.init_offset or 0) + 1
 
    -- only if we start NOT from page zero
-   if (self.start_text ~= 1) then
+   if (self.init_offset ~= 1) then
 
       -- init padding
-      for aa = 0, ((self.start_text/8)-1) do
+      for aa = 0, ((self.init_offset/8)-1) do
          self:appendInstruction{bytes = {0,0,0,0,0,0,0,0}}
       end
 
@@ -319,8 +319,7 @@ function Linker:dump(info, mem)
 
    -- parse argument
    assert(info.tensor)
-   info.filename  = info.filename   or 'temp'
-   info.bigendian = info.bigendian  or 0
+   info.bigendian = info.bigendian or 0
 
    -- print all the instructions
    self:dump_instructions(instr, info.tensor)
@@ -332,7 +331,7 @@ function Linker:dump(info, mem)
    self:dump_ImageData(info, info.tensor, mem)
 
    -- print memory area statistics
-   self:printMemAreaStatistics(info.filename, #instr, mem)
+   mem:printAreaStatistics()
 
    return self.counter_bytes
 end
@@ -424,70 +423,4 @@ function Linker:dump_ImageData(info, tensor, mem)
          end -- column
       end -- entry
    end -- row
-end
-
-function Linker:printMemAreaStatistics(filename, instr_length, mem)
-
-   embedded_start_b = mem.embedded.start.y * streamer.stride_b
-                    + mem.embedded.start.x * streamer.word_b
-
-   persistent_start_b = mem.persistent.start.y * streamer.stride_b
-                      + mem.persistent.start.x * streamer.word_b
-
-   managed_start_b = mem.managed.start.y * streamer.stride_b
-                   + mem.managed.start.x * streamer.word_b
-
-   embedded_size_b = mem.embedded.current.y * streamer.stride_b
-                  + (mem.embedded.current.x - mem.last_align) * streamer.word_b
-
-   persistent_size_b = mem.persistent.current.y * streamer.stride_b
-   if (mem.persistent.current.x ~= 0) then -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
-      -- if not all the lines are filled till the end we are counting more than we should here,
-      -- but for checking collision it's OK
-      persistent_size_b = persistent_size_b + mem.persistent[#mem.persistent].h * streamer.stride_b
-   end
-
-   managed_size_b = mem.managed.current.y * streamer.stride_b
-   if (mem.managed.current.x ~= 0) then -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
-      -- if not all the lines are filled till the end we are counting more than we should here,
-      -- but for checking collision it's OK
-      managed_size_b = managed_size_b + (mem.managed[#mem.managed].h * streamer.stride_b)
-   end
-
-   local c = sys.COLORS
-   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
-         c.none ..'[ ' .. filename .. ' ]\n')
-   print(
-      string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
-         self.start_text,
-         instr_length-self.start_text,
-         instr_length)
-   )
-   print(
-      string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
-         embedded_start_b,
-         embedded_size_b,
-         embedded_start_b+embedded_size_b)
-   )
-   print(
-      string.format("  image data segment: start = %10d, size = %10d, end = %10d",
-         persistent_start_b,
-         persistent_size_b,
-         persistent_start_b+persistent_size_b)
-   )
-   print(
-      string.format("        heap segment: start = %10d, size = %10d, end = %10d",
-         managed_start_b,
-         managed_size_b,
-         memory.size_b)
-   )
-   print(
-      string.format("\n  the binary file size should be = %10d, total memory used = %10d",
-         self.counter_bytes,
-         managed_start_b+managed_size_b)
-   )
-   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 end

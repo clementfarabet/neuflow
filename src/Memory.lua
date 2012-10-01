@@ -32,6 +32,10 @@ local Memory = torch.class('neuflow.Memory')
 
 function Memory:__init(args)
 
+   self.prog_name = args.prog_name
+   self.init_offset = (args.init_offset or 0) + 1
+   self.bytecode_size_b = 0
+
    -- table of embedded data segments
    self.embedded = {
       ['start'] = {
@@ -76,6 +80,8 @@ function Memory:__init(args)
 end
 
 function Memory:adjustBytecodeSize(size_in_bytes)
+
+   self.bytecode_size_b = size_in_bytes
 
    self.embedded.start.x = 0
    self.embedded.start.y =  math.ceil((size_in_bytes + 1) / streamer.stride_b)
@@ -393,4 +399,79 @@ function Memory:printHeap()
    for i = 1,#self.managed do
       p(self.managed[i])
    end
+end
+
+function Memory:printAreaStatistics()
+
+   embedded_start_b = self.embedded.start.y * streamer.stride_b
+                    + self.embedded.start.x * streamer.word_b
+
+   embedded_size_b = self.embedded.current.y * streamer.stride_b
+                   + (self.embedded.current.x - self.last_align) * streamer.word_b
+
+   persistent_start_b = self.persistent.start.y * streamer.stride_b
+                      + self.persistent.start.x * streamer.word_b
+
+   persistent_size_b = self.persistent.current.y * streamer.stride_b
+   if (self.persistent.current.x ~= 0) then
+      -- if we did not just step a new line
+      -- take into account all the lines we wrote (the last entry's hight is enough)
+      -- if not all the lines are filled till the end we are counting more than we should here,
+      -- but for checking collision it's OK
+      persistent_size_b = persistent_size_b + self.persistent[#self.persistent].h * streamer.stride_b
+   end
+
+   managed_start_b = self.managed.start.y * streamer.stride_b
+                   + self.managed.start.x * streamer.word_b
+
+   managed_size_b = self.managed.current.y * streamer.stride_b
+   if (self.managed.current.x ~= 0) then
+      -- if we did not just step a new line
+      -- take into account all the lines we wrote (the last entry's hight is enough)
+      -- if not all the lines are filled till the end we are counting more than we should here,
+      -- but for checking collision it's OK
+      managed_size_b = managed_size_b + (self.managed[#self.managed].h * streamer.stride_b)
+   end
+
+   local binary_size
+   if #self.persistent == 0 then
+      binary_size = embedded_start_b+embedded_size_b
+   else
+      binary_size = persistent_start_b+persistent_size_b
+   end
+
+   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
+         c.none ..'[ ' .. self.prog_name .. ' ]\n')
+   print(
+      string.format("       bytecode segment: start = %10d, size = %10d, end = %10d",
+         self.init_offset,
+         self.bytecode_size_b-self.init_offset,
+         self.bytecode_size_b)
+   )
+   print(
+      string.format("  embedded data segment: start = %10d, size = %10d, end = %10d",
+         embedded_start_b,
+         embedded_size_b,
+         embedded_start_b+embedded_size_b)
+   )
+   print(
+      string.format("persistent data segment: start = %10d, size = %10d, end = %10d",
+         persistent_start_b,
+         persistent_size_b,
+         persistent_start_b+persistent_size_b)
+   )
+   print(
+      string.format("   managed data segment: start = %10d, size = %10d, end = %10d",
+         managed_start_b,
+         managed_size_b,
+         memory.size_b)
+   )
+   print(
+      string.format("\n  the binary file size should be = %10d, total memory used = %10d",
+         binary_size,
+         managed_start_b+managed_size_b)
+   )
+   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
 end

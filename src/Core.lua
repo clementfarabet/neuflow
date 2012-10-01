@@ -47,12 +47,15 @@ function Core:__init(args)
 
    -- linker
    self.linker = neuflow.Linker {
-      start_text  =  self.offset_code,
+      init_offset =  self.offset_code,
       disassemble =  self.disassemble
    }
 
    -- memory manager
-   self.mem = neuflow.Memory {}
+   self.mem = neuflow.Memory {
+      prog_name = args.prog_name,
+      init_offset =  self.offset_code,
+   }
 
    -- sys reg allocator
    self.alloc_sr = self:RegAllocator {

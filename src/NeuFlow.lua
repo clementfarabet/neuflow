@@ -357,22 +357,19 @@ end
 -- write bytecode in binary/hex mode
 --
 function NeuFlow:writeBytecode(args)
-   -- parse args
-   local filename = args.filename or self.prog_name
-   local filepath
    local tensor = torch.ByteTensor(self.bytecodesize):zero()
 
    -- generate binary once
    local tensor_size = self.core.linker:dump(
       {
          tensor   = tensor,
-         filename = filename,
       },
       self.core.mem
    )
 
+   local filepath
    if next(args) ~= nil then -- called with arguments pasted in
-      filepath = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
+      filepath = '/tmp/' .. self.prog_name .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
       local file = assert(torch.DiskFile(filepath,'w'):binary())
       file:writeString(tensor:storage():string():sub(1, tensor_size))
       assert(file:close())
@@ -387,12 +384,12 @@ function NeuFlow:writeBytecode(args)
 
       if format == 'bin' then
          -- simple copy
-         os.execute('cp -v' .. filepath .. ' ' .. filename .. '.bin')
+         os.execute('cp -v' .. filepath .. ' ' .. self.prog_name .. '.bin')
       elseif format == 'hex' then
-         local filehex = filename..'.hex'..tostring(width)
+         local filehex = self.prog_name ..'.hex'..tostring(width)
          neuflow.tools.readBinWriteHex(filepath, filehex, width, length)
       elseif format == 'rom' then
-         local filev = filename..'.v'
+         local filev = self.prog_name ..'.v'
          neuflow.tools.readBinWriteRom(filepath, filev, width, 'flow_rom')
       else
          error('format should be one of: bin | hex')
