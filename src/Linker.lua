@@ -22,13 +22,13 @@ function Linker:__init(args)
       end_sentinel   = sentinel_node
    }
 
-   self.init_offset = (args.init_offset or 0) + 1
+   local init_offset = (args.init_offset or 0) + 1
 
    -- only if we start NOT from page zero
-   if (self.init_offset ~= 1) then
+   if (init_offset ~= 1) then
 
       -- init padding
-      for aa = 0, ((self.init_offset/8)-1) do
+      for aa = 0, ((init_offset/8)-1) do
          self:appendInstruction{bytes = {0,0,0,0,0,0,0,0}}
       end
 
