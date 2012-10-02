@@ -208,21 +208,19 @@ function NeuFlow:allocData(tensor)
    if type(tensor) == 'table' then
       for i = 1,#tensor do
          if tensor[i]:nDimension() ~= 2 then
-            xlua.error('only supports list of 2D tensors','NeuFlow.allocHeap')
+            xlua.error('only supports list of 2D tensors','NeuFlow.allocPersistentData')
          end
-         local segment = self.core.mem:allocImageData(tensor[i]:size(1), tensor[i]:size(2),
-                                                  tensor[i])
+         local segment = self.core.mem:allocPersistentData(tensor[i])
          table.insert(alloc_list, segment)
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local segment = self.core.mem:allocImageData(tensor:size(1), tensor:size(2), tensor)
+         local segment = self.core.mem:allocPersistentData(tensor)
          table.insert(alloc_list, segment)
       elseif dims == 3 then
          for i = 1,tensor:size(1) do
-            local segment = self.core.mem:allocImageData(tensor:size(2), tensor:size(3),
-                                                     tensor[i])
+            local segment = self.core.mem:allocPersistentData(tensor[i])
             table.insert(alloc_list, segment)
          end
       else

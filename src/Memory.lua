@@ -57,6 +57,9 @@ function Memory:__init(args)
       ['current'] = {
          ['x'] = 0,
          ['y'] = 0
+      },
+      ['layer'] = {
+         ['h'] = 0
       }
    }
 
@@ -102,39 +105,6 @@ function Memory:constructCoordinate(area, coor)
          return self.start[self.coor] + self.offset
       end
    }
-end
-
-function Memory:allocImageData(h_, w_, data_)
-   -- we assume that all the data of the same size
-   -- check if current data fits in the line
-   if (self.persistent.current.x + w_) > streamer.stride_w then
-      self.persistent.current.x = 0
-      self.persistent.current.y = self.persistent.current.y + h_
-   end
-
-   self.persistent[ #self.persistent+1 ] = {
-      x        = self:constructCoordinate('persistent', 'x'),
-      y        = self:constructCoordinate('persistent', 'y'),
-      w        = w_,
-      h        = h_,
-      orig_w   = w_,
-      orig_h   = h_,
-      data     = data_
-   }
-
-   self.persistent.current.x = self.persistent.current.x + w_
-   -- if we also assume that the width of the data cannot exceed the line,
-   -- we don't need to check if we steped out of the line here
-   -- check allignment
-   if (self.persistent.current.x % streamer.align_w) ~= 0 then
-      self.persistent.current.x = (math.floor(self.persistent.current.x/streamer.align_w) + 1)*streamer.align_w
-      -- and check if we did not step out of the line again
-      if (self.persistent.current.x > streamer.stride_w) then
-         self.persistent.current.y = self.persistent.current.y + h_
-         self.persistent.current.x = 0
-      end
-   end
-   return self.persistent[ #self.persistent ]
 end
 
 function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
@@ -301,6 +271,54 @@ function Memory:allocEmbeddedData(data_, bias_)
    end
 
    return self.embedded[ #self.embedded ]
+end
+
+--[[ Allocate Persistent Data
+
+   Current assumption is that data is no wider then the streamer (memory)
+   stride width.
+--]]
+function Memory:allocPersistentData(data_)
+   local w_  = data_:size(2)
+   local h_  = data_:size(1)
+
+   -- the layer height is the height of the maximum data area in the layer
+   if self.persistent.layer.h < h_ then
+      self.persistent.layer.h = h_
+   end
+
+   -- check if current data fits in the line
+   if (self.persistent.current.x + w_) > streamer.stride_w then
+      self.persistent.current.x = 0
+      self.persistent.current.y = self.persistent.current.y + self.persistent.layer.h
+      self.persistent.layer.h = 0
+   end
+
+   self.persistent[ #self.persistent+1 ] = {
+      x        = self:constructCoordinate('persistent', 'x'),
+      y        = self:constructCoordinate('persistent', 'y'),
+      w        = w_,
+      h        = h_,
+      orig_w   = w_,
+      orig_h   = h_,
+      data     = data_
+   }
+
+   -- assume that the width of the data cannot exceed the line,
+   self.persistent.current.x = self.persistent.current.x + w_
+
+   -- allignment of addresses to physical memory pages
+   if (self.persistent.current.x % streamer.align_w) ~= 0 then
+      self.persistent.current.x = (math.floor(self.persistent.current.x/streamer.align_w) + 1)*streamer.align_w
+      -- and check if we did not step out of the line again
+      if (self.persistent.current.x > streamer.stride_w) then
+         self.persistent.current.x = 0
+         self.persistent.current.y = self.persistent.current.y + self.persistent.layer.h
+         self.persistent.layer.h = 0
+      end
+   end
+
+   return self.persistent[ #self.persistent ]
 end
 
 function Memory:printAreaStatistics()
