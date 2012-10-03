@@ -52,14 +52,15 @@ function Memory:__init(args)
    self.persistent = {
       ['start'] = {
          ['x'] = 0,
-         ['y'] = 0
+         ['y'] = 0,
       },
       ['current'] = {
          ['x'] = 0,
-         ['y'] = 0
+         ['y'] = 0,
       },
       ['layer'] = {
-         ['h'] = 0
+         ['h'] = 0,
+         ['packing'] = '1D'
       }
    }
 
@@ -173,23 +174,56 @@ end
 
 --[[ Allocate Persistent Data
 
-   Current assumption is that data is no wider then the streamer (memory)
-   stride width.
+   Data can be transformed to use 1D or 2D packing depending on packing
+   argument. If 2D is selected but the width of the data is larger then the
+   streamer (memory) stride, packing is reverted to 1D.
 --]]
-function Memory:allocPersistentData(data_)
-   local w_  = data_:size(2)
-   local h_  = data_:size(1)
+function Memory:allocPersistentData(data_, packing)
+   packing = packing or '1D'
+   assert(packing == '1D' or packing == '2D')
+
+   local orig_w_ = data_:size(2)
+   local orig_h_ = data_:size(1)
+   local w_
+   local h_
+   local offset_width
+   local offset_height
+
+   if (('2D' == packing) and (orig_w_ > streamer.stride_w)) then
+      print("<neuflow.Memory> WARNING: Current Persistent Data tensor cannot be written with 2D packing, switching to 1D.")
+      packing = '1D'
+   end
+
+   if '1D' == packing then
+      w_ = orig_w_ * orig_h_
+      h_ = 1
+
+      offset_width = w_ % streamer.stride_w
+      offset_height = math.floor(w_ / streamer.stride_w)
+
+      if '1D' ~= self.persistent.layer.packing then
+         self.persistent.current.x = 0
+         self.persistent.current.y = self.persistent.current.y + self.persistent.layer.h
+         self.persistent.layer.h = 0
+      end
+   else
+      w_ = orig_w_
+      h_ = orig_h_
+
+      offset_width = w_
+      offset_height = h_
+
+      -- check if current data fits in the line
+      if (self.persistent.current.x + w_) > streamer.stride_w then
+         self.persistent.current.x = 0
+         self.persistent.current.y = self.persistent.current.y + self.persistent.layer.h
+         self.persistent.layer.h = 0
+      end
+   end
 
    -- the layer height is the height of the maximum data area in the layer
    if self.persistent.layer.h < h_ then
       self.persistent.layer.h = h_
-   end
-
-   -- check if current data fits in the line
-   if (self.persistent.current.x + w_) > streamer.stride_w then
-      self.persistent.current.x = 0
-      self.persistent.current.y = self.persistent.current.y + self.persistent.layer.h
-      self.persistent.layer.h = 0
    end
 
    self.persistent[ #self.persistent+1 ] = {
@@ -197,13 +231,22 @@ function Memory:allocPersistentData(data_)
       y        = self:constructCoordinate('persistent', 'y'),
       w        = w_,
       h        = h_,
-      orig_w   = w_,
-      orig_h   = h_,
+      orig_w   = orig_w_,
+      orig_h   = orig_h_,
       data     = data_
    }
 
-   -- assume that the width of the data cannot exceed the line,
-   self.persistent.current.x = self.persistent.current.x + w_
+   self.persistent.current.x = self.persistent.current.x + offset_width
+
+   if '1D' == packing then
+      self.persistent.current.y = self.persistent.current.y + offset_height
+
+      --  check if we did not step out of the line
+      if (self.persistent.current.x > streamer.stride_w) then
+         self.persistent.current.y = self.persistent.current.y + 1
+         self.persistent.current.x = self.persistent.current.x - streamer.stride_w
+      end
+   end
 
    -- alignment of addresses to physical memory pages
    if (self.persistent.current.x % streamer.align_w) ~= 0 then
@@ -215,6 +258,8 @@ function Memory:allocPersistentData(data_)
          self.persistent.layer.h = 0
       end
    end
+
+   self.persistent.layer.packing = packing
 
    return self.persistent[ #self.persistent ]
 end
