@@ -111,13 +111,6 @@ function Memory:constructCoordinate(area, coor)
    }
 end
 
-function Memory:printHeap()
-   print('<neuflow.Memory> allocated on the heap:')
-   for i = 1,#self.managed do
-      p(self.managed[i])
-   end
-end
-
 --[[ Allocate Embedded Data
 
    Current assumption is that all data being written is a kernel.
