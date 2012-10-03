@@ -120,7 +120,7 @@ end
 
 --[[ Allocate Embedded Data
 
-   Current assumption is that all data being writen is a kernel.
+   Current assumption is that all data being written is a kernel.
 --]]
 function Memory:allocEmbeddedData(data_, bias_)
    local orig_w_  = data_:size(2)
@@ -165,7 +165,7 @@ function Memory:allocEmbeddedData(data_, bias_)
 
    self.embedded.current.x = self.embedded.current.x + w_
 
-   -- allignment of addresses to physical memory pages
+   -- alignment of addresses to physical memory pages
    if (self.embedded.current.x % streamer.align_w) ~= 0 then
       self.embedded.current.x = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
       -- and check if we did not step out of the line again
@@ -212,7 +212,7 @@ function Memory:allocPersistentData(data_)
    -- assume that the width of the data cannot exceed the line,
    self.persistent.current.x = self.persistent.current.x + w_
 
-   -- allignment of addresses to physical memory pages
+   -- alignment of addresses to physical memory pages
    if (self.persistent.current.x % streamer.align_w) ~= 0 then
       self.persistent.current.x = (math.floor(self.persistent.current.x/streamer.align_w) + 1)*streamer.align_w
       -- and check if we did not step out of the line again
@@ -338,7 +338,7 @@ function Memory:printAreaStatistics()
    persistent_size_b = self.persistent.current.y * streamer.stride_b
    if (self.persistent.current.x ~= 0) then
       -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
+      -- take into account all the lines we wrote (the last entry's height is enough)
       -- if not all the lines are filled till the end we are counting more than we should here,
       -- but for checking collision it's OK
       persistent_size_b = persistent_size_b + self.persistent[#self.persistent].h * streamer.stride_b
@@ -350,7 +350,7 @@ function Memory:printAreaStatistics()
    managed_size_b = self.managed.current.y * streamer.stride_b
    if (self.managed.current.x ~= 0) then
       -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
+      -- take into account all the lines we wrote (the last entry's height is enough)
       -- if not all the lines are filled till the end we are counting more than we should here,
       -- but for checking collision it's OK
       managed_size_b = managed_size_b + (self.managed[#self.managed].h * streamer.stride_b)
