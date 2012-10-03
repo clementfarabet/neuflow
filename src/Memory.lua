@@ -67,12 +67,16 @@ function Memory:__init(args)
    self.managed = {
       ['start'] = {
          ['x'] = 0,
-         ['y'] = 0
+         ['y'] = 0,
       },
       ['current'] = {
          ['x'] = 0,
-         ['y'] = 0
-      }
+         ['y'] = 0,
+      },
+      ['layer'] = {
+         ['h'] = 0,
+         ['packing'] = '1D'
+      },
    }
 
    self.managed_prev_layer_h = 0
@@ -105,50 +109,6 @@ function Memory:constructCoordinate(area, coor)
          return self.start[self.coor] + self.offset
       end
    }
-end
-
-function Memory:allocOnTheHeap_2D(h_, w_, data_, new_layer)
-   -- we assume that all the data of one layer of the same size
-   if (new_layer) then
-      self.managed.current.y = self.managed.current.y + self.managed_prev_layer_h
-      self.managed.current.x = 0
-      self.managed_prev_layer_h = h_
-   end
-   -- check if current data fits in the line
-   if (self.managed.current.x + w_) > streamer.stride_w then
-      self.managed.current.x = 0
-      self.managed.current.y = self.managed.current.y + h_
-   end
-   -- check if there is space in the mem if not start overwriting first layers
-   if (self.managed.current.y + h_) > memory.size_r then
-      print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
-      self.managed.current.y = 0
-      self.managed.current.x = 0
-   end
-
-   self.managed[ #self.managed+1 ] = {
-      x        = self:constructCoordinate('managed', 'x'),
-      y        = self:constructCoordinate('managed', 'y'),
-      w        = w_,
-      h        = h_,
-      orig_w   = w_,
-      orig_h   = h_,
-      data     = data_
-   }
-
-   self.managed.current.x = self.managed.current.x + w_
-   -- we also assume that the width of the data cannot exceed the line,
-   -- we don't need to check if we steped out of the line here
-   -- check allignment
-   if (self.managed.current.x % streamer.align_w) ~= 0 then
-      self.managed.current.x = (math.floor(self.managed.current.x/streamer.align_w) + 1)*streamer.align_w
-      -- and check if we did not step out of the line again
-      if (self.managed.current.x > streamer.stride_w) then
-         self.managed.current.y = self.managed.current.y + h_
-         self.managed.current.x = 0
-      end
-   end
-   return self.managed[#self.managed]
 end
 
 function Memory:printHeap()
@@ -268,52 +228,98 @@ end
 
 --[[ Allocate Managed Data
 
-   Current all data is transformed into a 1D packing.
+   Data can be transformed to use 1D or 2D packing depending on packing
+   argument.
+
+   Current assumption is that the data for 2D packing is no wider then the
+   streamer (memory) stride width.
 --]]
 function Memory:allocManagedData(data_, packing)
-   local w_  = data_:size(2)
-   local h_  = data_:size(1)
+   packing = packing or '1D'
+   assert(packing == '1D' or packing == '2D')
 
-   local length = w_*h_
-   local num_of_lines = math.floor(length / streamer.stride_w)
-   local last_line = length % streamer.stride_w
+   local orig_w_ = data_:size(2)
+   local orig_h_ = data_:size(1)
+   local w_
+   local h_
+   local offset_width
+   local offset_height
 
-   -- check if there is space in the mem if not start overwriting first layers
-   if (self.managed.current.y + num_of_lines) > memory.size_r then
-      print("<neuflow.Memory> ERROR: Overwriting the first layers of heap!")
-      self.managed.current.y = 0
-      self.managed.current.x = 0
+   if '1D' == packing then
+      w_ = orig_w_ * orig_h_
+      h_ = 1
+
+      offset_width = w_ % streamer.stride_w
+      offset_height = math.floor(w_ / streamer.stride_w)
+
+      if '1D' ~= self.managed.layer.packing then
+         self.managed.current.x = 0
+         self.managed.current.y = self.managed.current.y + self.managed.layer.h
+         self.managed.layer.h = 0
+      end
+   else
+      w_ = orig_w_
+      h_ = orig_h_
+
+      offset_width = w_
+      offset_height = h_
+
+      -- check if current data fits in the line
+      if (self.managed.current.x + w_) > streamer.stride_w then
+         self.managed.current.x = 0
+         self.managed.current.y = self.managed.current.y + self.managed.layer.h
+         self.managed.layer.h = 0
+      end
    end
 
-   -- the pointers for this entry are ready just palce the item in the memory
+   -- check if there is space in the mem if not start overwriting first layers
+   if (self.managed.current.y + offset_height) > memory.size_r then
+      print("<neuflow.Memory> WARNING: Overwriting the first layers of heap!")
+      self.managed.current.x = 0
+      self.managed.current.y = 0
+      self.managed.layer.h = 0
+   end
+
+   -- the layer height is the height of the maximum data area in the layer
+   if self.managed.layer.h < h_ then
+      self.managed.layer.h = h_
+   end
+
+   -- the pointers for this entry are ready just place the item in the memory
    self.managed[ #self.managed+1 ] = {
       x        = self:constructCoordinate('managed', 'x'),
       y        = self:constructCoordinate('managed', 'y'),
-      w        = w_*h_,
-      h        = 1,
-      orig_w   = w_,
-      orig_h   = h_,
+      w        = w_,
+      h        = h_,
+      orig_w   = orig_w_,
+      orig_h   = orig_h_,
       data     = data_
    }
 
-   self.managed.current.x = self.managed.current.x + last_line
-   self.managed.current.y = self.managed.current.y + num_of_lines
+   self.managed.current.x = self.managed.current.x + offset_width
 
-   --  check if we did not step out of the line
-   if (self.managed.current.x > streamer.stride_w) then
-      self.managed.current.y = self.managed.current.y + 1
-      self.managed.current.x = self.managed.current.x - streamer.stride_w
+   if '1D' == packing then
+      self.managed.current.y = self.managed.current.y + offset_height
+
+      --  check if we did not step out of the line
+      if (self.managed.current.x > streamer.stride_w) then
+         self.managed.current.y = self.managed.current.y + 1
+         self.managed.current.x = self.managed.current.x - streamer.stride_w
+      end
    end
 
-   -- allignment of addresses to physical memory pages
+   -- alignment of addresses to physical memory pages
    if (self.managed.current.x % streamer.align_w) ~= 0 then
       self.managed.current.x = (math.floor(self.managed.current.x/streamer.align_w) + 1)*streamer.align_w
       -- and check if we did not step out of the line again
       if (self.managed.current.x > streamer.stride_w) then
-         self.managed.current.y = self.managed.current.y + 1
          self.managed.current.x = 0
+         self.managed.current.y = self.managed.current.y + self.managed.layer.h
+         self.managed.layer.h = 0
       end
    end
+
+   self.managed.layer.packing = packing
 
    return self.managed[#self.managed]
 end
