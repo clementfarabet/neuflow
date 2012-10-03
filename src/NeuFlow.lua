@@ -24,28 +24,21 @@ function NeuFlow:__init(args)
 
    -- default offsets, for conveniency
    args.offset_code = args.offset_code or bootloader.entry_point_b
-   args.offset_data_1D = args.offset_data_1D or bootloader.entry_point_b + 16*MB
-   args.offset_data_2D = args.offset_data_2D or bootloader.entry_point_b + 22*MB
-   args.offset_heap = args.offset_heap or bootloader.entry_point_b + 24*MB
-
    -- in simul, bypass header
    if self.mode == 'simulation' then
       args.offset_code = 0
    end
 
-   -- use a log file
-   self.logfile = neuflow.Log('/tmp/' .. self.prog_name .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.log')
-
    -- instantiate core, with all args
    args.msg_level = args.core_msg_level or self.global_msg_level
-   args.logfile = self.logfile
    self.core = neuflow.Core(args)
 
    -- instantiate the compiler, relies on the core
-   self.compiler = neuflow.Compiler{optimize_across_layers = true,
-                                    logfile = self.logfile,
-                                    core = self.core,
-                                    msg_level = args.compiler_msg_level or self.global_msg_level}
+   self.compiler = neuflow.Compiler {
+      optimize_across_layers = true,
+      core = self.core,
+      msg_level = args.compiler_msg_level or self.global_msg_level
+   }
 
    -- use a profiler
    self.profiler = neuflow.Profiler()
@@ -53,14 +46,18 @@ function NeuFlow:__init(args)
    -- instantiate the interface
    if (self.core.platform == 'pico_m503') or (self.core.platform == 'xilinx_ml605_tbsp') then
       self.handshake = false
-      self.ethernet = neuflow.DmaEthernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
-                                          core = self.core,
-                                          nf = self}
+      self.ethernet = neuflow.DmaEthernet {
+         msg_level = args.ethernet_msg_level or self.global_msg_level,
+         core = self.core,
+         nf = self
+      }
    else
       self.handshake = true
-      self.ethernet = neuflow.Ethernet{msg_level = args.ethernet_msg_level or self.global_msg_level,
-                                       core = self.core,
-                                       nf = self}
+      self.ethernet = neuflow.Ethernet {
+         msg_level = args.ethernet_msg_level or self.global_msg_level,
+         core = self.core,
+         nf = self
+      }
    end
 
    -- for loops: this retains a list of jump locations
@@ -141,23 +138,20 @@ function NeuFlow:allocHeap(tensor)
          if tensor[i]:nDimension() ~= 2 then
             xlua.error('only supports list of 2D tensors','NeuFlow.allocHeap')
          end
-         local idx = self.core.mem:allocOnTheHeap(tensor[i]:size(1), tensor[i]:size(2), nil, first)
-         self.core.mem.buff[idx].id = idx
-         table.insert(alloc_list, self.core.mem.buff[idx])
+         local segment = self.core.mem:allocManagedData(tensor[i])
+         table.insert(alloc_list, segment)
          first = false
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local idx = self.core.mem:allocOnTheHeap(tensor:size(1), tensor:size(2), nil, true)
-         self.core.mem.buff[idx].id = idx
-         table.insert(alloc_list, self.core.mem.buff[idx])
+         local segment = self.core.mem:allocManagedData(tensor)
+         table.insert(alloc_list, segment)
       elseif dims == 3 then
          local first = true
          for i = 1,tensor:size(1) do
-            local idx = self.core.mem:allocOnTheHeap(tensor:size(2), tensor:size(3), nil, first)
-            self.core.mem.buff[idx].id = idx
-            table.insert(alloc_list, self.core.mem.buff[idx])
+            local segment = self.core.mem:allocManagedData(tensor[i])
+            table.insert(alloc_list, segment)
             first = false
          end
       else
@@ -174,39 +168,33 @@ function NeuFlow:allocDataPacked(tensor,bias)
          if tensor[i]:nDimension() ~= 2 then
             xlua.error('only supports list of 2D tensors','NeuFlow.allocHeap')
          end
-         local idx
+         local segment
          if bias then
-            idx = self.core.mem:allocKernel(tensor[i]:size(1), tensor[i]:size(2),
-                                            tensor[i], bias[i])
+            segment = self.core.mem:allocEmbeddedData(tensor[i], bias[i])
          else
-            idx = self.core.mem:allocRawData(tensor[i]:size(1), tensor[i]:size(2), tensor[i])
+            segment = self.core.mem:allocEmbeddedData(tensor[i])
          end
-         self.core.mem.raw_data[idx].id = idx
-         table.insert(alloc_list, self.core.mem.raw_data[idx])
+         table.insert(alloc_list, segment)
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local idx
+         local segment
          if bias then
-            idx = self.core.mem:allocKernel(tensor:size(1), tensor:size(2), tensor, bias)
+            segment = self.core.mem:allocEmbeddedData(tensor, bias)
          else
-            idx = self.core.mem:allocRawData(tensor:size(1), tensor:size(2), tensor)
+            segment = self.core.mem:allocEmbeddedData(tensor)
          end
-         self.core.mem.raw_data[idx].id = idx
-         table.insert(alloc_list, self.core.mem.raw_data[idx])
+         table.insert(alloc_list, segment)
       elseif dims == 3 then
          for i = 1,tensor:size(1) do
-            local idx
+            local segment
             if bias then
-               idx = self.core.mem:allocKernel(tensor:size(2), tensor:size(3),
-                                               tensor[i], bias:narrow(1,i,1))
+               segment = self.core.mem:allocEmbeddedData(tensor[i], bias:narrow(1,i,1))
             else
-               idx = self.core.mem:allocRawData(tensor:size(2), tensor:size(3),
-                                                tensor[i])
+               segment = self.core.mem:allocEmbeddedData(tensor[i])
             end
-            self.core.mem.raw_data[idx].id = idx
-            table.insert(alloc_list, self.core.mem.raw_data[idx])
+            table.insert(alloc_list, segment)
          end
       else
          error('tensors must have 2 or 3 dimensions')
@@ -220,25 +208,20 @@ function NeuFlow:allocData(tensor)
    if type(tensor) == 'table' then
       for i = 1,#tensor do
          if tensor[i]:nDimension() ~= 2 then
-            xlua.error('only supports list of 2D tensors','NeuFlow.allocHeap')
+            xlua.error('only supports list of 2D tensors','NeuFlow.allocPersistentData')
          end
-         local idx = self.core.mem:allocImageData(tensor[i]:size(1), tensor[i]:size(2),
-                                                  tensor[i])
-         self.core.mem.data[idx].id = idx
-         table.insert(alloc_list, self.core.mem.data[idx])
+         local segment = self.core.mem:allocPersistentData(tensor[i])
+         table.insert(alloc_list, segment)
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local idx = self.core.mem:allocImageData(tensor:size(1), tensor:size(2), tensor)
-         self.core.mem.data[idx].id = idx
-         table.insert(alloc_list, self.core.mem.data[idx])
+         local segment = self.core.mem:allocPersistentData(tensor)
+         table.insert(alloc_list, segment)
       elseif dims == 3 then
          for i = 1,tensor:size(1) do
-            local idx = self.core.mem:allocImageData(tensor:size(2), tensor:size(3),
-                                                     tensor[i])
-            self.core.mem.data[idx].id = idx
-            table.insert(alloc_list, self.core.mem.data[idx])
+            local segment = self.core.mem:allocPersistentData(tensor[i])
+            table.insert(alloc_list, segment)
          end
       else
          error('tensors must have 2 or 3 dimensions')
@@ -333,19 +316,18 @@ end
 ----------------------------------------------------------------------
 -- wrappers for compilers
 --
-function NeuFlow:compile(network, inputs)
+function NeuFlow:compile(network, input)
    -- retrieve IDs
-   input_ids = {}
-   for i = 1,#inputs do
-      input_ids[i] = inputs[i].id
+   local inputs
+   if #input == 0 then
+      inputs = { input }
+   else
+      inputs = input
    end
-   local output_ids
-   output_ids, self.gops = self.compiler:processNetwork(network, input_ids)
-   -- return actual list of outputs
-   local outputs = {}
-   for i = 1,#output_ids do
-      outputs[i] = self.core.mem.buff[output_ids[i]]
-   end
+
+   local outputs
+   outputs, self.gops = self.compiler:processNetwork(network, inputs)
+
    return outputs
 end
 
@@ -376,22 +358,19 @@ end
 -- write bytecode in binary/hex mode
 --
 function NeuFlow:writeBytecode(args)
-   -- parse args
-   local filename = args.filename or self.prog_name
-   local filepath
    local tensor = torch.ByteTensor(self.bytecodesize):zero()
 
    -- generate binary once
    local tensor_size = self.core.linker:dump(
       {
          tensor   = tensor,
-         filename = filename,
       },
       self.core.mem
    )
 
+   local filepath
    if next(args) ~= nil then -- called with arguments pasted in
-      filepath = '/tmp/' .. filename .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
+      filepath = '/tmp/' .. self.prog_name .. '-' .. os.date("%Y_%m_%d_%H_%M_%S") .. '.bin'
       local file = assert(torch.DiskFile(filepath,'w'):binary())
       file:writeString(tensor:storage():string():sub(1, tensor_size))
       assert(file:close())
@@ -406,12 +385,12 @@ function NeuFlow:writeBytecode(args)
 
       if format == 'bin' then
          -- simple copy
-         os.execute('cp -v' .. filepath .. ' ' .. filename .. '.bin')
+         os.execute('cp -v' .. filepath .. ' ' .. self.prog_name .. '.bin')
       elseif format == 'hex' then
-         local filehex = filename..'.hex'..tostring(width)
+         local filehex = self.prog_name ..'.hex'..tostring(width)
          neuflow.tools.readBinWriteHex(filepath, filehex, width, length)
       elseif format == 'rom' then
-         local filev = filename..'.v'
+         local filev = self.prog_name ..'.v'
          neuflow.tools.readBinWriteRom(filepath, filev, width, 'flow_rom')
       else
          error('format should be one of: bin | hex')
@@ -484,12 +463,6 @@ function NeuFlow:loadBytecode(bytecode)
       -- then transmit bytecode
       print('<neuflow.NeuFlow> transmitting bytecode')
       self.ethernet:host_sendBytecode(bytecode)
-      -- we are already transmitting the bytecode
-      -- we can close the log file now
-      -- the way it was done before in cleanup
-      -- it was never closed, that is why we didn't see
-      -- all of the data in log file
-      self.logfile:close()
    else
       -- if no bytecode given, first dump it to file, then load it from there
       self:loadBytecode(self:writeBytecode{})

@@ -11,7 +11,6 @@ local Linker = torch.class('neuflow.Linker')
 
 function Linker:__init(args)
    -- args
-   self.logfile = args.logfile
    self.disassemble = args.disassemble
 
    -- the bytecode array
@@ -23,26 +22,18 @@ function Linker:__init(args)
       end_sentinel   = sentinel_node
    }
 
-   -- initial offsets
-   self.start_process_x = 0 -- initial offset here!!!
-   self.start_process_y = 0 -- initial offset here!!!
-
-   local start_text = (args.start_text or 0) + 1
+   local init_offset = (args.init_offset or 0) + 1
 
    -- only if we start NOT from page zero
-   if (start_text ~= 1) then
+   if (init_offset ~= 1) then
 
       -- init padding
-      for aa = 0, ((start_text/8)-1) do
+      for aa = 0, ((init_offset/8)-1) do
          self:appendInstruction{bytes = {0,0,0,0,0,0,0,0}}
       end
 
       -- Sentinel to seperate init padding from next process
       self:appendSentinel()
-
-      -- calculate start_x and start_y for collision check
-      self.start_process_x = 0
-      self.start_process_y = start_text / streamer.stride_b
    end
 
    self.counter_bytes = 0
@@ -133,6 +124,20 @@ function Linker:resolveGotos()
 
       node = node.next
    end
+
+   return ii
+end
+
+function Linker:resolveMemSegments()
+   local node = self.instruction_list.start_node
+
+   while node do
+      if node.mem_offset ~= nil then
+         self:rewriteARG32(node.bytes, node.mem_offset:calc())
+      end
+
+      node = node.next
+   end
 end
 
 function Linker:genBytecode()
@@ -192,9 +197,6 @@ function Linker:appendInstruction(instruction)
 end
 
 function Linker:newInstructionBytes(args)
-   if args.binary then
-      return args.binary
-   end
 
    -- parse args
    local opcode = args.opcode or oFlower.op_nop
@@ -303,7 +305,11 @@ function Linker:dump(info, mem)
 
    self:linkGotos()
    self:alignProcessWithPages()
-   self:resolveGotos()
+   local instr_nb = self:resolveGotos()
+
+   mem:adjustBytecodeSize(instr_nb*8)
+
+   self:resolveMemSegments()
    local instr = self:genBytecode()
 
    -- optional disassemble
@@ -313,20 +319,19 @@ function Linker:dump(info, mem)
 
    -- parse argument
    assert(info.tensor)
-   info.filename  = info.filename   or 'temp'
-   info.bigendian = info.bigendian  or 0
+   info.bigendian = info.bigendian or 0
 
    -- print all the instructions
    self:dump_instructions(instr, info.tensor)
 
-   -- and raw_data
+   -- and embedded
    self:dump_RawData(info, info.tensor, mem)
 
    -- and data (images) for simulation)
    self:dump_ImageData(info, info.tensor, mem)
 
-   -- check collisions:
-   self:checkCollisions(info.filename, #instr, mem)
+   -- print memory area statistics
+   mem:printAreaStatistics()
 
    return self.counter_bytes
 end
@@ -341,21 +346,20 @@ end
 
 function Linker:dump_RawData(info, tensor, mem)
    -- pad initial offset for raw data
-   self.logfile:write("Kernels:\n")
-   self.counter_bytes = mem.start_raw_data_y * streamer.stride_b
-                      + mem.start_raw_data_x * streamer.word_b
+   self.counter_bytes = mem.embedded.start.y * streamer.stride_b
+                      + mem.embedded.start.x * streamer.word_b
 
-   for i=1,(mem.raw_datap-1) do
-      mem_entry = mem.raw_data[i]
-      self.logfile:write(
-         string.format("#%d, offset_x = %d, offset_y = %d\n", i, mem_entry.x,mem_entry.y)
-      )
+   for i=1, #mem.embedded do
+      mem_entry = mem.embedded[i]
 
       -- set offset in file
-      self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
+      if ('number' == type(mem_entry.y)) then
+         self.counter_bytes = mem_entry.y * streamer.stride_b + mem_entry.x * streamer.word_b
+      else
+         self.counter_bytes = mem_entry.y:calc() * streamer.stride_b + mem_entry.x:calc() * streamer.word_b
+      end
 
       if (mem_entry.bias ~= nil) then
-         self.logfile:write("Bias:\n")
          for b = 1,mem_entry.bias:size(1) do
             dataTwos = math.floor(mem_entry.bias[b] * num.one + 0.5)
             dataTwos = bit.band(dataTwos, num.mask)
@@ -369,13 +373,9 @@ function Linker:dump_RawData(info, tensor, mem)
                tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes + 1
             end
-            -- print the kernel to logFile:
-            self.logfile:write(string.format("%d ", mem_entry.bias[b]))
          end
-         self.logfile:write(string.format("\n"))
       end
 
-      self.logfile:write("Kernel:\n")
       for r=1,mem_entry.data:size(1) do
          for c=1,mem_entry.data:size(2) do
             dataTwos = math.floor(mem_entry.data[r][c] * num.one + 0.5)
@@ -390,35 +390,32 @@ function Linker:dump_RawData(info, tensor, mem)
                tensor[self.counter_bytes+1] = tempchar
                self.counter_bytes = self.counter_bytes + 1
             end
-            -- print the kernel to logFile:
-            self.logfile:write(string.format("%d ", mem_entry.data[r][c]))
          end
-         self.logfile:write(string.format("\n"))
       end
    end
 end
 
 function Linker:dump_ImageData(info, tensor, mem)
-   if (mem.data[1] == nil) then
+   if (mem.persistent[1] == nil) then
       return
    end
    -- pad initial offset for raw data
-   self.counter_bytes =  mem.start_data_y*streamer.stride_b + mem.start_data_x*streamer.word_b
-   mem_entry = mem.data[1]
-
-   self.logfile:write(
-      string.format("Writing images from offset: %d\n",
-         mem.start_data_y*streamer.stride_w + mem.start_data_x)
-   )
+   self.counter_bytes =  mem.persistent.start.y*streamer.stride_b + mem.persistent.start.x*streamer.word_b
+   mem_entry = mem.persistent[1]
 
    for r=1,mem_entry.h do
-      for i=1,(mem.datap-1) do
-         mem_entry = mem.data[i]
-         self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
+      for i=1, #mem.persistent do
+         mem_entry = mem.persistent[i]
+
+         if ('number' == type(mem_entry.y)) then
+            self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
+         else
+            self.counter_bytes = (mem_entry.y:calc() + r - 1)*streamer.stride_b + mem_entry.x:calc()*streamer.word_b
+         end
+
          for c=1, mem_entry.w do
             dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
             dataTwos = bit.band(dataTwos, num.mask)
-            self.logfile:write(string.format("%d ",dataTwos))--mem_entry.data[r][c]))
             for j=0,(num.size_b - 1) do
                -- get char from short
                if (info.bigendian == 1) then
@@ -430,89 +427,6 @@ function Linker:dump_ImageData(info, tensor, mem)
                self.counter_bytes = self.counter_bytes+1
             end
          end -- column
-         self.logfile:write(string.format("\t"))
       end -- entry
-      self.logfile:write(string.format("\n"))
    end -- row
-end
-
-function Linker:checkCollisions(filename, instr_length, mem)
-   -- processes are 1 byte long, numbers are 2 (streamer.word_b) bytes long
-
-   offset_bytes_process = self.start_process_y * streamer.stride_b
-                        + self.start_process_x
-   --+ self.start_process_x * streamer.word_b
-
-   offset_bytes_rawData = mem.start_raw_data_y * streamer.stride_b
-                        + mem.start_raw_data_x * streamer.word_b
-
-   offset_bytes_data = mem.start_data_y * streamer.stride_b
-                     + mem.start_data_x * streamer.word_b
-
-   offset_bytes_buffer = mem.start_buff_y * streamer.stride_b
-                       + mem.start_buff_x * streamer.word_b
-
-   size_raw_data = (mem.raw_data_offset_y - mem.start_raw_data_y) * streamer.stride_b
-                 + (mem.raw_data_offset_x - mem.start_raw_data_x - mem.last_align) * streamer.word_b
-
-   size_data = (mem.data_offset_y - mem.start_data_y) * streamer.stride_b
-
-   if (mem.data_offset_x ~= 0) then -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
-      -- if not all the lines are filled till the end we are counting more than we should here,
-      -- but for checking collision it's OK
-      size_data = size_data + mem.data[mem.datap - 1].h * streamer.stride_b
-   end
-
-   size_buff =  (mem.buff_offset_y - mem.start_buff_y) * streamer.stride_b
-
-   if (mem.buff_offset_x ~= 0) then -- if we did not just step a new line
-      -- take into account all the lines we wrote (the last entry's hight is enough)
-      -- if not all the lines are filled till the end we are counting more than we should here,
-      -- but for checking collision it's OK
-      size_buff = size_buff + mem.buff[mem.buffp - 1].h * streamer.stride_b
-   end
-
-   local c = sys.COLORS
-   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-   print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..
-         c.none ..'[' .. filename .. "]\n")
-   print(
-      string.format("    bytecode segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_process,
-         (instr_length-offset_bytes_process),
-         offset_bytes_process+(instr_length-offset_bytes_process))
-   )
-   if (((instr_length+1)-offset_bytes_process) + offset_bytes_process > offset_bytes_rawData) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("kernels data segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_rawData,
-         size_raw_data,
-         offset_bytes_rawData+size_raw_data)
-   )
-   if (offset_bytes_rawData+size_raw_data > offset_bytes_data) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("  image data segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_data,
-         size_data,
-         offset_bytes_data+size_data)
-   )
-   if (offset_bytes_data+size_data > offset_bytes_buffer) then
-      print(c.Red .. 'ERROR' .. c.red .. ' segments overlap' .. c.none)
-   end
-   print(
-      string.format("        heap segment: start = %10d, size = %10d, end = %10d",
-         offset_bytes_buffer,
-         size_buff, memory.size_b)
-   )
-
-   print(
-      string.format("                                  the binary file size should be = %10d",
-         self.counter_bytes)
-   )
-   print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 end

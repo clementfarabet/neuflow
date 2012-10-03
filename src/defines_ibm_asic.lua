@@ -248,18 +248,8 @@ do
    memory.bandwidth_  = memory.bus_*memory.clock_freq*((memory.is_ddr and 2) or 1)
    memory.bandwidth_b = memory.bandwidth_ / 8
    memory.bandwidth_w = memory.bandwidth_b / streamer.word_b
-end
 
-
-----------------------------------------------------------------------
---- Linker parameters
---
-linker = {}
-do
-   linker.offset_text   =  0
-   linker.offset_kernel =  1*MB
-   linker.offset_image  =  1*MB + linker.offset_kernel
-   linker.offset_heap   =  1*MB + linker.offset_image
+   memory.offset_text = 0
 end
 
 

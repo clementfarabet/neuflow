@@ -26,13 +26,7 @@ function Core:__init(args)
    self.period_ns = args.period_ns or 1e9/oFlower.clock_freq
    self.sys_period_ns = args.sys_period_ns or 1e9/grid.clock_freq
    self.uart_freq = args.uart_freq or 57600
-   self.logfile = args.logfile
-
    self.offset_code = args.offset_code
-   self.offset_data_1D = args.offset_data_1D
-   self.offset_data_2D = args.offset_data_2D
-   self.offset_heap = args.offset_heap
-
    self.disassemble = args.disassemble
 
    grid.nb_grids = args.nb_grids or grid.nb_grids
@@ -53,17 +47,14 @@ function Core:__init(args)
 
    -- linker
    self.linker = neuflow.Linker {
-      logfile     =  self.logfile,
-      start_text  =  self.offset_code,
+      init_offset =  self.offset_code,
       disassemble =  self.disassemble
    }
 
    -- memory manager
    self.mem = neuflow.Memory {
-      logfile       =  self.logfile,
-      kernel_offset =  self.offset_data_1D,
-      image_offset  =  self.offset_data_2D,
-      heap_offset   =  self.offset_heap
+      prog_name = args.prog_name,
+      init_offset =  self.offset_code,
    }
 
    -- sys reg allocator
@@ -315,7 +306,7 @@ function Core:addDataPAD()
    local ii = 0
    while ii < (#self.binary-1) do
       self:addInstruction {
-         binary = {
+         bytes = {
             self.binary[ii+1],
             self.binary[ii+2],
             self.binary[ii+3],
@@ -628,9 +619,6 @@ end
 function Core:openPortRd(port, data)
    -- Stream image out
    self:activateStreamerPort(port, 'read', data)
-   self.logfile:write("^^^^Core:openPortRd:\n")
-   self.logfile:write(string.format("y = %d, x = %d, h = %d, w = %d\n",
-                                data.y, data.x, data.h, data.w ))
 end
 
 function Core:openPortRdNoSync(port, data)
@@ -742,7 +730,7 @@ function Core:configureStreamer(offset, length, stride, ports)
 
       -- Coordinates (useless now, but to get the port idle)
       self:send_selectModule(blast_bus.area_streamer, blast_bus.addr_mem_streamer_0 + ports[i], 2)
-      self:send_coordinates(0, 0, 0, 0)
+      self:send_coordinates(0, 0, 0, 0, 'write')
 
       -- Make sure it is configured
       self:getStatus(blast_bus.status_idle)
@@ -1634,8 +1622,29 @@ function Core:send_timeout(timeout)
 end
 
 function Core:send_coordinates(offset_x, offset_y, length_x, length_y, mode)
-   self:pushConfig(blast_bus.content_config, offset_x)
-   self:pushConfig(blast_bus.content_config, offset_y)
+
+   if ('number' == type(offset_x)) then
+      self:pushConfig(blast_bus.content_config, offset_x)
+   else
+      self:addInstruction {
+         mem_offset = offset_x,
+         opcode = oFlower.op_writeConfig,
+         arg8_1 = blast_bus.content_config,
+         --arg32_1 = offset_x
+      }
+   end
+
+   if ('number' == type(offset_y)) then
+      self:pushConfig(blast_bus.content_config, offset_y)
+   else
+      self:addInstruction {
+         mem_offset = offset_y,
+         opcode = oFlower.op_writeConfig,
+         arg8_1 = blast_bus.content_config,
+         --arg32_1 = offset_y
+      }
+   end
+
    self:pushConfig(blast_bus.content_config, length_x)
    self:pushConfig(blast_bus.content_config, length_y)
    if mode == 'read' then

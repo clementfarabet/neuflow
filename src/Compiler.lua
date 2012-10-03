@@ -15,11 +15,10 @@ local message = {
 function Compiler:__init(args)
    -- args:
    self.opt_across_layers = args.optimize_across_layers or false
-   self.logfile = args.logfile or nil
    self.core = args.core
    self.msg_level = args.msg_level or 'concise' -- can be 'none' or 'detailled'
 
-   if (self.core == nil or self.logfile == nil) then
+   if (self.core == nil) then
       error('<neuflow.Compiler> ERROR: please provide DataflowComputer + Log')
    end
 
@@ -148,7 +147,6 @@ end
 
 function Compiler:SpatialConvolution(conv_module, inputs, mapping)
    local outputs = {}
-   local new_layer = true
 
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
@@ -180,13 +178,13 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
 
    -- store inputs
    for i = 1,conv_module.nInputPlane do
-      table.insert(input_list, self.core.mem.buff[inputs[i]])
+      table.insert(input_list, inputs[i])
    end
 
    -- parse connections
    for o = 1,conv_module.nOutputPlane do
       -- allocate output
-      local item = self.core.mem.buff[inputs[1]]
+      local item = inputs[1]
       local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
       local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
       if output_height ~= math.floor(output_height) then
@@ -194,22 +192,20 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
                .. item.orig_h .. ', sub_h=' ..
                conv_module.kH .. ', out_h=' .. output_height)
       end
-      local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-      outputs[o] = id_output
-      new_layer = false
+      outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
       -- store output
-      table.insert(output_list, self.core.mem.buff[outputs[o]])
+      table.insert(output_list, outputs[o])
 
       -- store kernels
       for i = 1,conv_module.nInputPlane do
          -- allocate kernel
          local kernel = conv_module.weight[o][i]
          local bias = conv_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW, kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- collect connections
-         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+         table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
@@ -231,8 +227,6 @@ end
 
 function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
    local outputs = {}
-   local new_layer = true
-   local new_output = true
    local current_op = 1
 
    if (self.msg_level ~= 'none') then
@@ -286,33 +280,30 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
 
       for o = 1,conv_module.nOutputPlane do
          -- allocate output
-         local item = self.core.mem.buff[inputs[1]]
+         local item = inputs[1]
          local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
          local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
          if output_height ~= math.floor(output_height) then
             error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                   conv_module.kH .. ', out_h=' .. output_height)
          end
-         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         outputs[o] = id_output
+         outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
          -- allocate kernel + bias
          local kernel = conv_module.weight[current_op]
          local bias = conv_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
-                                                     kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- collect connections
-         table.insert(input_list, self.core.mem.buff[inputs[o]])
-         table.insert(output_list, self.core.mem.buff[outputs[o]])
-         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+         table.insert(input_list, inputs[o])
+         table.insert(output_list, outputs[o])
+         table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
 
          -- next connex
          current_op = current_op + 1
-         new_layer = false
       end
 
       -- compute output
@@ -321,21 +312,18 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
    elseif output_reuse then
       for o = 1,conv_module.nOutputPlane do
          -- allocate output
-         local item = self.core.mem.buff[inputs[1]]
+         local item = inputs[1]
          local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
          local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
          if output_height ~= math.floor(output_height) then
             error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                   conv_module.kH .. ', out_h=' .. output_height)
          end
-         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         outputs[o] = id_output
-         new_layer = false
-         new_output = true
+         outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
          local input_list = {}
          local kernel_list = {}
-         local output_list = {self.core.mem.buff[id_output]}
+         local output_list = {outputs[o]}
 
          -- find all inputs
          for i = 1,conv_module.connTable:size(1) do
@@ -346,18 +334,16 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                -- allocate kernel + bias
                local kernel = conv_module.weight[current_op]
                local bias = conv_module.bias:narrow(1,o,1)
-               local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
-                                                           kernel, bias)
+               local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
                -- collect connections
-               table.insert(input_list, self.core.mem.buff[inputs[input_p]])
-               table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+               table.insert(input_list, inputs[input_p])
+               table.insert(kernel_list, kernel_mem)
 
                -- for info, update the number of ops
                self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
 
                -- next connex
-               new_output = false
                current_op = current_op + 1
             end
          end
@@ -369,7 +355,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
    else -- input reuse
       for i = 1,conv_module.nInputPlane do
          -- lists of outputs/kernels
-         local input_list = {self.core.mem.buff[inputs[i]]}
+         local input_list = {inputs[i]}
          local kernel_list = {}
          local output_list = {}
 
@@ -378,33 +364,29 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
             local o = conv_module.connTable[oidx][2]
             if (i == conv_module.connTable[o][1]) then
                -- allocate output
-               local item = self.core.mem.buff[inputs[1]]
+               local item = inputs[1]
                local output_width = math.floor( (item.orig_w - conv_module.kW)/conv_module.dW + 1 )
                local output_height = (item.orig_h - conv_module.kH)/conv_module.dH + 1
                if output_height ~= math.floor(output_height) then
                   error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                         conv_module.kH .. ', out_h=' .. output_height)
                end
-               local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {},
-                                                              new_layer)
-               outputs[o] = id_output
+               outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
                -- allocate kernel + bias
                local kernel = conv_module.weight[o]
                local bias = conv_module.bias:narrow(1,o,1)
-               local id_kernel = self.core.mem:allocKernel(conv_module.kH, conv_module.kW,
-                                                           kernel, bias)
+               local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
                -- collect connections
-               table.insert(output_list, self.core.mem.buff[id_output])
-               table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+               table.insert(output_list, output[o])
+               table.insert(kernel_list, kernel_mem)
 
                -- for info, update the number of ops
                self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
 
                -- next connex
                current_op = current_op + 1
-               new_layer = false
             end
          end
 
@@ -425,7 +407,6 @@ end
 
 function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
    local outputs = {}
-   local new_layer = true
 
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
@@ -458,40 +439,37 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
       for o = 1,sub_module.nInputPlane do
          -- allocate output
-         local input = self.core.mem.buff[inputs[o]]
+         local input = inputs[o]
          local output_width = math.floor( (input.orig_w-sub_module.kW)/sub_module.dW + 1)
          local output_height = (input.orig_h-sub_module.kH)/sub_module.dH + 1
          if output_height ~= math.floor(output_height) then
             output_height = math.floor(output_height)
-            local newinput = {y = input.y,
-                              x = input.x,
-                              data = input.data,
-                              orig_h = (output_height - 1)*sub_module.dH + sub_module.kH,
-                              orig_w = input.orig_w,
-                              w = 1,
-                              h = 1}
+            local newinput = {
+               y        = input.y,
+               x        = input.x,
+               data     = input.data,
+               orig_h   = (output_height - 1)*sub_module.dH + sub_module.kH,
+               orig_w   = input.orig_w,
+               w        = 1,
+               h        = 1
+            }
             newinput.w = newinput.orig_w * newinput.orig_h
             input = newinput
          end
-         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         outputs[o] = id_output
+         outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
          -- allocate kernel + bias
          local kernel = torch.Tensor(sub_module.kW, sub_module.kH):fill(sub_module.weight[o])
          local bias = sub_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(sub_module.kH, sub_module.kW,
-                                                     kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- collect connections
          table.insert(input_list, input)
-         table.insert(output_list, self.core.mem.buff[outputs[o]])
-         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+         table.insert(output_list, outputs[o])
+         table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*sub_module.kW*sub_module.kH*2
-
-         -- next connex
-         new_layer = false
       end
 
       -- compute output
@@ -510,7 +488,6 @@ end
 
 function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
    local outputs = {}
-   local new_layer = true
 
    if torch.typename(sub_module.modules[1]) ~= 'nn.Square' then
       error('<neuflow.Compiler> ERROR: LP Pooling only supported with L2 norm')
@@ -545,41 +522,37 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
 
       for o = 1,sub_module.nInputPlane do
          -- allocate output
-         local input = self.core.mem.buff[inputs[o]]
+         local input = inputs[o]
          local output_width = math.floor( (input.orig_w-sub_module.modules[2].kW)/sub_module.modules[2].dW + 1)
          local output_height = (input.orig_h-sub_module.modules[2].kH)/sub_module.modules[2].dH + 1
          if output_height ~= math.floor(output_height) then
             output_height = math.floor(output_height)
-            local newinput = {y = input.y,
-                              x = input.x,
-                              data = input.data,
-                              orig_h = (output_height - 1)*sub_module.modules[2].dH + sub_module.modules[2].kH,
-                              orig_w = input.orig_w,
-                              w = 1,
-                              h = 1}
+            local newinput = {
+               y        = input.y,
+               x        = input.x,
+               data     = input.data,
+               orig_h   = (output_height - 1)*sub_module.modules[2].dH + sub_module.modules[2].kH,
+               orig_w   = input.orig_w,
+               w        = 1,
+               h        = 1
+            }
             newinput.w = newinput.orig_w * newinput.orig_h
             input = newinput
          end
-         local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         outputs[o] = id_output
+         outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
          -- allocate kernel + bias
          local kernel = sub_module.modules[2].weight[o]
          local bias = sub_module.modules[2].bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(sub_module.modules[2].kH, 
-                                                     sub_module.modules[2].kW,
-                                                     kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- collect connections
          table.insert(input_list, input)
-         table.insert(output_list, self.core.mem.buff[outputs[o]])
-         table.insert(kernel_list, self.core.mem.raw_data[id_kernel])
+         table.insert(output_list, outputs[o])
+         table.insert(kernel_list, kernel_mem)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*sub_module.modules[2].kW*sub_module.modules[2].kH*2
-
-         -- next connex
-         new_layer = false
       end
 
       -- compute output
@@ -615,26 +588,23 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    local kernel = sub_module.kernel
    local kernel_w = kernel:size(1)
    local kernel_h = kernel:size(2)
-   local id_kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
-   local id_kernel_std = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
+   local kernel_mean = self.core.mem:allocEmbeddedData(kernel)
+   local kernel_std = self.core.mem:allocEmbeddedData(kernel)
 
    -- alloc one intermediate map (to hold zero-mean feature map)
-   local zerom_w = self.core.mem.buff[inputs[1]].orig_w
-   local zerom_h = self.core.mem.buff[inputs[1]].orig_h
+   local zerom_w = inputs[1].orig_w
+   local zerom_h = inputs[1].orig_h
    local zeros = {}
-   local new_layer = true
    for i = 1,sub_module.nfeatures do
-      zeros[i] = self.core.mem:allocOnTheHeap(zerom_h, zerom_w, {}, new_layer)
-      new_layer = false
+      zeros[i] = self.core.mem:allocManagedData(torch.Tensor(zerom_h, zerom_w))
    end
 
    -- alloc all output maps
    local outputs = {}
-   local new_layer = true
-   local output_w = self.core.mem.buff[inputs[1]].orig_w
-   local output_h = self.core.mem.buff[inputs[1]].orig_h
+   local output_w = inputs[1].orig_w
+   local output_h = inputs[1].orig_h
    for i = 1,sub_module.nfeatures do
-      outputs[i] = self.core.mem:allocOnTheHeap(output_h, output_w, {}, new_layer)
+      outputs[i] = self.core.mem:allocManagedData(torch.Tensor(output_h, output_w))
    end
 
    -- collect inputs/outputs/kernels
@@ -644,11 +614,11 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    local mean_kernels = {}
    local std_kernels = {}
    for i = 1,sub_module.nfeatures do
-      table.insert(input_maps, self.core.mem.buff[inputs[i]])
-      table.insert(zero_maps, self.core.mem.buff[zeros[i]])
-      table.insert(output_maps, self.core.mem.buff[outputs[i]])
-      table.insert(mean_kernels, self.core.mem.raw_data[id_kernel_mean])
-      table.insert(std_kernels, self.core.mem.raw_data[id_kernel_std])
+      table.insert(input_maps, inputs[i])
+      table.insert(zero_maps, zeros[i])
+      table.insert(output_maps, outputs[i])
+      table.insert(mean_kernels, kernel_mean)
+      table.insert(std_kernels, kernel_std)
    end
 
    -- get threshold
@@ -665,23 +635,42 @@ function Compiler:SpatialNormalization(sub_module, inputs)
       local xN = function (x)
                     return x / #mean_kernels
                  end
-      xN_coefs = math.approx_line{mapping=xN, min=num.min, max=num.max, odd = true,
-                                  nbSegments=grid.mapper_segs, Q=num.frac_,
-                                  verbose=true, a = 1/#mean_kernels, b = 0}
+      xN_coefs = math.approx_line {
+         mapping     = xN,
+         min         = num.min,
+         max         = num.max,
+         odd         = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         a           = 1/#mean_kernels,
+         b           = 0
+      }
 
       -- generate coefs for sqrt
       local mapping
       threshold = threshold or 1/256
       if (threshold == 0) then threshold = 1/256 end
       mapping = function (x)
-                   x = x / #std_kernels
-                   if x < threshold then return math.sqrt(threshold)
-                   else return math.sqrt(x) end
-                end
-      sqrtCoefs = math.approx{mapping=mapping, min=0, max=num.max,
-                              nbSegments=grid.mapper_segs, Q=num.frac_,
-                              verbose=true, epsilon=25/256,error_type = 0,
-                              name = 'Sqrt_th_div_'..#std_kernels..'_s_'..threshold}
+         x = x / #std_kernels
+         if x < threshold then
+            return math.sqrt(threshold)
+         else
+            return math.sqrt(x)
+         end
+      end
+
+      sqrtCoefs = math.approx {
+         mapping     = mapping,
+         min         = 0,
+         max         = num.max,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 25/256,
+         error_type  = 0,
+         name        = 'Sqrt_th_div_'..#std_kernels..'_s_'..threshold
+      }
 
    end
 
@@ -725,16 +714,14 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    local kernel = sub_module.kernel
    local kernel_h = kernel:size(1)
    local kernel_w = kernel:size(2)
-   local id_kernel_mean = self.core.mem:allocRawData(kernel_h, kernel_w, kernel)
+   local kernel_mean = self.core.mem:allocEmbeddedData(kernel)
 
    -- alloc output maps
-   local output_w = self.core.mem.buff[inputs[1]].orig_w
-   local output_h = self.core.mem.buff[inputs[1]].orig_h
+   local output_w = inputs[1].orig_w
+   local output_h = inputs[1].orig_h
    local outputs = {}
-   local new_layer = true
    for i = 1,sub_module.nInputPlane do
-      outputs[i] = self.core.mem:allocOnTheHeap(output_h, output_w, {}, new_layer)
-      new_layer = false
+      outputs[i] = self.core.mem:allocManagedData(torch.Tensor(output_h, output_w))
    end
 
    -- collect inputs/outputs/kernels
@@ -742,18 +729,27 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    local output_maps = {}
    local mean_kernels = {}
    for i = 1,sub_module.nInputPlane do
-      table.insert(input_maps, self.core.mem.buff[inputs[i]])
-      table.insert(output_maps, self.core.mem.buff[outputs[i]])
-      table.insert(mean_kernels, self.core.mem.raw_data[id_kernel_mean])
+      table.insert(input_maps, inputs[i])
+      table.insert(output_maps, outputs[i])
+      table.insert(mean_kernels, kernel_mean)
    end
 
    -- get coefs for mapping
    local xN = function (x)
       return x / #mean_kernels
    end
-   local xN_coefs = math.approx_line{mapping=xN, min=num.min, max=num.max, odd = true,
-                                     nbSegments=grid.mapper_segs, Q=num.frac_,
-                                     verbose=true, a = 1/#mean_kernels, b = 0}
+
+   local xN_coefs = math.approx_line {
+      mapping     = xN,
+      min         = num.min,
+      max         = num.max,
+      odd         = true,
+      nbSegments  = grid.mapper_segs,
+      Q           = num.frac_,
+      verbose     = true,
+      a           = 1/#mean_kernels,
+      b           = 0
+   }
 
    -- local norm mean
    self.core:localNormalizeMeanBank(input_maps, mean_kernels, output_maps, xN_coefs)
@@ -913,7 +909,6 @@ end
 
 function Compiler:SpatialLinear(linear_module, inputs)
    local outputs = {}
-   local new_layer = true
 
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
@@ -923,33 +918,31 @@ function Compiler:SpatialLinear(linear_module, inputs)
 
    for o = 1,linear_module.fanout do
       -- allocate output
-      local item = self.core.mem.buff[inputs[1]]
+      local item = inputs[1]
       local output_width = item.orig_w
       local output_height = item.orig_h
-      local id_output = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-      outputs[o] = id_output
-      new_layer = false
+      outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
       for i = 1,linear_module.fanin do
          -- allocate kernel
          local kernel = torch.Tensor(1, 1):fill(linear_module.weight[o][i])
          local bias = linear_module.bias:narrow(1,o,1)
-         local id_kernel = self.core.mem:allocKernel(1, 1, kernel, bias)
+         local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*3
 
          -- generate code for convolution
          if (i == 1) then
-            self.core:convolve(self.core.mem.buff[inputs[i]],
-                               self.core.mem.raw_data[id_kernel],
-                               self.core.mem.buff[id_output],
+            self.core:convolve(inputs[i],
+                               kernel_mem,
+                               outputs[o],
                                {bias = 'on'})
          else
-            self.core:convolveAndAcc(self.core.mem.buff[inputs[i]],
-                                     self.core.mem.raw_data[id_kernel],
-                                     self.core.mem.buff[outputs[o]],
-                                     self.core.mem.buff[outputs[o]])
+            self.core:convolveAndAcc(inputs[i],
+                                     kernel_mem,
+                                     outputs[o],
+                                     outputs[o])
             -- nb of ops
             self.ops = self.ops + output_width*output_height
          end
@@ -971,10 +964,17 @@ function Compiler:getCoefs(mapping,params)
    -- generate coefs for this non-linear mapping
    local coefs
    if type == 'Tanh' then
-      coefs=math.approx{mapping=math.tanh, min=-5, max=5, odd=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, error_type = 0,
-                        name = type}
+      coefs = math.approx {
+         mapping     = math.tanh,
+         min         = -5,
+         max         = 5,
+         odd         = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'Threshold' then
       local val = params.val
       local threshold = params.threshold
@@ -982,38 +982,83 @@ function Compiler:getCoefs(mapping,params)
          if x < threshold then return val
          else return x end
       end
-      coefs = math.approx{mapping=mapping, min=num.min, max=num.max,
-                          nbSegments=grid.mapper_segs, Q=num.frac_,
-                          verbose=true, epsilon=25/256,error_type = 0,
-                          name = type .. '-' .. threshold .. '-' .. val}
+      coefs = math.approx {
+         mapping     = mapping,
+         min         = num.min,
+         max         = num.max,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 25/256,
+         error_type  = 0,
+         name        = type .. '-' .. threshold .. '-' .. val
+      }
    elseif type == 'Abs' then
-      coefs=math.approx{mapping=math.abs, min=num.min, max=num.max, even=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, error_type = 0,
-                        name = type}
+      coefs=math.approx {
+         mapping     = math.abs,
+         min         = num.min,
+         max         = num.max,
+         even        = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'TanhAbs' then
       function tanhabs (x) return math.abs(math.tanh(x)) end
-      coefs=math.approx{mapping=tanhabs, min=-5, max=5, even=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, epsilon = 11.7/256, error_type = 0,
-                        name = type}
+      coefs=math.approx {
+         mapping     = tanhabs,
+         min         = -5,
+         max         = 5,
+         even        = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 11.7/256,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'StdSigm' then
       function stdsigm (x) return 1.71593428 * math.tanh(0.66666666*x) end
-      coefs=math.approx{mapping=stdsigm, min=num.min, max=num.max, odd=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true,epsilon = 4/256, error_type = 1,
-                        name = 'StdSigm_abs_err_all_range'}--type}
+      coefs=math.approx {
+         mapping     = stdsigm,
+         min         = num.min,
+         max         = num.max,
+         odd         = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 4/256,
+         error_type  = 1,
+         name        = 'StdSigm_abs_err_all_range'
+      }--type}
    elseif type == 'StdSigmAbs' then
       function stdsigm (x) return 1.71593428 * math.tanh(0.66666666*x) end
-      coefs=math.approx{mapping=stdsigm, min=-5.5, max=5.5, even=true,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, epsilon = 32.21/256, error_type = 0,
-                        name = type}
+      coefs=math.approx {
+         mapping     = stdsigm,
+         min         = -5.5,
+         max         = 5.5,
+         even        = true,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 32.21/256,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'Sqrt' then
-      coefs=math.approx{mapping=math.sqrt, min=0, max=num.max,
-                        nbSegments=grid.mapper_segs, Q=num.frac_,
-                        verbose=true, epsilon = 19.7/256, error_type = 0,
-                        name = type}
+      coefs=math.approx {
+         mapping     = math.sqrt,
+         min         = 0,
+         max         = num.max,
+         nbSegments  = grid.mapper_segs,
+         Q           = num.frac_,
+         verbose     = true,
+         epsilon     = 19.7/256,
+         error_type  = 0,
+         name        = type
+      }
    elseif type == 'HardTanh' then
       coefs=math.approx_HardTanh{nbSegments=grid.mapper_segs}
    else
@@ -1037,9 +1082,8 @@ function Compiler:Mapping(module, inputs, type)
 
    -- generate code
    for i = 1,#inputs do
-      local id_output = self.core.mem:allocOnTheHeap(self.core.mem.buff[inputs[i]].orig_h,
-                                                     self.core.mem.buff[inputs[i]].orig_w , {}, false)
-      self.core:mapping(self.core.mem.buff[inputs[i]], self.core.mem.buff[id_output], coefs)
+      outputs[i] = self.core.mem:allocManagedData(torch.Tensor(inputs[i].orig_h, inputs[i].orig_w))
+      self.core:mapping(inputs[i], outputs[i], coefs)
 
       -- optional time
       if (self.msg_level == 'detailled') then
@@ -1047,10 +1091,9 @@ function Compiler:Mapping(module, inputs, type)
          self.core:messagebody('.')
          self.core:endProcess()
       end
-      outputs[i] = id_output
 
       -- for info (16 is approx here, it's hard to say what a mapping takes)
-      self.ops = self.ops + self.core.mem.buff[inputs[i]].orig_h*self.core.mem.buff[inputs[i]].orig_w*16
+      self.ops = self.ops + inputs[i].orig_h*inputs[i].orig_w*16
    end
    return outputs
 end
@@ -1070,13 +1113,10 @@ function Compiler:CCSub(module, inputs)
    end
 
    -- alloc output
-   outputs[1] = self.core.mem:allocOnTheHeap(self.core.mem.buff[inputs[1]].orig_h,
-                                             self.core.mem.buff[inputs[1]].orig_w , {}, false)
+   outputs[1] = self.core.mem:allocManagedData(torch.Tensor(inputs[1].orig_h, inputs[1].orig_w))
 
    -- generate code
-   self.core:subtract(self.core.mem.buff[inputs[1]],
-                      self.core.mem.buff[inputs[2]],
-                      self.core.mem.buff[outputs[1]])
+   self.core:subtract(inputs[1], inputs[2], outputs[1])
 
    -- optional time
    if (self.msg_level == 'detailled') then
@@ -1086,7 +1126,7 @@ function Compiler:CCSub(module, inputs)
    end
 
    -- for info
-   self.ops = self.ops + self.core.mem.buff[inputs[1]].orig_h*self.core.mem.buff[inputs[1]].orig_w
+   self.ops = self.ops + inputs[1].orig_h*inputs[1].orig_w
    return outputs
 end
 
@@ -1105,13 +1145,10 @@ function Compiler:CCAdd(module, inputs)
    end
 
    -- alloc output
-   outputs[1] = self.core.mem:allocOnTheHeap(self.core.mem.buff[inputs[1]].orig_h,
-                                             self.core.mem.buff[inputs[1]].orig_w , {}, false)
+   outputs[1] = self.core.mem:allocManagedData(torch.Tensor(inputs[1].orig_h, inputs[1].orig_w))
 
    -- generate code
-   self.core:add(self.core.mem.buff[inputs[1]],
-                 self.core.mem.buff[inputs[2]],
-                 self.core.mem.buff[outputs[1]])
+   self.core:add(inputs[1], inputs[2], outputs[1])
 
    -- optional time
    if (self.msg_level == 'detailled') then
@@ -1121,16 +1158,14 @@ function Compiler:CCAdd(module, inputs)
    end
 
    -- for info
-   self.ops = self.ops + self.core.mem.buff[inputs[1]].orig_h*self.core.mem.buff[inputs[1]].orig_w
+   self.ops = self.ops + inputs[1].orig_h*inputs[1].orig_w
    return outputs
 end
 
 function Compiler:Reshape(reshape_module, inputs)
    -- warning: only handle dim reshape
    local outputs = {}
-   outputs[1] = self.core.mem:allocOnTheHeap(reshape_module.output:size(1),
-                                             reshape_module.output:size(2),
-                                             reshape_module.output, true)
+   outputs[1] = self.core.mem:allocManagedData(reshape_module.output)
    return outputs
 end
 
