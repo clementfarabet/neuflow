@@ -222,10 +222,11 @@ end
 --[[ Allocate Managed Data
 
    Data can be transformed to use 1D or 2D packing depending on packing
-   argument.
+   argument. If 2D is selected but the width of the data is larger then the
+   streamer (memory) stride, packing is reverted to 1D.
 
-   Current assumption is that the data for 2D packing is no wider then the
-   streamer (memory) stride width.
+   If the end of physical memory is reached, function will start overwriting
+   from the start of the Managed memory space.
 --]]
 function Memory:allocManagedData(data_, packing)
    packing = packing or '1D'
@@ -237,6 +238,11 @@ function Memory:allocManagedData(data_, packing)
    local h_
    local offset_width
    local offset_height
+
+   if (('2D' == packing) and (orig_w_ > streamer.stride_w)) then
+      print("<neuflow.Memory> WARNING: Current Managed Data tensor cannot be written with 2D packing, switching to 1D.")
+      packing = '1D'
+   end
 
    if '1D' == packing then
       w_ = orig_w_ * orig_h_
@@ -278,7 +284,6 @@ function Memory:allocManagedData(data_, packing)
       self.managed.layer.h = h_
    end
 
-   -- the pointers for this entry are ready just place the item in the memory
    self.managed[ #self.managed+1 ] = {
       x        = self:constructCoordinate('managed', 'x'),
       y        = self:constructCoordinate('managed', 'y'),
