@@ -147,7 +147,6 @@ end
 
 function Compiler:SpatialConvolution(conv_module, inputs, mapping)
    local outputs = {}
-   local new_layer = true
 
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
@@ -193,8 +192,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
                .. item.orig_h .. ', sub_h=' ..
                conv_module.kH .. ', out_h=' .. output_height)
       end
-      outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-      new_layer = false
+      outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
       -- store output
       table.insert(output_list, outputs[o])
@@ -229,8 +227,6 @@ end
 
 function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
    local outputs = {}
-   local new_layer = true
-   local new_output = true
    local current_op = 1
 
    if (self.msg_level ~= 'none') then
@@ -291,7 +287,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
             error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                   conv_module.kH .. ', out_h=' .. output_height)
          end
-         outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
+         outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
          -- allocate kernel + bias
          local kernel = conv_module.weight[current_op]
@@ -308,7 +304,6 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
 
          -- next connex
          current_op = current_op + 1
-         new_layer = false
       end
 
       -- compute output
@@ -324,9 +319,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
             error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                   conv_module.kH .. ', out_h=' .. output_height)
          end
-         outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-         new_layer = false
-         new_output = true
+         outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
          local input_list = {}
          local kernel_list = {}
@@ -351,7 +344,6 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                self.ops = self.ops + output_width*output_height*conv_module.kW*conv_module.kH*2
 
                -- next connex
-               new_output = false
                current_op = current_op + 1
             end
          end
@@ -379,8 +371,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                   error('<neuflow.Compiler> ERROR: inconsistent subsampling ratios in_h=' .. item.orig_h .. ', sub_h=' ..
                         conv_module.kH .. ', out_h=' .. output_height)
                end
-               outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {},
-                                                              new_layer)
+               outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
                -- allocate kernel + bias
                local kernel = conv_module.weight[o]
@@ -396,7 +387,6 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
 
                -- next connex
                current_op = current_op + 1
-               new_layer = false
             end
          end
 
@@ -417,7 +407,6 @@ end
 
 function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
    local outputs = {}
-   local new_layer = true
 
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
@@ -467,7 +456,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
             newinput.w = newinput.orig_w * newinput.orig_h
             input = newinput
          end
-         outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
+         outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
          -- allocate kernel + bias
          local kernel = torch.Tensor(sub_module.kW, sub_module.kH):fill(sub_module.weight[o])
@@ -481,9 +470,6 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*sub_module.kW*sub_module.kH*2
-
-         -- next connex
-         new_layer = false
       end
 
       -- compute output
@@ -502,7 +488,6 @@ end
 
 function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
    local outputs = {}
-   local new_layer = true
 
    if torch.typename(sub_module.modules[1]) ~= 'nn.Square' then
       error('<neuflow.Compiler> ERROR: LP Pooling only supported with L2 norm')
@@ -554,7 +539,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
             newinput.w = newinput.orig_w * newinput.orig_h
             input = newinput
          end
-         outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
+         outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
          -- allocate kernel + bias
          local kernel = sub_module.modules[2].weight[o]
@@ -568,9 +553,6 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
 
          -- for info, update the number of ops
          self.ops = self.ops + output_width*output_height*sub_module.modules[2].kW*sub_module.modules[2].kH*2
-
-         -- next connex
-         new_layer = false
       end
 
       -- compute output
@@ -613,19 +595,16 @@ function Compiler:SpatialNormalization(sub_module, inputs)
    local zerom_w = inputs[1].orig_w
    local zerom_h = inputs[1].orig_h
    local zeros = {}
-   local new_layer = true
    for i = 1,sub_module.nfeatures do
-      zeros[i] = self.core.mem:allocOnTheHeap(zerom_h, zerom_w, {}, new_layer)
-      new_layer = false
+      zeros[i] = self.core.mem:allocManagedData(torch.Tensor(zerom_h, zerom_w))
    end
 
    -- alloc all output maps
    local outputs = {}
-   local new_layer = true
    local output_w = inputs[1].orig_w
    local output_h = inputs[1].orig_h
    for i = 1,sub_module.nfeatures do
-      outputs[i] = self.core.mem:allocOnTheHeap(output_h, output_w, {}, new_layer)
+      outputs[i] = self.core.mem:allocManagedData(torch.Tensor(output_h, output_w))
    end
 
    -- collect inputs/outputs/kernels
@@ -741,10 +720,8 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    local output_w = inputs[1].orig_w
    local output_h = inputs[1].orig_h
    local outputs = {}
-   local new_layer = true
    for i = 1,sub_module.nInputPlane do
-      outputs[i] = self.core.mem:allocOnTheHeap(output_h, output_w, {}, new_layer)
-      new_layer = false
+      outputs[i] = self.core.mem:allocManagedData(torch.Tensor(output_h, output_w))
    end
 
    -- collect inputs/outputs/kernels
@@ -932,7 +909,6 @@ end
 
 function Compiler:SpatialLinear(linear_module, inputs)
    local outputs = {}
-   local new_layer = true
 
    if (self.msg_level ~= 'none') then
       self.core:startProcess()
@@ -945,8 +921,7 @@ function Compiler:SpatialLinear(linear_module, inputs)
       local item = inputs[1]
       local output_width = item.orig_w
       local output_height = item.orig_h
-      outputs[o] = self.core.mem:allocOnTheHeap(output_height, output_width, {}, new_layer)
-      new_layer = false
+      outputs[o] = self.core.mem:allocManagedData(torch.Tensor(output_height, output_width))
 
       for i = 1,linear_module.fanin do
          -- allocate kernel
@@ -1107,7 +1082,7 @@ function Compiler:Mapping(module, inputs, type)
 
    -- generate code
    for i = 1,#inputs do
-      outputs[i] = self.core.mem:allocOnTheHeap(inputs[i].orig_h, inputs[i].orig_w , {}, false)
+      outputs[i] = self.core.mem:allocManagedData(torch.Tensor(inputs[i].orig_h, inputs[i].orig_w))
       self.core:mapping(inputs[i], outputs[i], coefs)
 
       -- optional time
@@ -1138,7 +1113,7 @@ function Compiler:CCSub(module, inputs)
    end
 
    -- alloc output
-   outputs[1] = self.core.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w , {}, false)
+   outputs[1] = self.core.mem:allocManagedData(torch.Tensor(inputs[1].orig_h, inputs[1].orig_w))
 
    -- generate code
    self.core:subtract(inputs[1], inputs[2], outputs[1])
@@ -1170,7 +1145,7 @@ function Compiler:CCAdd(module, inputs)
    end
 
    -- alloc output
-   outputs[1] = self.core.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w , {}, false)
+   outputs[1] = self.core.mem:allocManagedData(torch.Tensor(inputs[1].orig_h, inputs[1].orig_w))
 
    -- generate code
    self.core:add(inputs[1], inputs[2], outputs[1])
@@ -1190,8 +1165,7 @@ end
 function Compiler:Reshape(reshape_module, inputs)
    -- warning: only handle dim reshape
    local outputs = {}
-   outputs[1] = self.core.mem:allocOnTheHeap(reshape_module.output:size(1), reshape_module.output:size(2),
-                                             reshape_module.output, true)
+   outputs[1] = self.core.mem:allocManagedData(reshape_module.output)
    return outputs
 end
 

@@ -138,19 +138,19 @@ function NeuFlow:allocHeap(tensor)
          if tensor[i]:nDimension() ~= 2 then
             xlua.error('only supports list of 2D tensors','NeuFlow.allocHeap')
          end
-         local segment = self.core.mem:allocOnTheHeap(tensor[i]:size(1), tensor[i]:size(2), nil, first)
+         local segment = self.core.mem:allocManagedData(tensor[i])
          table.insert(alloc_list, segment)
          first = false
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local segment = self.core.mem:allocOnTheHeap(tensor:size(1), tensor:size(2), nil, true)
+         local segment = self.core.mem:allocManagedData(tensor)
          table.insert(alloc_list, segment)
       elseif dims == 3 then
          local first = true
          for i = 1,tensor:size(1) do
-            local segment = self.core.mem:allocOnTheHeap(tensor:size(2), tensor:size(3), nil, first)
+            local segment = self.core.mem:allocManagedData(tensor[i])
             table.insert(alloc_list, segment)
             first = false
          end

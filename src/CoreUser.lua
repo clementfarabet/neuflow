@@ -743,7 +743,7 @@ function CoreUser:localNormalizeStd(input, kernel, output, threshold)
    end
 
    -- (1) allocate temp buffers
-   local buffer = self.mem:allocOnTheHeap(input.orig_h, input.orig_w, {}, true)
+   local buffer = self.mem:allocManagedData(torch.Tensor(input.orig_h, input.orig_w))
 
    -- (2) generate coefs for sqrt
    if not self.sqrtCoefs then
@@ -814,7 +814,7 @@ function CoreUser:localNormalizeMeanBank(inputs, kernels, outputs, xN_coefs)
    end
 
    -- (1) compute mean across inputs = convolution
-   local summap = { self.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w, {}, true) }
+   local summap = { self.mem:allocManagedData(torch.Tensor(inputs[1].orig_h, inputs[1].orig_w)) }
    self:convolBank(inputs, kernels, summap, xN_coefs)
 
    -- (2) remove mean
@@ -845,14 +845,14 @@ function CoreUser:localNormalizeStdBank(inputs, kernels, outputs, sqrtCoefs)
    local squares = {}
    local newlayer = true
    for i = 1,#kernels do
-      local square = self.mem:allocOnTheHeap(inputs[i].orig_h, inputs[i].orig_w, {}, newlayer)
+      local square = self.mem:allocManagedData(torch.Tensor(inputs[i].orig_h, inputs[i].orig_w))
       table.insert(squares, square)
       newlayer = false
       self:square(inputs[i], squares[i])
    end
 
    -- (3) sum of squares, across features, plus sqrt
-   local sumsquares = { self.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w, {}, false) }
+   local sumsquares = { self.mem:allocManagedData(torch.Tensor(inputs[1].orig_h, inputs[1].orig_w)) }
    self:convolBank(squares, kernels, sumSquares, sqrtCoefs)
 
    -- (4) divide
@@ -883,14 +883,14 @@ function CoreUser:localNormalizeStdBank(inputs, kernels, outputs, sqrtCoefs)
    local squares = {}
    local newlayer = true
    for i = 1,#kernels do
-      local square = self.mem:allocOnTheHeap(inputs[i].orig_h, inputs[i].orig_w, {}, newlayer)
+      local square = self.mem:allocManagedData(torch.Tensor(inputs[i].orig_h, inputs[i].orig_w))
       table.insert(squares, square)
       newlayer = false
       self:square(inputs[i], squares[i])
    end
 
    -- (3) sum of squares, across features, plus sqrt
-   local sumsquares = { self.mem:allocOnTheHeap(inputs[1].orig_h, inputs[1].orig_w, {}, false) }
+   local sumsquares = { self.mem:allocManagedData(torch.Tensor(inputs[1].orig_h, inputs[1].orig_w)) }
    self:convolBank(squares, kernels, sumSquares, sqrtCoefs)
 
    -- (4) divide
@@ -917,7 +917,7 @@ function CoreUser:l2pooling(inputs, kernels, outputs, sqrtCoefs)
    local squares = {}
    local newlayer = true
    for i = 1,#kernels do
-      local square = self.mem:allocOnTheHeap(inputs[i].orig_h, inputs[i].orig_w, {}, newlayer)
+      local square = self.mem:allocManagedData(torch.Tensor(inputs[i].orig_h, inputs[i].orig_w))
       table.insert(squares, square)
       newlayer = false
       self:square(inputs[i], squares[i])
