@@ -40,11 +40,15 @@ function Memory:__init(args)
    self.embedded = {
       ['start'] = {
          ['x'] = 0,
-         ['y'] = 0
+         ['y'] = 0,
       },
       ['current'] = {
          ['x'] = 0,
-         ['y'] = 0
+         ['y'] = 0,
+      },
+      ['layer'] = {
+         ['h'] = 0,
+         ['packing'] = 'kernel'
       }
    }
 
@@ -114,36 +118,80 @@ end
 
 --[[ Allocate Embedded Data
 
-   Current assumption is that all data being written is a kernel.
+   By default the data is reformatted & treated as a kernel. If non kernel data
+   needs to be embedded an explicit 1D or 2D packing argument needs to be
+   passed in. If 2D is selected but the width of the data is larger then the
+   streamer (memory) stride, packing is reverted to 1D.
 --]]
-function Memory:allocEmbeddedData(data_, bias_)
+function Memory:allocEmbeddedData(data_, bias_, packing)
+   packing = packing or 'kernel'
+   assert(packing == 'kernel' or packing == '1D' or packing == '2D')
+   assert(packing == 'kernel' or (not bias_))
+
    local orig_w_  = data_:size(2)
    local orig_h_  = data_:size(1)
+   local w_
+   local h_
+   local offset_width
+   local offset_height
 
-   local dh = grid.kernel_height - data_:size(1)
-   local kernel = torch.zeros(grid.kernel_height, grid.kernel_width)
+   if (('2D' == packing) and (orig_w_ > streamer.stride_w)) then
+      print("<neuflow.Memory> WARNING: Current Embedded Data tensor cannot be written with 2D packing, switching to 1D.")
+      packing = '1D'
+   end
 
-   -- copy incoming data to the bottom left corner of kernel
-   for r = 1, orig_h_ do
-      for c = 1, orig_w_ do
-         kernel[r+dh][c] = data_[r][c]
+   if 'kernel' == packing then
+      local dh = grid.kernel_height - orig_h_
+      local kernel = torch.zeros(grid.kernel_height, grid.kernel_width)
+
+      -- copy incoming data to the bottom left corner of kernel
+      for r = 1, orig_h_ do
+         for c = 1, orig_w_ do
+            kernel[r+dh][c] = data_[r][c]
+         end
+      end
+
+      -- overwrite with new transformed values
+      data_ = kernel
+      h_ = 1
+
+      if bias_ then
+         w_ = data_:size(1) * data_:size(2) + bias_:size(1)
+      else
+         w_ = data_:size(1) * data_:size(2)
+      end
+   elseif '1D' == packing then
+      w_ = orig_w_ * orig_h_
+      h_ = 1
+   else
+      w_ = orig_w_
+      h_ = orig_h_
+   end
+
+   if '2D' ~= packing then
+      offset_width = w_ % streamer.stride_w
+      offset_height = math.floor(w_ / streamer.stride_w)
+
+      if '2D' == self.embedded.layer.packing then
+         self.embedded.current.x = 0
+         self.embedded.current.y = self.embedded.current.y + self.embedded.layer.h
+         self.embedded.layer.h = 0
+      end
+   else
+      offset_width = w_
+      offset_height = h_
+
+      -- check if current data fits in the line
+      if (self.embedded.current.x + w_) > streamer.stride_w then
+         self.embedded.current.x = 0
+         self.embedded.current.y = self.embedded.current.y + self.embedded.layer.h
+         self.embedded.layer.h = 0
       end
    end
 
-   -- overwrite with new transformed values
-   data_ = kernel
-   h_ = 1
-
-   if bias_ then
-      w_ = kernel:size(1)*kernel:size(2) + bias_:size(1)
-   else
-      w_ = data_:size(1) * data_:size(2)
-   end
-
-   -- check if current data fits in the line
-   if (self.embedded.current.x + w_) > streamer.stride_w then
-      self.embedded.current.x = 0
-      self.embedded.current.y = self.embedded.current.y + 1
+   -- the layer height is the height of the maximum data area in the layer
+   if self.embedded.layer.h < h_ then
+      self.embedded.layer.h = h_
    end
 
    self.embedded[ #self.embedded+1 ] = {
@@ -157,17 +205,30 @@ function Memory:allocEmbeddedData(data_, bias_)
       bias     = bias_
    }
 
-   self.embedded.current.x = self.embedded.current.x + w_
+   self.embedded.current.x = self.embedded.current.x + offset_width
+
+   if '2D' ~= packing then
+      self.embedded.current.y = self.embedded.current.y + offset_height
+
+      --  check if we did not step out of the line
+      if (self.embedded.current.x > streamer.stride_w) then
+         self.embedded.current.y = self.embedded.current.y + 1
+         self.embedded.current.x = self.embedded.current.x - streamer.stride_w
+      end
+   end
 
    -- alignment of addresses to physical memory pages
    if (self.embedded.current.x % streamer.align_w) ~= 0 then
       self.embedded.current.x = (math.floor(self.embedded.current.x/streamer.align_w) + 1) * streamer.align_w
       -- and check if we did not step out of the line again
       if (self.embedded.current.x > streamer.stride_w) then
-         self.embedded.current.y = self.embedded.current.y + 1
          self.embedded.current.x = 0
+         self.embedded.current.y = self.embedded.current.y + self.embedded.layer.h
+         self.embedded.layer.h = 0
       end
    end
+
+   self.embedded.layer.packing = packing
 
    return self.embedded[ #self.embedded ]
 end
