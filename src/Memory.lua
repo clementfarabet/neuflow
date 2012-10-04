@@ -454,12 +454,7 @@ function Memory:printAreaStatistics()
       managed_size_b = managed_size_b + (self.managed[#self.managed].h * streamer.stride_b)
    end
 
-   local binary_size
-   if #self.persistent == 0 then
-      binary_size = embedded_start_b+embedded_size_b
-   else
-      binary_size = persistent_start_b+persistent_size_b
-   end
+   local binary_size = embedded_start_b+embedded_size_b
 
    print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
    print(c.Cyan .. '-openFlow-' .. c.Magenta .. ' ConvNet Name ' ..

@@ -324,11 +324,8 @@ function Linker:dump(info, mem)
    -- print all the instructions
    self:dump_instructions(instr, info.tensor)
 
-   -- and embedded
-   self:dump_RawData(info, info.tensor, mem)
-
-   -- and data (images) for simulation)
-   self:dump_ImageData(info, info.tensor, mem)
+   -- and embedded data
+   self:dump_embedded_data(info, info.tensor, mem)
 
    -- print memory area statistics
    mem:printAreaStatistics()
@@ -344,7 +341,7 @@ function Linker:dump_instructions(instr, tensor)
    end
 end
 
-function Linker:dump_RawData(info, tensor, mem)
+function Linker:dump_embedded_data(info, tensor, mem)
    -- pad initial offset for raw data
    self.counter_bytes = mem.embedded.start.y * streamer.stride_b
                       + mem.embedded.start.x * streamer.word_b
@@ -393,40 +390,4 @@ function Linker:dump_RawData(info, tensor, mem)
          end
       end
    end
-end
-
-function Linker:dump_ImageData(info, tensor, mem)
-   if (mem.persistent[1] == nil) then
-      return
-   end
-   -- pad initial offset for raw data
-   self.counter_bytes =  mem.persistent.start.y*streamer.stride_b + mem.persistent.start.x*streamer.word_b
-   mem_entry = mem.persistent[1]
-
-   for r=1,mem_entry.h do
-      for i=1, #mem.persistent do
-         mem_entry = mem.persistent[i]
-
-         if ('number' == type(mem_entry.y)) then
-            self.counter_bytes = (mem_entry.y + r - 1)*streamer.stride_b + mem_entry.x*streamer.word_b
-         else
-            self.counter_bytes = (mem_entry.y:calc() + r - 1)*streamer.stride_b + mem_entry.x:calc()*streamer.word_b
-         end
-
-         for c=1, mem_entry.w do
-            dataTwos = math.floor(mem_entry.data[c][r] * num.one + 0.5)
-            dataTwos = bit.band(dataTwos, num.mask)
-            for j=0,(num.size_b - 1) do
-               -- get char from short
-               if (info.bigendian == 1) then
-                  tempchar = math.floor(dataTwos / (256^((num.size_b - 1)-j))) % 256
-               else
-                  tempchar = math.floor(dataTwos / (256^j)) % 256
-               end
-               tensor[self.counter_bytes+1] = tempchar
-               self.counter_bytes = self.counter_bytes+1
-            end
-         end -- column
-      end -- entry
-   end -- row
 end

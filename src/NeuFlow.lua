@@ -210,18 +210,33 @@ function NeuFlow:allocData(tensor)
          if tensor[i]:nDimension() ~= 2 then
             xlua.error('only supports list of 2D tensors','NeuFlow.allocPersistentData')
          end
-         local segment = self.core.mem:allocPersistentData(tensor[i])
-         table.insert(alloc_list, segment)
+         if self.mode == 'simulation' then
+            local segment = self.core.mem:allocEmbeddedData(tensor[i], nil, '1D')
+            table.insert(alloc_list, segment)
+         else
+            local segment = self.core.mem:allocPersistentData(tensor[i])
+            table.insert(alloc_list, segment)
+         end
       end
    else
       local dims = tensor:nDimension()
       if dims == 2 then
-         local segment = self.core.mem:allocPersistentData(tensor)
-         table.insert(alloc_list, segment)
+         if self.mode == 'simulation' then
+            local segment = self.core.mem:allocEmbeddedData(tensor[i], nil, '1D')
+            table.insert(alloc_list, segment)
+         else
+            local segment = self.core.mem:allocPersistentData(tensor)
+            table.insert(alloc_list, segment)
+         end
       elseif dims == 3 then
          for i = 1,tensor:size(1) do
-            local segment = self.core.mem:allocPersistentData(tensor[i])
-            table.insert(alloc_list, segment)
+            if self.mode == 'simulation' then
+               local segment = self.core.mem:allocEmbeddedData(tensor[i], nil, '1D')
+               table.insert(alloc_list, segment)
+            else
+               local segment = self.core.mem:allocPersistentData(tensor[i])
+               table.insert(alloc_list, segment)
+            end
          end
       else
          error('tensors must have 2 or 3 dimensions')
