@@ -83,12 +83,6 @@ function Memory:__init(args)
          ['packing'] = '1D'
       },
    }
-
-   self.managed_prev_layer_h = 0
-
-   -- we want to keep this value for the
-   -- final report sizes to be accurate
-   self.last_align = 0
 end
 
 function Memory:adjustBytecodeSize(size_in_bytes)
