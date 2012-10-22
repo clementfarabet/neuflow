@@ -57,22 +57,18 @@ function Core:__init(args)
       init_offset =  self.offset_code,
    }
 
-   -- sys reg allocator
-   self.registers = self:RegAllocatorGC {
+   -- reg allocator
+   self.registers = self:RegAllocator {
       oFlower.reg_sys_A,
       oFlower.reg_sys_B,
       oFlower.reg_sys_C,
-   }
-
-   -- user reg allocator
-   self.alloc_ur = self:RegAllocator {
-      [oFlower.reg_loops] = true,
-      [oFlower.reg_A]     = true,
-      [oFlower.reg_B]     = true,
-      [oFlower.reg_C]     = true,
-      [oFlower.reg_D]     = true,
-      [oFlower.reg_E]     = true,
-      [oFlower.reg_F]     = true,
+      oFlower.reg_loops,
+      oFlower.reg_A,
+      oFlower.reg_B,
+      oFlower.reg_C,
+      oFlower.reg_D,
+      oFlower.reg_E,
+      oFlower.reg_F,
    }
 
    -- loop data structure
@@ -182,8 +178,8 @@ function Core:loopRepeat(times, code, ...)
       -- start loop
       local loop = {}
       if times > 0 then
-         loop.reg = self.alloc_ur:get()
-         self:setreg(loop.reg, times)
+         loop.reg = self.registers:alloc()
+         self:setreg(loop.reg.index, times)
       end
       loop.tag = self:makeGotoTag()
       self:nop()
@@ -196,9 +192,8 @@ function Core:loopRepeat(times, code, ...)
       local breaks = self.ladmin:getBreaks()
       local loop = self.ladmin:pop()
       if times > 0 then
-         self:addi(loop.reg, -1, loop.reg)
-         self:gotoTagIfNonZero(loop.tag, loop.reg)
-         self.alloc_ur:free(loop.reg)
+         self:addi(loop.reg.index, -1, loop.reg.index)
+         self:gotoTagIfNonZero(loop.tag, loop.reg.index)
       else
          self:gotoTag(loop.tag)
       end
@@ -852,7 +847,7 @@ function Core:readStringFromMem(stream)
    self:openPortRd(1, stream)
 
    -- get cpu reg for use in operation
-   local reg_io_dma = self.alloc_ur:get()
+   local reg_io_dma = self.registers:alloc()
 
    -- String length
    local length = stream.w*stream.h/2
@@ -861,10 +856,7 @@ function Core:readStringFromMem(stream)
       self:ioWaitForReadData(oFlower.io_dma_status)
       self:ioread(oFlower.io_dma, reg_io_dma)
       self:printReg(reg_io_dma)
-   end, reg_io_dma);
-
-   -- free cpu reg
-   self.alloc_ur:free(reg_io_dma)
+   end, reg_io_dma.index);
 
    -- done...
    self:closePort(1)
@@ -1645,15 +1637,14 @@ function Core:self_test()
    self:message('OpenFlower doing selftests')
 
    self:messagebody('testing reg allocation')
-   local reg_myvar = self.alloc_ur:get()
-   self:setreg(reg_myvar, 0)
+   local reg_myvar = self.registers:alloc()
+   self:setreg(reg_myvar.index, 0)
 
    self:messagebody('testing I/O read')
-   self:ioread(oFlower.io_uart, reg_myvar)
+   self:ioread(oFlower.io_uart, reg_myvar.index)
 
    self:messagebody('testing alu (bitwise and)')
-   self:bitandi(reg_myvar, 0xFF0000FF, reg_myvar)
-   self.alloc_ur:free(reg_myvar)
+   self:bitandi(reg_myvar.index, 0xFF0000FF, reg_myvar.index)
 
    self:messagebody('testing loop x3')
 
@@ -1662,10 +1653,9 @@ function Core:self_test()
    end);
 
    self:messagebody('testing register readout (should print> abc)')
-   self.alloc_ur:claim(oFlower.reg_F)
-   self:setreg(oFlower.reg_F, 0x0A636261)
-   self:printReg(oFlower.reg_F)
-   self.alloc_ur:free(oFlower.reg_F)
+   local reg_readout = self.registers:alloc()
+   self:setreg(reg_readout.index, 0x0A636261)
+   self:printReg(reg_readout.index)
 
    self:messagebody('testing timer')
    self:getTime()
@@ -1689,45 +1679,9 @@ end
 
    Provides a simple way to administer CPU registers when they are used in
    applications. A new allocator is created when the function is called, a
-   table of registers to administer and their current state is passed in. A
-   'true' state indicates the register is free to use while a 'false' state
-   indicates that it is currently in use.
+   table of registers to administer is passed in.
 --]]
 function Core:RegAllocator(reg_table)
-   local allocator = {}
-   allocator._reg_table = reg_table
-
-   function allocator:claim(reg)
-      if self._reg_table[reg] then
-         self._reg_table[reg] = false
-      else
-         error('<neuflow.Core> ERROR: Trying to -claim- a reg that is not available')
-      end
-   end
-
-   function allocator:free(reg)
-      if self._reg_table[reg] then
-         error('<neuflow.Core> ERROR: Trying to -free- a reg that is already in free')
-      else
-         self._reg_table[reg] = true
-      end
-   end
-
-   function allocator:get()
-      for reg, state in pairs(self._reg_table) do
-         if state then
-            self._reg_table[reg] = false
-            return reg
-         end
-      end
-
-      error('<neuflow.Core> ERROR: Can not -get- reg as they are all in use')
-   end
-
-   return allocator
-end
-
-function Core:RegAllocatorGC(reg_table)
    local reg_bank = {}
    reg_bank._all = reg_table
    reg_bank._inuse = setmetatable({}, {__mode="v"})
@@ -1755,7 +1709,7 @@ function Core:RegAllocatorGC(reg_table)
 
          reg = find_reg(reg_bank._all, reg_bank._inuse)
          if not reg then
-            error('<neuflow.Core> ERROR: Can not -get- reg as they are all in use')
+            error('<neuflow.Core> ERROR: Can not -alloc- reg as they are all in use')
          end
       end
 
