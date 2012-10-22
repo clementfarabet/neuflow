@@ -58,10 +58,10 @@ function Core:__init(args)
    }
 
    -- sys reg allocator
-   self.alloc_sr = self:RegAllocator {
-      [oFlower.reg_sys_A] = true,
-      [oFlower.reg_sys_B] = true,
-      [oFlower.reg_sys_C] = true,
+   self.registers = self:RegAllocatorGC {
+      oFlower.reg_sys_A,
+      oFlower.reg_sys_B,
+      oFlower.reg_sys_C,
    }
 
    -- user reg allocator
@@ -362,55 +362,47 @@ function Core:comp(arg1, arg2, result)
 end
 
 function Core:bitori(arg1, val, result)
-   local reg = self.alloc_sr:get()
-   self:setreg(reg, val)
+   local reg = self.registers:alloc()
+   self:setreg(reg.index, val)
    self:addInstruction {
       opcode = oFlower.op_or,
       arg8_1 = arg1,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg8_3 = result,
    }
-
-   self.alloc_sr:free(reg)
 end
 
 function Core:bitandi(arg1, val, result)
-   local reg = self.alloc_sr:get()
-   self:setreg(reg, val)
+   local reg = self.registers:alloc()
+   self:setreg(reg.index, val)
    self:addInstruction {
       opcode = oFlower.op_and,
       arg8_1 = arg1,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg8_3 = result,
    }
-
-   self.alloc_sr:free(reg)
 end
 
 function Core:addi(arg1, val, result)
-   local reg = self.alloc_sr:get()
-   self:setreg(reg, val)
+   local reg = self.registers:alloc()
+   self:setreg(reg.index, val)
    self:addInstruction {
       opcode = oFlower.op_add,
       arg8_1 = arg1,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg8_3 = result,
    }
-
-   self.alloc_sr:free(reg)
 end
 
 function Core:compi(arg1, val, result)
-   local reg = self.alloc_sr:get()
-   self:setreg(reg, val)
+   local reg = self.registers:alloc()
+   self:setreg(reg.index, val)
    self:addInstruction {
       opcode = oFlower.op_comp,
       arg8_1 = arg1,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg8_3 = result,
    }
-
-   self.alloc_sr:free(reg)
 end
 
 function Core:shri(arg1, val, result, mode)
@@ -879,27 +871,23 @@ function Core:readStringFromMem(stream)
 end
 
 function Core:ioWaitForReadData(ioCtrl)
-   local reg = self.alloc_sr:get()
+   local reg = self.registers:alloc()
    self:loopUntilStart()
 
-   self:ioread(ioCtrl, reg)
-   self:bitandi(reg, 0x00000001, reg)
+   self:ioread(ioCtrl, reg.index)
+   self:bitandi(reg.index, 0x00000001, reg.index)
 
-   self:loopUntilEndIfZero(reg)
-
-   self.alloc_sr:free(reg)
+   self:loopUntilEndIfZero(reg.index)
 end
 
 function Core:ioWaitForWriteData(ioCtrl)
-   local reg = self.alloc_sr:get()
+   local reg = self.registers:alloc()
    self:loopUntilStart()
 
-   self:ioread(ioCtrl, reg)
-   self:bitandi(reg, 0x00000002, reg)
+   self:ioread(ioCtrl, reg.index)
+   self:bitandi(reg.index, 0x00000002, reg.index)
 
-   self:loopUntilEndIfZero(reg)
-
-   self.alloc_sr:free(reg)
+   self:loopUntilEndIfZero(reg.index)
 end
 
 function Core:printReg(reg)
@@ -921,19 +909,17 @@ function Core:getCharBlocking(reg)
 end
 
 function Core:getCharNonBlocking(reg, tries)
-   local reg_stat = self.alloc_sr:get()
+   local reg_stat = self.registers:alloc()
 
    self:setreg(reg, -1)
 
-   self:loopRepeat(tries, function(reg_stat)
-      self:ioread(oFlower.io_uart_status, reg_stat)
-      self:bitandi(reg_stat, 0x00000001, reg_stat)
-      self:loopBreakIfNonZero(reg_stat)
-   end, reg_stat);
+   self:loopRepeat(tries, function(reg_index)
+      self:ioread(oFlower.io_uart_status, reg_index)
+      self:bitandi(reg_index, 0x00000001, reg_index)
+      self:loopBreakIfNonZero(reg_index)
+   end, reg_stat.index);
 
    self:ioread(oFlower.io_uart, reg)
-
-   self.alloc_sr:free(reg_stat)
 end
 
 function Core:flushKernel(convolver)
@@ -981,18 +967,17 @@ function Core:terminate()
 end
 
 function Core:resetTime()
-   local reg = self.alloc_sr:get()
+   local reg = self.registers:alloc()
    -- set timer ctrl reg to 'restart'
-   self:setreg(reg, 1)
-   self:iowrite(oFlower.io_timer_ctrl, reg)
-   self.alloc_sr:free(reg)
+   self:setreg(reg.index, 1)
+   self:iowrite(oFlower.io_timer_ctrl, reg.index)
 end
 
 function Core:getTime()
-   local reg = self.alloc_sr:get()
+   local reg = self.registers:alloc()
    -- set timer ctrl reg to ascii readout
-   self:setreg(reg, 4 + 2)
-   self:iowrite(oFlower.io_timer_ctrl, reg)
+   self:setreg(reg.index, 4 + 2)
+   self:iowrite(oFlower.io_timer_ctrl, reg.index)
    -- print header
    self:printraw('--> CPU time = ')
    -- then print timer's result
@@ -1004,7 +989,6 @@ function Core:getTime()
       arg32_1 = 9
    }  -- nb of digits (depends on the hardware)
    self:printraw(string.format(' x %0dns\n\r', self.period_ns))
-   self.alloc_sr:free(reg)
 end
 
 function Core:sleep(sec)
@@ -1741,6 +1725,44 @@ function Core:RegAllocator(reg_table)
    end
 
    return allocator
+end
+
+function Core:RegAllocatorGC(reg_table)
+   local reg_bank = {}
+   reg_bank._all = reg_table
+   reg_bank._inuse = setmetatable({}, {__mode="v"})
+
+   function reg_bank:alloc()
+
+      function find_reg(all, inuse)
+         for k, reg in pairs(all) do
+            if not inuse[k] then
+               inuse[k] = {
+                  name  = "register",
+                  index = reg,
+               }
+               return inuse[k]
+            end
+         end
+         return nil
+      end
+
+      local reg = find_reg(reg_bank._all, reg_bank._inuse)
+      if not reg then
+
+         -- if inuse table full force garbage collection
+         collectgarbage()
+
+         reg = find_reg(reg_bank._all, reg_bank._inuse)
+         if not reg then
+            error('<neuflow.Core> ERROR: Can not -get- reg as they are all in use')
+         end
+      end
+
+      return reg
+   end
+
+   return reg_bank
 end
 
 --[[ Loop Administrator:
