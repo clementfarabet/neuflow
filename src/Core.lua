@@ -179,7 +179,7 @@ function Core:loopRepeat(times, code, ...)
       local loop = {}
       if times > 0 then
          loop.reg = self.registers:alloc()
-         self:setreg(loop.reg.index, times)
+         self:setreg(loop.reg, times)
       end
       loop.tag = self:makeGotoTag()
       self:nop()
@@ -358,7 +358,7 @@ end
 
 function Core:bitori(arg1, val, result)
    local reg = self.registers:alloc()
-   self:setreg(reg.index, val)
+   self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_or,
       arg8_1 = arg1,
@@ -369,7 +369,7 @@ end
 
 function Core:bitandi(arg1, val, result)
    local reg = self.registers:alloc()
-   self:setreg(reg.index, val)
+   self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_and,
       arg8_1 = arg1,
@@ -380,7 +380,7 @@ end
 
 function Core:addi(arg1, val, result)
    local reg = self.registers:alloc()
-   self:setreg(reg.index, val)
+   self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_add,
       arg8_1 = arg1,
@@ -391,7 +391,7 @@ end
 
 function Core:compi(arg1, val, result)
    local reg = self.registers:alloc()
-   self:setreg(reg.index, val)
+   self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_comp,
       arg8_1 = arg1,
@@ -465,10 +465,13 @@ function Core:ioread(io, reg)
 end
 
 function Core:setreg(reg, val)
+   assert('table' == type(reg) and 'register' == reg.name)
+   assert('number' == type(val))
+
    -- store value in register
    self:addInstruction {
       opcode = oFlower.op_setReg,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg32_1 = val
    }
 end
@@ -961,14 +964,14 @@ end
 function Core:resetTime()
    local reg = self.registers:alloc()
    -- set timer ctrl reg to 'restart'
-   self:setreg(reg.index, 1)
+   self:setreg(reg, 1)
    self:iowrite(oFlower.io_timer_ctrl, reg.index)
 end
 
 function Core:getTime()
    local reg = self.registers:alloc()
    -- set timer ctrl reg to ascii readout
-   self:setreg(reg.index, 4 + 2)
+   self:setreg(reg, 4 + 2)
    self:iowrite(oFlower.io_timer_ctrl, reg.index)
    -- print header
    self:printraw('--> CPU time = ')
@@ -1638,7 +1641,7 @@ function Core:self_test()
 
    self:messagebody('testing reg allocation')
    local reg_myvar = self.registers:alloc()
-   self:setreg(reg_myvar.index, 0)
+   self:setreg(reg_myvar, 0)
 
    self:messagebody('testing I/O read')
    self:ioread(oFlower.io_uart, reg_myvar.index)
@@ -1654,7 +1657,7 @@ function Core:self_test()
 
    self:messagebody('testing register readout (should print> abc)')
    local reg_readout = self.registers:alloc()
-   self:setreg(reg_readout.index, 0x0A636261)
+   self:setreg(reg_readout, 0x0A636261)
    self:printReg(reg_readout.index)
 
    self:messagebody('testing timer')

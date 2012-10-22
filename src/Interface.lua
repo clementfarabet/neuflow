@@ -137,7 +137,7 @@ function Ethernet:ethernetStartTransfer(size)
    local reg = self.core.registers:alloc()
    local status = bit.lshift(size, 16)
    status = bit.bor(status, 0x00000001)
-   self.core:setreg(reg.index, status)
+   self.core:setreg(reg, status)
    self.core:iowrite(oFlower.io_ethernet_status, reg.index)
 end
 
@@ -225,7 +225,7 @@ function Ethernet:streamToHost(stream, tag, mode)
    -- (3) stream packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
       local reg = self.core.registers:alloc()
-      self.core:setreg(reg.index, nb_packets)
+      self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       
       local packet_size = self.max_packet_size
@@ -357,7 +357,7 @@ function Ethernet:streamToHost_ack(stream, tag, mode)
    -- (3) stream packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
       local reg = self.core.registers:alloc()
-      self.core:setreg(reg.index, nb_packets)
+      self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       
       local packet_size = self.max_packet_size
@@ -512,7 +512,7 @@ function Ethernet:streamFromHost_legacy(stream, tag)
    -- (3) request packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
       local reg = self.core.registers:alloc()
-      self.core:setreg(reg.index, nb_packets)
+      self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       local packet_size = self.max_packet_size
       
@@ -673,7 +673,7 @@ function Ethernet:streamFromHost_ack(stream, tag)
     -- (3) request packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
       local reg = self.core.registers:alloc()
-      self.core:setreg(reg.index, nb_packets)
+      self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       local packet_size = self.max_packet_size
       
