@@ -14,8 +14,15 @@ function Camera:__init(args)
    self.frames = {}
 
    self.nb_frames = 4 -- number of frames in running buffer
-   self.w_ = 640
-   self.h_ = 240
+   -- self.Aw_ = 640
+   -- self.Ah_ = 480
+   -- self.Bw_ = 640
+   -- self.Bh_ = 480
+   self.size = {
+      ['B'] = {['width'] = 640, ['height'] = 480, ['component'] = 3},
+      ['A'] = {['width'] = 640, ['height'] = 480, ['component'] = 3}
+   }
+
    self.mask = {
       ['counter']     = {['A'] = 0x0000000c, ['B'] = 0x000c0000},
       ['status']      = {['A'] = 0x00000001, ['B'] = 0x00010000},
@@ -78,6 +85,7 @@ end
 function Camera:config(cameraID, param, value)
    local temp_mask
    local temp_offset
+   local lcameraID
    if #cameraID == 1 then
       lcameraID = {cameraID}
    else
@@ -92,6 +100,24 @@ function Camera:config(cameraID, param, value)
       -- Set the new value in reg_ctrl
       temp_mask = bit.lshift(self.conf[param].value[value],temp_offset)
       self.reg_ctrl = bit.bor(self.reg_ctrl, temp_mask)
+
+      -- Adjust camera memory size to definition
+      if param == 'definition' then
+         if value == 'QVGA' then
+            self.size[lcameraID[i]].width = 320
+            self.size[lcameraID[i]].height = 240
+         else
+            self.size[lcameraID[i]].width = 640
+            self.size[lcameraID[i]].height = 480
+         end
+      end
+      if param == 'color' then
+         if value == 'B&W' then
+            self.size[lcameraID[i]].component = 1
+         else
+            self.size[lcameraID[i]].component = 3
+         end
+      end
    end
 
    return self.reg_ctrl
@@ -121,6 +147,7 @@ end
 -- Not stable for now because of the camera settings. Use getLastFrame instead
 function Camera:getLastFrameSafe(cameraID)
    local outputs = {}
+   local lcameraID
 
    if #cameraID == 1 then
       lcameraID = {cameraID}
@@ -141,6 +168,7 @@ function Camera:getLastFrame(cameraID)
 
    local reg_acqst = self.core.alloc_ur:get()
    local reg_tmp = self.core.alloc_ur:get()
+   local lcameraID
 
    local mask_status = 0x00000000
    if #cameraID == 1 then
@@ -169,6 +197,7 @@ function Camera:getLastFrame(cameraID)
 end
 
 function Camera:captureOneFrame(cameraID)
+   local lcameraID
 
    local reg_ctrl = self.core.alloc_ur:get()
    local reg_acqst = self.core.alloc_ur:get()
@@ -212,7 +241,7 @@ function Camera:captureOneFrame(cameraID)
 end
 
 function Camera:enableCameras(cameraID)
-
+   local lcameraID
    if #cameraID == 1 then
       lcameraID = {cameraID}
    else
@@ -221,21 +250,12 @@ function Camera:enableCameras(cameraID)
    local idx_A
    local idx_B
    for i=1,#lcameraID do
-      --print('<neuflow.Camera> : enable Camera ' .. lcameraID[i] .. ': ' .. self.w_ .. 'x' .. self.h_)
-      if(lcameraID[i] == 'A') then
-         idx_A = self.core.mem:allocImageData(self.h_, self.w_, nil)
-      else
-         idx_B = self.core.mem:allocImageData(self.h_, self.w_, nil)
-      end
-      if(lcameraID[i] == 'A') then
-         self:initCamera('A', self.core.mem.data[idx_A])
-      else
-         self:initCamera('B', self.core.mem.data[idx_B])
-      end
-      -- idx = self.core.mem:allocImageData(self.h_, self.w_, nil)
-      -- self:initCamera(lcameraID[i], self.core.mem.data[idx])
+      local idx
+      idx = self.core.mem:allocImageData(self.size[lcameraID[i]].height,
+                                         self.size[lcameraID[i]].width*self.size[lcameraID[i]].component,
+                                         nil)
+      self:initCamera(lcameraID[i], self.core.mem.data[idx])
    end
-
    self.core:sleep(1)
    -- local idx_A = self.core.mem:allocImageData(self.h_, self.w_, nil)
    -- local idx_B = self.core.mem:allocImageData(self.h_, self.w_, nil)
@@ -245,17 +265,15 @@ end
 
 function Camera:startRBCameras() -- Start camera and send images to Running Buffer
 
-   local buff_h_ = self.h_ * self.nb_frames
+   print('<neuflow.Camera> : enable Camera: ' .. self.size['A'].width * self.size['A'].component .. 'x' .. self.size['A'].height)
+   local idx_A = self.core.mem:allocImageData(self.size['A'].height * self.nb_frames, self.size['A'].width * self.size['A'].component, nil)
+   local idx_B = self.core.mem:allocImageData(self.size['B'].height * self.nb_frames, self.size['B'].width * self.size['B'].component, nil)
 
-   print('<neuflow.Camera> : enable Camera: ' .. self.w_ .. 'x' .. self.h_)
-   local idx_A = self.core.mem:allocImageData(buff_h_, self.w_, nil)
-   local idx_B = self.core.mem:allocImageData(buff_h_, self.w_, nil)
-
+   -- The two cameras have to be initialized in the same time if an IIC configuration occured.
    self:initCamera('B', self.core.mem.data[idx_B])
-   self.core:sleep(1)
    self:initCamera('A', self.core.mem.data[idx_A])
 
-   self.core:sleep(1)
+   self.core:sleep(2)
 
    -- Global setup for DMA port (camera A and B) to make continuous
    local stride_bit_shift = math.log(1024) / math.log(2)
@@ -270,7 +288,7 @@ function Camera:startRBCameras() -- Start camera and send images to Running Buff
    self.core:openPortWr(dma.camera_B_port_id, self.frames['B'])
    self.core:openPortWr(dma.camera_A_port_id, self.frames['A'])
 
-   self.core:sleep(1)
+   --self.core:sleep(0.1)
    -- Start cameras sending images
    local reg_ctrl = self.core.alloc_ur:get()
    local mask_ctrl = self:config({'B','A'}, 'acquisition', 'ON')
@@ -288,17 +306,17 @@ function Camera:stopRBCameras() -- Stop camera sending to Running Buffer
    local mask_status = bit.bor(self.mask.status['A'], self.mask.status['B'])
    local mask_ctrl = self:config({'A','B'}, 'acquisition', 'OFF')
 
-   -- Once the acquisition start. Disable the acquisition for the next frame
+   -- Once the acquisition stop. Disable the acquisition for the next frame
    self.core:setreg(reg_acqst, mask_ctrl)
    self.core:iowrite(oFlower.io_gpios, reg_acqst)
    self.core:nop(100) -- small delay
 
    -- wait for the frame to finish being sent
-   self.core:loopUntilStart()
-   self.core:ioread(oFlower.io_gpios, reg_acqst)
-   self.core:bitandi(reg_acqst, mask_status, reg_acqst)
-   self.core:compi(reg_acqst, 0x00000000, reg_acqst)
-   self.core:loopUntilEndIfNonZero(reg_acqst)
+   -- self.core:loopUntilStart()
+   -- self.core:ioread(oFlower.io_gpios, reg_acqst)
+   -- self.core:bitandi(reg_acqst, mask_status, reg_acqst)
+   -- self.core:compi(reg_acqst, 0x00000000, reg_acqst)
+   -- self.core:loopUntilEndIfNonZero(reg_acqst)
 
    self.core.alloc_ur:free(reg_acqst)
 
@@ -317,7 +335,7 @@ function Camera:copyToHostLatestFrame() -- Get the latest complete frame
 
    self.core.alloc_ur:free(reg_acqst)
 
-   return torch.Tensor(2, self.h_, self.w_)
+   return torch.Tensor(2, self.size['A'].height, self.size['A'].width)
 end
 
 function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_addr_range)
@@ -340,9 +358,9 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
          action = 'fetch+read+sync+close',
          data   = {
             x = self.frames[cameraID].x,
-            y = self.frames[cameraID].y + ((ii-1)*self.h_),
-            w = self.w_,
-            h = self.h_
+            y = self.frames[cameraID].y + ((ii-1)*self.size[cameraID].height),
+            w = self.size[cameraID].width * self.size[cameraID].component,
+            h = self.size[cameraID].height
          },
 
          range  = port_addr_range
@@ -362,9 +380,9 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
       action = 'fetch+read+sync+close',
       data   = {
          x = self.frames[cameraID].x,
-         y = self.frames[cameraID].y + ((self.nb_frames-1)*self.h_),
-         w = self.w_,
-         h = self.h_
+         y = self.frames[cameraID].y + ((self.nb_frames-1)*self.size[cameraID].height),
+         w = self.size[cameraID].width * self.size[cameraID].component,
+         h = self.size[cameraID].height
       },
 
       range  = port_addr_range
