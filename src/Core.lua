@@ -449,10 +449,13 @@ function Core:nop(times)
 end
 
 function Core:iowrite(io, reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+   assert('number' == type(io))
+
    self:addInstruction {
       opcode = oFlower.op_writeWord,
       arg8_1 = io,
-      arg8_2 = reg
+      arg8_2 = reg.index
    }
 end
 
@@ -886,14 +889,18 @@ function Core:ioWaitForWriteData(ioCtrl)
 end
 
 function Core:printReg(reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+
    self:loopRepeat(4, function(reg)
       self:ioWaitForWriteData(oFlower.io_uart_status)
       self:iowrite(oFlower.io_uart, reg)
-      self:shri(reg, 8, reg, 'logic')
+      self:shri(reg.index, 8, reg.index, 'logic')
    end, reg);
 end
 
 function Core:putChar(reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+
    self:ioWaitForWriteData(oFlower.io_uart_status)
    self:iowrite(oFlower.io_uart, reg)
 end
@@ -965,14 +972,14 @@ function Core:resetTime()
    local reg = self.registers:alloc()
    -- set timer ctrl reg to 'restart'
    self:setreg(reg, 1)
-   self:iowrite(oFlower.io_timer_ctrl, reg.index)
+   self:iowrite(oFlower.io_timer_ctrl, reg)
 end
 
 function Core:getTime()
    local reg = self.registers:alloc()
    -- set timer ctrl reg to ascii readout
    self:setreg(reg, 4 + 2)
-   self:iowrite(oFlower.io_timer_ctrl, reg.index)
+   self:iowrite(oFlower.io_timer_ctrl, reg)
    -- print header
    self:printraw('--> CPU time = ')
    -- then print timer's result

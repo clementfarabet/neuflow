@@ -138,7 +138,7 @@ function Ethernet:ethernetStartTransfer(size)
    local status = bit.lshift(size, 16)
    status = bit.bor(status, 0x00000001)
    self.core:setreg(reg, status)
-   self.core:iowrite(oFlower.io_ethernet_status, reg.index)
+   self.core:iowrite(oFlower.io_ethernet_status, reg)
 end
 
 function Ethernet:printToEthernet(str)
