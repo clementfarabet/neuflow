@@ -368,13 +368,17 @@ function Core:bitori(arg1, val, result)
 end
 
 function Core:bitandi(arg1, val, result)
-   local reg = self.registers:alloc()
-   self:setreg(reg, val)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+
+   local mask = self.registers:alloc()
+   self:setreg(mask, val)
    self:addInstruction {
       opcode = oFlower.op_and,
-      arg8_1 = arg1,
-      arg8_2 = reg.index,
-      arg8_3 = result,
+      arg8_1 = arg1.index,
+      arg8_2 = mask.index,
+      arg8_3 = result.index,
    }
 end
 
@@ -876,7 +880,7 @@ function Core:ioWaitForReadData(ioCtrl)
    self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
-   self:bitandi(reg.index, 0x00000001, reg.index)
+   self:bitandi(reg, 0x00000001, reg)
 
    self:loopUntilEndIfZero(reg.index)
 end
@@ -886,7 +890,7 @@ function Core:ioWaitForWriteData(ioCtrl)
    self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
-   self:bitandi(reg.index, 0x00000002, reg.index)
+   self:bitandi(reg, 0x00000002, reg)
 
    self:loopUntilEndIfZero(reg.index)
 end
@@ -925,7 +929,7 @@ function Core:getCharNonBlocking(reg, tries)
 
    self:loopRepeat(tries, function(reg_stat)
       self:ioread(oFlower.io_uart_status, reg_stat)
-      self:bitandi(reg_index, 0x00000001, reg_stat.index)
+      self:bitandi(reg_stat, 0x00000001, reg_stat)
       self:loopBreakIfNonZero(reg_stat.index)
    end, reg_stat);
 
@@ -1662,7 +1666,7 @@ function Core:self_test()
    self:ioread(oFlower.io_uart, reg_myvar)
 
    self:messagebody('testing alu (bitwise and)')
-   self:bitandi(reg_myvar.index, 0xFF0000FF, reg_myvar.index)
+   self:bitandi(reg_myvar, 0xFF0000FF, reg_myvar)
 
    self:messagebody('testing loop x3')
 
