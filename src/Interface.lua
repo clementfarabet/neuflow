@@ -242,7 +242,7 @@ function Ethernet:streamToHost(stream, tag, mode)
       self:ethernetStartTransfer(packet_size)
       -- (d) wait for transfer started
       self:ethernetBlockOnIdle()
-      self.core:addi(reg.index, -1, reg.index)
+      self.core:addi(reg, -1, reg)
       self.core:gotoTagIfNonZero(goto_tag, reg.index)
    end
    
@@ -391,7 +391,7 @@ function Ethernet:streamToHost_ack(stream, tag, mode)
 	 error('ERROR <Ethernet> : mode can be one of: with-ack | no-ack')
       end 
       
-      self.core:addi(reg.index, -1, reg.index)
+      self.core:addi(reg, -1, reg)
       self.core:gotoTagIfNonZero(goto_tag, reg.index)
       count = count + 1
    end
@@ -530,7 +530,7 @@ function Ethernet:streamFromHost_legacy(stream, tag)
 	 self.core:messagebody('.')
       end
       -- (d) loopback
-      self.core:addi(reg.index, -1, reg.index)
+      self.core:addi(reg, -1, reg)
       self.core:gotoTagIfNonZero(goto_tag, reg.index)
    end
    
@@ -691,7 +691,7 @@ function Ethernet:streamFromHost_ack(stream, tag)
 	 self.core:messagebody('.')
       end
       -- (d) loopback
-      self.core:addi(reg.index, -1, reg.index)
+      self.core:addi(reg, -1, reg)
       self.core:gotoTagIfNonZero(goto_tag, reg.index)
    end
 

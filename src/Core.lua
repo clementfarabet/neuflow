@@ -192,7 +192,7 @@ function Core:loopRepeat(times, code, ...)
       local breaks = self.ladmin:getBreaks()
       local loop = self.ladmin:pop()
       if times > 0 then
-         self:addi(loop.reg.index, -1, loop.reg.index)
+         self:addi(loop.reg, -1, loop.reg)
          self:gotoTagIfNonZero(loop.tag, loop.reg.index)
       else
          self:gotoTag(loop.tag)
@@ -383,13 +383,17 @@ function Core:bitandi(arg1, val, result)
 end
 
 function Core:addi(arg1, val, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+
    local reg = self.registers:alloc()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_add,
-      arg8_1 = arg1,
+      arg8_1 = arg1.index,
       arg8_2 = reg.index,
-      arg8_3 = result,
+      arg8_3 = result.index,
    }
 end
 
