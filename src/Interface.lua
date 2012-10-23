@@ -110,7 +110,7 @@ function Ethernet:ethernetBlockOnBusy()
    local reg = self.core.registers:alloc()
    local goto_tag = self.core:makeGotoTag()
 
-   self.core:ioread(oFlower.io_ethernet_status, reg.index)
+   self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg.index, 0x00000001, reg.index)
    self.core:gotoTagIfNonZero(goto_tag, reg.index)
 end
@@ -119,7 +119,7 @@ function Ethernet:ethernetBlockOnIdle()
    local reg = self.core.registers:alloc()
    local goto_tag = self.core:makeGotoTag()
 
-   self.core:ioread(oFlower.io_ethernet_status, reg.index)
+   self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg.index, 0x00000001, reg.index)
    self.core:gotoTagIfZero(goto_tag, reg.index)
 end
@@ -128,7 +128,7 @@ function Ethernet:ethernetWaitForPacket()
    local reg = self.core.registers:alloc()
    local goto_tag = self.core:makeGotoTag()
 
-   self.core:ioread(oFlower.io_ethernet_status, reg.index)
+   self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg.index, 0x00000002, reg.index)
    self.core:gotoTagIfZero(goto_tag, reg.index)
 end

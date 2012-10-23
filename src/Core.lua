@@ -460,10 +460,13 @@ function Core:iowrite(io, reg)
 end
 
 function Core:ioread(io, reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+   assert('number' == type(io))
+
    self:addInstruction {
       opcode = oFlower.op_readWord,
       arg8_1 = io,
-      arg8_2 = reg
+      arg8_2 = reg.index
    }
 end
 
@@ -862,7 +865,7 @@ function Core:readStringFromMem(stream)
       self:ioWaitForReadData(oFlower.io_dma_status)
       self:ioread(oFlower.io_dma, reg_io_dma)
       self:printReg(reg_io_dma)
-   end, reg_io_dma.index);
+   end, reg_io_dma);
 
    -- done...
    self:closePort(1)
@@ -872,7 +875,7 @@ function Core:ioWaitForReadData(ioCtrl)
    local reg = self.registers:alloc()
    self:loopUntilStart()
 
-   self:ioread(ioCtrl, reg.index)
+   self:ioread(ioCtrl, reg)
    self:bitandi(reg.index, 0x00000001, reg.index)
 
    self:loopUntilEndIfZero(reg.index)
@@ -882,7 +885,7 @@ function Core:ioWaitForWriteData(ioCtrl)
    local reg = self.registers:alloc()
    self:loopUntilStart()
 
-   self:ioread(ioCtrl, reg.index)
+   self:ioread(ioCtrl, reg)
    self:bitandi(reg.index, 0x00000002, reg.index)
 
    self:loopUntilEndIfZero(reg.index)
@@ -906,20 +909,25 @@ function Core:putChar(reg)
 end
 
 function Core:getCharBlocking(reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+
    self:ioWaitForReadData(oFlower.io_uart_status)
    self:ioread(oFlower.io_uart, reg)
 end
 
 function Core:getCharNonBlocking(reg, tries)
+   assert('table' == type(reg) and 'register' == reg.name)
+   assert('number' == type(tries))
+
    local reg_stat = self.registers:alloc()
 
    self:setreg(reg, -1)
 
-   self:loopRepeat(tries, function(reg_index)
-      self:ioread(oFlower.io_uart_status, reg_index)
-      self:bitandi(reg_index, 0x00000001, reg_index)
-      self:loopBreakIfNonZero(reg_index)
-   end, reg_stat.index);
+   self:loopRepeat(tries, function(reg_stat)
+      self:ioread(oFlower.io_uart_status, reg_stat)
+      self:bitandi(reg_index, 0x00000001, reg_stat.index)
+      self:loopBreakIfNonZero(reg_stat.index)
+   end, reg_stat);
 
    self:ioread(oFlower.io_uart, reg)
 end
@@ -1651,7 +1659,7 @@ function Core:self_test()
    self:setreg(reg_myvar, 0)
 
    self:messagebody('testing I/O read')
-   self:ioread(oFlower.io_uart, reg_myvar.index)
+   self:ioread(oFlower.io_uart, reg_myvar)
 
    self:messagebody('testing alu (bitwise and)')
    self:bitandi(reg_myvar.index, 0xFF0000FF, reg_myvar.index)
@@ -1665,7 +1673,7 @@ function Core:self_test()
    self:messagebody('testing register readout (should print> abc)')
    local reg_readout = self.registers:alloc()
    self:setreg(reg_readout, 0x0A636261)
-   self:printReg(reg_readout.index)
+   self:printReg(reg_readout)
 
    self:messagebody('testing timer')
    self:getTime()
