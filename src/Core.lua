@@ -321,49 +321,69 @@ end
 
 -- ALU operations
 function Core:bitor(arg1, arg2, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('table' == type(arg2) and 'register' == arg2.name)
+   assert('table' == type(result) and 'register' == result.name)
+
    self:addInstruction {
       opcode = oFlower.op_or,
-      arg8_1 = arg1,
-      arg8_2 = arg2,
-      arg8_3 = result
+      arg8_1 = arg1.index,
+      arg8_2 = arg2.index,
+      arg8_3 = result.index,
    }
 end
 
 function Core:bitand(arg1, arg2, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('table' == type(arg2) and 'register' == arg2.name)
+   assert('table' == type(result) and 'register' == result.name)
+
    self:addInstruction {
       opcode = oFlower.op_and,
-      arg8_1 = arg1,
-      arg8_2 = arg2,
-      arg8_3 = result
+      arg8_1 = arg1.index,
+      arg8_2 = arg2.index,
+      arg8_3 = result.index,
    }
 end
 
 function Core:add(arg1, arg2, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('table' == type(arg2) and 'register' == arg2.name)
+   assert('table' == type(result) and 'register' == result.name)
+
    self:addInstruction {
       opcode = oFlower.op_add,
-      arg8_1 = arg1,
-      arg8_2 = arg2,
-      arg8_3 = result
+      arg8_1 = arg1.index,
+      arg8_2 = arg2.index,
+      arg8_3 = result.index,
    }
 end
 
 function Core:comp(arg1, arg2, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('table' == type(arg2) and 'register' == arg2.name)
+   assert('table' == type(result) and 'register' == result.name)
+
    self:addInstruction {
       opcode = oFlower.op_comp,
-      arg8_1 = arg1,
-      arg8_2 = arg2,
-      arg8_3 = result
+      arg8_1 = arg1.index,
+      arg8_2 = arg2.index,
+      arg8_3 = result.index,
    }
 end
 
 function Core:bitori(arg1, val, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+
    local reg = self.registers:alloc()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_or,
-      arg8_1 = arg1,
+      arg8_1 = arg1.index,
       arg8_2 = reg.index,
-      arg8_3 = result,
+      arg8_3 = result.index,
    }
 end
 
@@ -398,17 +418,26 @@ function Core:addi(arg1, val, result)
 end
 
 function Core:compi(arg1, val, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+
    local reg = self.registers:alloc()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_comp,
-      arg8_1 = arg1,
+      arg8_1 = arg1.index,
       arg8_2 = reg.index,
-      arg8_3 = result,
+      arg8_3 = result.index,
    }
 end
 
 function Core:shri(arg1, val, result, mode)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+   assert('string' == type(mode))
+
    -- mode:
    if mode == 'arith' then
       mode = 1
@@ -448,6 +477,8 @@ end
 
 function Core:nop(times)
    if times then
+      assert('number' == type(times))
+
       for i = 1,times do
          self:addInstruction{opcode = oFlower.op_nop}
       end
@@ -880,6 +911,8 @@ function Core:readStringFromMem(stream)
 end
 
 function Core:ioWaitForReadData(ioCtrl)
+   assert('number' == type(ioCtrl))
+
    local reg = self.registers:alloc()
    self:loopUntilStart()
 
@@ -890,6 +923,8 @@ function Core:ioWaitForReadData(ioCtrl)
 end
 
 function Core:ioWaitForWriteData(ioCtrl)
+   assert('number' == type(ioCtrl))
+
    local reg = self.registers:alloc()
    self:loopUntilStart()
 
@@ -941,6 +976,8 @@ function Core:getCharNonBlocking(reg, tries)
 end
 
 function Core:flushKernel(convolver)
+   assert('number' == type(convolver))
+
    if (self.msg_level == 'detailled') then
       self:message('flushing.kernel.cache')
    end
@@ -1010,6 +1047,8 @@ function Core:getTime()
 end
 
 function Core:sleep(sec)
+   assert('number' == type(sec))
+
    --self:startProcess()
    local ticks = math.floor( (sec / (self.period_ns * 1e-9)) / 8 )
    self:loopRepeat(ticks)
