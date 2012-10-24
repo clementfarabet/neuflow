@@ -449,17 +449,17 @@ function Core:shri(arg1, val, result, mode)
       -- only one instruction
       self:addInstruction {
          opcode = oFlower.op_shr,
-         arg8_1 = arg1,
+         arg8_1 = arg1.index,
          arg8_2 = mode,
-         arg8_3 = result
+         arg8_3 = result.index,
       }
    else
       -- first shift
       self:addInstruction {
          opcode = oFlower.op_shr,
-         arg8_1 = arg1,
+         arg8_1 = arg1.index,
          arg8_2 = mode,
-         arg8_3 = result
+         arg8_3 = result.index,
       }
 
       -- create loop
@@ -467,9 +467,9 @@ function Core:shri(arg1, val, result, mode)
          -- shift right
          self:addInstruction {
             opcode = oFlower.op_shr,
-            arg8_1 = result,
+            arg8_1 = result.index,
             arg8_2 = mode,
-            arg8_3 = result
+            arg8_3 = result.index,
          }
       end);
    end
@@ -940,7 +940,7 @@ function Core:printReg(reg)
    self:loopRepeat(4, function(reg)
       self:ioWaitForWriteData(oFlower.io_uart_status)
       self:iowrite(oFlower.io_uart, reg)
-      self:shri(reg.index, 8, reg.index, 'logic')
+      self:shri(reg, 8, reg, 'logic')
    end, reg);
 end
 
