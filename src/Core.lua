@@ -193,7 +193,7 @@ function Core:loopRepeat(times, code, ...)
       local loop = self.ladmin:pop()
       if times > 0 then
          self:addi(loop.reg, -1, loop.reg)
-         self:gotoTagIfNonZero(loop.tag, loop.reg.index)
+         self:gotoTagIfNonZero(loop.tag, loop.reg)
       else
          self:gotoTag(loop.tag)
       end
@@ -524,12 +524,15 @@ end
 function Core:makeGotoTag()
    -- the tag points to next instruction after this function is called
    return {
+      name = 'gototag',
       ref = self.linker:getLastReference(),
       offset = 1
    }
 end
 
 function Core:gotoTag(goto_tag)
+   assert(('table' == type(goto_tag) and 'gototag' == goto_tag.name) or nil)
+
    -- goto instruction
    self:addInstruction {
       goto_tag = goto_tag,
@@ -540,28 +543,36 @@ function Core:gotoTag(goto_tag)
 end
 
 function Core:gotoTagIfNonZero(goto_tag, reg)
+   assert(('table' == type(goto_tag) and 'gototag' == goto_tag.name) or nil)
+   assert('table' == type(reg) and 'register' == reg.name)
+
    -- goto instruction
    self:addInstruction {
       goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 1,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg32_1 = 0
    }
 end
 
 function Core:gotoTagIfZero(goto_tag, reg)
+   assert(('table' == type(goto_tag) and 'gototag' == goto_tag.name) or nil)
+   assert('table' == type(reg) and 'register' == reg.name)
+
    -- goto instruction
    self:addInstruction {
       goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 2,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg32_1 = 0
    }
 end
 
 function Core:gotoGlobal(globaladdr)
+   assert('number' == type(globaladdr))
+
    -- goto instruction
    self:addInstruction {
       opcode = oFlower.op_goto,
@@ -571,26 +582,34 @@ function Core:gotoGlobal(globaladdr)
 end
 
 function Core:gotoGlobalIfNonZero(globaladdr, reg)
+   assert('number' == type(globaladdr))
+   assert('table' == type(reg) and 'register' == reg.name)
+
    -- goto instruction
    self:addInstruction {
       opcode = oFlower.op_goto,
       arg8_1 = 1,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg32_1 = globaladdr
    }
 end
 
 function Core:gotoGlobalIfZero(globaladdr, reg)
+   assert('number' == type(globaladdr))
+   assert('table' == type(reg) and 'register' == reg.name)
+
    -- goto instruction
    self:addInstruction {
       opcode = oFlower.op_goto,
       arg8_1 = 2,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg32_1 = globaladdr
    }
 end
 
 function Core:gotoRelative(reladdr)
+   assert('number' == type(reladdr))
+
    -- add a tag, to be resolved later
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
@@ -605,6 +624,9 @@ function Core:gotoRelative(reladdr)
 end
 
 function Core:gotoRelativeIfNonZero(reladdr, reg)
+   assert('number' == type(reladdr))
+   assert('table' == type(reg) and 'register' == reg.name)
+
    -- add a tag, to be resolved later
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
@@ -614,12 +636,15 @@ function Core:gotoRelativeIfNonZero(reladdr, reg)
       goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 1,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg32_1 = 0
    }
 end
 
 function Core:gotoRelativeIfZero(reladdr, reg)
+   assert('number' == type(reladdr))
+   assert('table' == type(reg) and 'register' == reg.name)
+
    -- add a tag, to be resolved later
    local goto_tag = self:makeGotoTag()
    goto_tag.offset = goto_tag.offset + reladdr
@@ -629,22 +654,13 @@ function Core:gotoRelativeIfZero(reladdr, reg)
       goto_tag = goto_tag,
       opcode = oFlower.op_goto,
       arg8_1 = 2,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg32_1 = 0
    }
 end
 
-function Core:gotoAbsolute(absaddr)
-   error('# ERROR <Core.gotoAbsolute> : Deprecated')
-end
 
-function Core:gotoAbsoluteIfNonZero(absaddr, reg, goto_tag)
-   error('# ERROR <Core.gotoAbsoluteIfNonZero> : Deprecated')
-end
-
-function Core:gotoAbsoluteIfZero(absaddr, reg, goto_tag)
-   error('# ERROR <Core.gotoAbsoluteIfZero> : Deprecated')
-end
+-- Configuration operations
 
 function Core:openPortWr(port, data)
    -- Stream image in
@@ -919,7 +935,7 @@ function Core:ioWaitForReadData(ioCtrl)
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000001, reg)
 
-   self:loopUntilEndIfZero(reg.index)
+   self:loopUntilEndIfZero(reg)
 end
 
 function Core:ioWaitForWriteData(ioCtrl)
@@ -931,7 +947,7 @@ function Core:ioWaitForWriteData(ioCtrl)
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000002, reg)
 
-   self:loopUntilEndIfZero(reg.index)
+   self:loopUntilEndIfZero(reg)
 end
 
 function Core:printReg(reg)
@@ -969,7 +985,7 @@ function Core:getCharNonBlocking(reg, tries)
    self:loopRepeat(tries, function(reg_stat)
       self:ioread(oFlower.io_uart_status, reg_stat)
       self:bitandi(reg_stat, 0x00000001, reg_stat)
-      self:loopBreakIfNonZero(reg_stat.index)
+      self:loopBreakIfNonZero(reg_stat)
    end, reg_stat);
 
    self:ioread(oFlower.io_uart, reg)

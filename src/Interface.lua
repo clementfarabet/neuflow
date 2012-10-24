@@ -112,7 +112,7 @@ function Ethernet:ethernetBlockOnBusy()
 
    self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg, 0x00000001, reg)
-   self.core:gotoTagIfNonZero(goto_tag, reg.index)
+   self.core:gotoTagIfNonZero(goto_tag, reg)
 end
 
 function Ethernet:ethernetBlockOnIdle()
@@ -121,7 +121,7 @@ function Ethernet:ethernetBlockOnIdle()
 
    self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg, 0x00000001, reg)
-   self.core:gotoTagIfZero(goto_tag, reg.index)
+   self.core:gotoTagIfZero(goto_tag, reg)
 end
 
 function Ethernet:ethernetWaitForPacket()
@@ -130,7 +130,7 @@ function Ethernet:ethernetWaitForPacket()
 
    self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg, 0x00000002, reg)
-   self.core:gotoTagIfZero(goto_tag, reg.index)
+   self.core:gotoTagIfZero(goto_tag, reg)
 end
 
 function Ethernet:ethernetStartTransfer(size)
@@ -243,7 +243,7 @@ function Ethernet:streamToHost(stream, tag, mode)
       -- (d) wait for transfer started
       self:ethernetBlockOnIdle()
       self.core:addi(reg, -1, reg)
-      self.core:gotoTagIfNonZero(goto_tag, reg.index)
+      self.core:gotoTagIfNonZero(goto_tag, reg)
    end
    
    if(last_packet ~= 0) then
@@ -392,7 +392,7 @@ function Ethernet:streamToHost_ack(stream, tag, mode)
       end 
       
       self.core:addi(reg, -1, reg)
-      self.core:gotoTagIfNonZero(goto_tag, reg.index)
+      self.core:gotoTagIfNonZero(goto_tag, reg)
       count = count + 1
    end
    
@@ -531,7 +531,7 @@ function Ethernet:streamFromHost_legacy(stream, tag)
       end
       -- (d) loopback
       self.core:addi(reg, -1, reg)
-      self.core:gotoTagIfNonZero(goto_tag, reg.index)
+      self.core:gotoTagIfNonZero(goto_tag, reg)
    end
    
    if(last_packet ~= 0) then
@@ -692,7 +692,7 @@ function Ethernet:streamFromHost_ack(stream, tag)
       end
       -- (d) loopback
       self.core:addi(reg, -1, reg)
-      self.core:gotoTagIfNonZero(goto_tag, reg.index)
+      self.core:gotoTagIfNonZero(goto_tag, reg)
    end
 
 
