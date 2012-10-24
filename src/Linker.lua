@@ -254,6 +254,10 @@ function Linker:removeSegment(seg_start, seg_end)
 end
 
 function Linker:alignProcessWithPages()
+   if self.instruction_list.end_node ~= self.instruction_list.sentinel_node then
+      self:appendSentinel()
+   end
+
    local function countNextProcess(node, cnt)
       cnt = cnt or 0
 
