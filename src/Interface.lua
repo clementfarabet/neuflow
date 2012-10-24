@@ -107,46 +107,38 @@ function Ethernet:startCom()
 end
 
 function Ethernet:ethernetBlockOnBusy()
-   local reg = self.core.alloc_ur:get()
+   local reg = self.core.registers:alloc()
    local goto_tag = self.core:makeGotoTag()
 
    self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg, 0x00000001, reg)
-   self.core:gotoTagIfNonZero(goto_tag, reg)
-
-   self.core.alloc_ur:free(reg)
+   self.core:gotoTagIfNonZero(goto_tag, reg.index)
 end
 
 function Ethernet:ethernetBlockOnIdle()
-   local reg = self.core.alloc_ur:get()
+   local reg = self.core.registers:alloc()
    local goto_tag = self.core:makeGotoTag()
 
    self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg, 0x00000001, reg)
-   self.core:gotoTagIfZero(goto_tag, reg)
-
-   self.core.alloc_ur:free(reg)
+   self.core:gotoTagIfZero(goto_tag, reg.index)
 end
 
 function Ethernet:ethernetWaitForPacket()
-   local reg = self.core.alloc_ur:get()
+   local reg = self.core.registers:alloc()
    local goto_tag = self.core:makeGotoTag()
 
    self.core:ioread(oFlower.io_ethernet_status, reg)
    self.core:bitandi(reg, 0x00000002, reg)
-   self.core:gotoTagIfZero(goto_tag, reg)
-
-   self.core.alloc_ur:free(reg)
+   self.core:gotoTagIfZero(goto_tag, reg.index)
 end
 
 function Ethernet:ethernetStartTransfer(size)
-   local reg = self.core.alloc_ur:get()
+   local reg = self.core.registers:alloc()
    local status = bit.lshift(size, 16)
    status = bit.bor(status, 0x00000001)
    self.core:setreg(reg, status)
    self.core:iowrite(oFlower.io_ethernet_status, reg)
-
-   self.core.alloc_ur:free(reg)
 end
 
 function Ethernet:printToEthernet(str)
@@ -232,7 +224,7 @@ function Ethernet:streamToHost(stream, tag, mode)
    self.core:openPortRd(1, stream)
    -- (3) stream packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
-      local reg = self.core.alloc_ur:get()
+      local reg = self.core.registers:alloc()
       self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       
@@ -251,9 +243,7 @@ function Ethernet:streamToHost(stream, tag, mode)
       -- (d) wait for transfer started
       self:ethernetBlockOnIdle()
       self.core:addi(reg, -1, reg)
-      self.core:gotoTagIfNonZero(goto_tag, reg)
-
-      self.core.alloc_ur:free(reg)
+      self.core:gotoTagIfNonZero(goto_tag, reg.index)
    end
    
    if(last_packet ~= 0) then
@@ -366,7 +356,7 @@ function Ethernet:streamToHost_ack(stream, tag, mode)
    local count = 1
    -- (3) stream packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
-      local reg = self.core.alloc_ur:get()
+      local reg = self.core.registers:alloc()
       self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       
@@ -402,10 +392,8 @@ function Ethernet:streamToHost_ack(stream, tag, mode)
       end 
       
       self.core:addi(reg, -1, reg)
-      self.core:gotoTagIfNonZero(goto_tag, reg)
+      self.core:gotoTagIfNonZero(goto_tag, reg.index)
       count = count + 1
-
-      self.core.alloc_ur:free(reg)
    end
    
    if(last_packet ~= 0) then
@@ -523,7 +511,7 @@ function Ethernet:streamFromHost_legacy(stream, tag)
    
    -- (3) request packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
-      local reg = self.core.alloc_ur:get()
+      local reg = self.core.registers:alloc()
       self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       local packet_size = self.max_packet_size
@@ -543,9 +531,7 @@ function Ethernet:streamFromHost_legacy(stream, tag)
       end
       -- (d) loopback
       self.core:addi(reg, -1, reg)
-      self.core:gotoTagIfNonZero(goto_tag, reg)
-
-      self.core.alloc_ur:free(reg)
+      self.core:gotoTagIfNonZero(goto_tag, reg.index)
    end
    
    if(last_packet ~= 0) then
@@ -686,7 +672,7 @@ function Ethernet:streamFromHost_ack(stream, tag)
 
     -- (3) request packets of self.max_packet_size bytes max
    if (nb_packets > 0) then
-      local reg = self.core.alloc_ur:get()
+      local reg = self.core.registers:alloc()
       self.core:setreg(reg, nb_packets)
       local goto_tag = self.core:makeGotoTag()
       local packet_size = self.max_packet_size
@@ -706,9 +692,7 @@ function Ethernet:streamFromHost_ack(stream, tag)
       end
       -- (d) loopback
       self.core:addi(reg, -1, reg)
-      self.core:gotoTagIfNonZero(goto_tag, reg)
-
-      self.core.alloc_ur:free(reg)
+      self.core:gotoTagIfNonZero(goto_tag, reg.index)
    end
 
 

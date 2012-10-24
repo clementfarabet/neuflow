@@ -57,22 +57,18 @@ function Core:__init(args)
       init_offset =  self.offset_code,
    }
 
-   -- sys reg allocator
-   self.alloc_sr = self:RegAllocator {
-      [oFlower.reg_sys_A] = true,
-      [oFlower.reg_sys_B] = true,
-      [oFlower.reg_sys_C] = true,
-   }
-
-   -- user reg allocator
-   self.alloc_ur = self:RegAllocator {
-      [oFlower.reg_loops] = true,
-      [oFlower.reg_A]     = true,
-      [oFlower.reg_B]     = true,
-      [oFlower.reg_C]     = true,
-      [oFlower.reg_D]     = true,
-      [oFlower.reg_E]     = true,
-      [oFlower.reg_F]     = true,
+   -- reg allocator
+   self.registers = self:RegAllocator {
+      oFlower.reg_sys_A,
+      oFlower.reg_sys_B,
+      oFlower.reg_sys_C,
+      oFlower.reg_loops,
+      oFlower.reg_A,
+      oFlower.reg_B,
+      oFlower.reg_C,
+      oFlower.reg_D,
+      oFlower.reg_E,
+      oFlower.reg_F,
    }
 
    -- loop data structure
@@ -182,7 +178,7 @@ function Core:loopRepeat(times, code, ...)
       -- start loop
       local loop = {}
       if times > 0 then
-         loop.reg = self.alloc_ur:get()
+         loop.reg = self.registers:alloc()
          self:setreg(loop.reg, times)
       end
       loop.tag = self:makeGotoTag()
@@ -197,8 +193,7 @@ function Core:loopRepeat(times, code, ...)
       local loop = self.ladmin:pop()
       if times > 0 then
          self:addi(loop.reg, -1, loop.reg)
-         self:gotoTagIfNonZero(loop.tag, loop.reg)
-         self.alloc_ur:free(loop.reg)
+         self:gotoTagIfNonZero(loop.tag, loop.reg.index)
       else
          self:gotoTag(loop.tag)
       end
@@ -326,94 +321,123 @@ end
 
 -- ALU operations
 function Core:bitor(arg1, arg2, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('table' == type(arg2) and 'register' == arg2.name)
+   assert('table' == type(result) and 'register' == result.name)
+
    self:addInstruction {
       opcode = oFlower.op_or,
-      arg8_1 = arg1,
-      arg8_2 = arg2,
-      arg8_3 = result
+      arg8_1 = arg1.index,
+      arg8_2 = arg2.index,
+      arg8_3 = result.index,
    }
 end
 
 function Core:bitand(arg1, arg2, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('table' == type(arg2) and 'register' == arg2.name)
+   assert('table' == type(result) and 'register' == result.name)
+
    self:addInstruction {
       opcode = oFlower.op_and,
-      arg8_1 = arg1,
-      arg8_2 = arg2,
-      arg8_3 = result
+      arg8_1 = arg1.index,
+      arg8_2 = arg2.index,
+      arg8_3 = result.index,
    }
 end
 
 function Core:add(arg1, arg2, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('table' == type(arg2) and 'register' == arg2.name)
+   assert('table' == type(result) and 'register' == result.name)
+
    self:addInstruction {
       opcode = oFlower.op_add,
-      arg8_1 = arg1,
-      arg8_2 = arg2,
-      arg8_3 = result
+      arg8_1 = arg1.index,
+      arg8_2 = arg2.index,
+      arg8_3 = result.index,
    }
 end
 
 function Core:comp(arg1, arg2, result)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('table' == type(arg2) and 'register' == arg2.name)
+   assert('table' == type(result) and 'register' == result.name)
+
    self:addInstruction {
       opcode = oFlower.op_comp,
-      arg8_1 = arg1,
-      arg8_2 = arg2,
-      arg8_3 = result
+      arg8_1 = arg1.index,
+      arg8_2 = arg2.index,
+      arg8_3 = result.index,
    }
 end
 
 function Core:bitori(arg1, val, result)
-   local reg = self.alloc_sr:get()
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+
+   local reg = self.registers:alloc()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_or,
-      arg8_1 = arg1,
-      arg8_2 = reg,
-      arg8_3 = result,
+      arg8_1 = arg1.index,
+      arg8_2 = reg.index,
+      arg8_3 = result.index,
    }
-
-   self.alloc_sr:free(reg)
 end
 
 function Core:bitandi(arg1, val, result)
-   local reg = self.alloc_sr:get()
-   self:setreg(reg, val)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+
+   local mask = self.registers:alloc()
+   self:setreg(mask, val)
    self:addInstruction {
       opcode = oFlower.op_and,
-      arg8_1 = arg1,
-      arg8_2 = reg,
-      arg8_3 = result,
+      arg8_1 = arg1.index,
+      arg8_2 = mask.index,
+      arg8_3 = result.index,
    }
-
-   self.alloc_sr:free(reg)
 end
 
 function Core:addi(arg1, val, result)
-   local reg = self.alloc_sr:get()
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+
+   local reg = self.registers:alloc()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_add,
-      arg8_1 = arg1,
-      arg8_2 = reg,
-      arg8_3 = result,
+      arg8_1 = arg1.index,
+      arg8_2 = reg.index,
+      arg8_3 = result.index,
    }
-
-   self.alloc_sr:free(reg)
 end
 
 function Core:compi(arg1, val, result)
-   local reg = self.alloc_sr:get()
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+
+   local reg = self.registers:alloc()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_comp,
-      arg8_1 = arg1,
-      arg8_2 = reg,
-      arg8_3 = result,
+      arg8_1 = arg1.index,
+      arg8_2 = reg.index,
+      arg8_3 = result.index,
    }
-
-   self.alloc_sr:free(reg)
 end
 
 function Core:shri(arg1, val, result, mode)
+   assert('table' == type(arg1) and 'register' == arg1.name)
+   assert('number' == type(val))
+   assert('table' == type(result) and 'register' == result.name)
+   assert('string' == type(mode))
+
    -- mode:
    if mode == 'arith' then
       mode = 1
@@ -453,6 +477,8 @@ end
 
 function Core:nop(times)
    if times then
+      assert('number' == type(times))
+
       for i = 1,times do
          self:addInstruction{opcode = oFlower.op_nop}
       end
@@ -462,26 +488,35 @@ function Core:nop(times)
 end
 
 function Core:iowrite(io, reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+   assert('number' == type(io))
+
    self:addInstruction {
       opcode = oFlower.op_writeWord,
       arg8_1 = io,
-      arg8_2 = reg
+      arg8_2 = reg.index
    }
 end
 
 function Core:ioread(io, reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+   assert('number' == type(io))
+
    self:addInstruction {
       opcode = oFlower.op_readWord,
       arg8_1 = io,
-      arg8_2 = reg
+      arg8_2 = reg.index
    }
 end
 
 function Core:setreg(reg, val)
+   assert('table' == type(reg) and 'register' == reg.name)
+   assert('number' == type(val))
+
    -- store value in register
    self:addInstruction {
       opcode = oFlower.op_setReg,
-      arg8_2 = reg,
+      arg8_2 = reg.index,
       arg32_1 = val
    }
 end
@@ -860,7 +895,7 @@ function Core:readStringFromMem(stream)
    self:openPortRd(1, stream)
 
    -- get cpu reg for use in operation
-   local reg_io_dma = self.alloc_ur:get()
+   local reg_io_dma = self.registers:alloc()
 
    -- String length
    local length = stream.w*stream.h/2
@@ -871,72 +906,78 @@ function Core:readStringFromMem(stream)
       self:printReg(reg_io_dma)
    end, reg_io_dma);
 
-   -- free cpu reg
-   self.alloc_ur:free(reg_io_dma)
-
    -- done...
    self:closePort(1)
 end
 
 function Core:ioWaitForReadData(ioCtrl)
-   local reg = self.alloc_sr:get()
+   assert('number' == type(ioCtrl))
+
+   local reg = self.registers:alloc()
    self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000001, reg)
 
-   self:loopUntilEndIfZero(reg)
-
-   self.alloc_sr:free(reg)
+   self:loopUntilEndIfZero(reg.index)
 end
 
 function Core:ioWaitForWriteData(ioCtrl)
-   local reg = self.alloc_sr:get()
+   assert('number' == type(ioCtrl))
+
+   local reg = self.registers:alloc()
    self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
    self:bitandi(reg, 0x00000002, reg)
 
-   self:loopUntilEndIfZero(reg)
-
-   self.alloc_sr:free(reg)
+   self:loopUntilEndIfZero(reg.index)
 end
 
 function Core:printReg(reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+
    self:loopRepeat(4, function(reg)
       self:ioWaitForWriteData(oFlower.io_uart_status)
       self:iowrite(oFlower.io_uart, reg)
-      self:shri(reg, 8, reg, 'logic')
+      self:shri(reg.index, 8, reg.index, 'logic')
    end, reg);
 end
 
 function Core:putChar(reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+
    self:ioWaitForWriteData(oFlower.io_uart_status)
    self:iowrite(oFlower.io_uart, reg)
 end
 
 function Core:getCharBlocking(reg)
+   assert('table' == type(reg) and 'register' == reg.name)
+
    self:ioWaitForReadData(oFlower.io_uart_status)
    self:ioread(oFlower.io_uart, reg)
 end
 
 function Core:getCharNonBlocking(reg, tries)
-   local reg_stat = self.alloc_sr:get()
+   assert('table' == type(reg) and 'register' == reg.name)
+   assert('number' == type(tries))
+
+   local reg_stat = self.registers:alloc()
 
    self:setreg(reg, -1)
 
    self:loopRepeat(tries, function(reg_stat)
       self:ioread(oFlower.io_uart_status, reg_stat)
       self:bitandi(reg_stat, 0x00000001, reg_stat)
-      self:loopBreakIfNonZero(reg_stat)
+      self:loopBreakIfNonZero(reg_stat.index)
    end, reg_stat);
 
    self:ioread(oFlower.io_uart, reg)
-
-   self.alloc_sr:free(reg_stat)
 end
 
 function Core:flushKernel(convolver)
+   assert('number' == type(convolver))
+
    if (self.msg_level == 'detailled') then
       self:message('flushing.kernel.cache')
    end
@@ -981,15 +1022,14 @@ function Core:terminate()
 end
 
 function Core:resetTime()
-   local reg = self.alloc_sr:get()
+   local reg = self.registers:alloc()
    -- set timer ctrl reg to 'restart'
    self:setreg(reg, 1)
    self:iowrite(oFlower.io_timer_ctrl, reg)
-   self.alloc_sr:free(reg)
 end
 
 function Core:getTime()
-   local reg = self.alloc_sr:get()
+   local reg = self.registers:alloc()
    -- set timer ctrl reg to ascii readout
    self:setreg(reg, 4 + 2)
    self:iowrite(oFlower.io_timer_ctrl, reg)
@@ -1004,10 +1044,11 @@ function Core:getTime()
       arg32_1 = 9
    }  -- nb of digits (depends on the hardware)
    self:printraw(string.format(' x %0dns\n\r', self.period_ns))
-   self.alloc_sr:free(reg)
 end
 
 function Core:sleep(sec)
+   assert('number' == type(sec))
+
    --self:startProcess()
    local ticks = math.floor( (sec / (self.period_ns * 1e-9)) / 8 )
    self:loopRepeat(ticks)
@@ -1661,7 +1702,7 @@ function Core:self_test()
    self:message('OpenFlower doing selftests')
 
    self:messagebody('testing reg allocation')
-   local reg_myvar = self.alloc_ur:get()
+   local reg_myvar = self.registers:alloc()
    self:setreg(reg_myvar, 0)
 
    self:messagebody('testing I/O read')
@@ -1669,7 +1710,6 @@ function Core:self_test()
 
    self:messagebody('testing alu (bitwise and)')
    self:bitandi(reg_myvar, 0xFF0000FF, reg_myvar)
-   self.alloc_ur:free(reg_myvar)
 
    self:messagebody('testing loop x3')
 
@@ -1678,10 +1718,9 @@ function Core:self_test()
    end);
 
    self:messagebody('testing register readout (should print> abc)')
-   self.alloc_ur:claim(oFlower.reg_F)
-   self:setreg(oFlower.reg_F, 0x0A636261)
-   self:printReg(oFlower.reg_F)
-   self.alloc_ur:free(oFlower.reg_F)
+   local reg_readout = self.registers:alloc()
+   self:setreg(reg_readout, 0x0A636261)
+   self:printReg(reg_readout)
 
    self:messagebody('testing timer')
    self:getTime()
@@ -1705,42 +1744,44 @@ end
 
    Provides a simple way to administer CPU registers when they are used in
    applications. A new allocator is created when the function is called, a
-   table of registers to administer and their current state is passed in. A
-   'true' state indicates the register is free to use while a 'false' state
-   indicates that it is currently in use.
+   table of registers to administer is passed in.
 --]]
 function Core:RegAllocator(reg_table)
-   local allocator = {}
-   allocator._reg_table = reg_table
+   local reg_bank = {}
+   reg_bank._all = reg_table
+   reg_bank._inuse = setmetatable({}, {__mode="v"})
 
-   function allocator:claim(reg)
-      if self._reg_table[reg] then
-         self._reg_table[reg] = false
-      else
-         error('<neuflow.Core> ERROR: Trying to -claim- a reg that is not available')
+   function reg_bank:alloc()
+
+      function find_reg(all, inuse)
+         for k, reg in pairs(all) do
+            if not inuse[k] then
+               inuse[k] = {
+                  name  = "register",
+                  index = reg,
+               }
+               return inuse[k]
+            end
+         end
+         return nil
       end
-   end
 
-   function allocator:free(reg)
-      if self._reg_table[reg] then
-         error('<neuflow.Core> ERROR: Trying to -free- a reg that is already in free')
-      else
-         self._reg_table[reg] = true
-      end
-   end
+      local reg = find_reg(reg_bank._all, reg_bank._inuse)
+      if not reg then
 
-   function allocator:get()
-      for reg, state in pairs(self._reg_table) do
-         if state then
-            self._reg_table[reg] = false
-            return reg
+         -- if inuse table full force garbage collection
+         collectgarbage()
+
+         reg = find_reg(reg_bank._all, reg_bank._inuse)
+         if not reg then
+            error('<neuflow.Core> ERROR: Can not -alloc- reg as they are all in use')
          end
       end
 
-      error('<neuflow.Core> ERROR: Can not -get- reg as they are all in use')
+      return reg
    end
 
-   return allocator
+   return reg_bank
 end
 
 --[[ Loop Administrator:
