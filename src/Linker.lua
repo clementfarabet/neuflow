@@ -254,7 +254,7 @@ function Linker:removeSegment(seg_start, seg_end)
 end
 
 function Linker:alignProcessWithPages()
-   if self.instruction_list.end_node ~= self.instruction_list.sentinel_node then
+   if self.instruction_list.end_node ~= self.instruction_list.end_sentinel then
       self:appendSentinel()
    end
 
