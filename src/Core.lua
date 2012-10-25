@@ -57,20 +57,6 @@ function Core:__init(args)
       init_offset =  self.offset_code,
    }
 
-   -- reg allocator
-   self.registers = self:RegAllocator {
-      oFlower.reg_sys_A,
-      oFlower.reg_sys_B,
-      oFlower.reg_sys_C,
-      oFlower.reg_loops,
-      oFlower.reg_A,
-      oFlower.reg_B,
-      oFlower.reg_C,
-      oFlower.reg_D,
-      oFlower.reg_E,
-      oFlower.reg_F,
-   }
-
    -- loop data structure
    self.ladmin = self:LoopAdministrator()
 
@@ -178,7 +164,7 @@ function Core:loopRepeat(times, code, ...)
       -- start loop
       local loop = {}
       if times > 0 then
-         loop.reg = self.registers:alloc()
+         loop.reg = self:allocRegister()
          self:setreg(loop.reg, times)
       end
       loop.tag = self:makeGotoTag()
@@ -377,7 +363,7 @@ function Core:bitori(arg1, val, result)
    assert('number' == type(val))
    assert('table' == type(result) and 'register' == result.name)
 
-   local reg = self.registers:alloc()
+   local reg = self:allocRegister()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_or,
@@ -392,7 +378,7 @@ function Core:bitandi(arg1, val, result)
    assert('number' == type(val))
    assert('table' == type(result) and 'register' == result.name)
 
-   local mask = self.registers:alloc()
+   local mask = self:allocRegister()
    self:setreg(mask, val)
    self:addInstruction {
       opcode = oFlower.op_and,
@@ -407,7 +393,7 @@ function Core:addi(arg1, val, result)
    assert('number' == type(val))
    assert('table' == type(result) and 'register' == result.name)
 
-   local reg = self.registers:alloc()
+   local reg = self:allocRegister()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_add,
@@ -422,7 +408,7 @@ function Core:compi(arg1, val, result)
    assert('number' == type(val))
    assert('table' == type(result) and 'register' == result.name)
 
-   local reg = self.registers:alloc()
+   local reg = self:allocRegister()
    self:setreg(reg, val)
    self:addInstruction {
       opcode = oFlower.op_comp,
@@ -911,7 +897,7 @@ function Core:readStringFromMem(stream)
    self:openPortRd(1, stream)
 
    -- get cpu reg for use in operation
-   local reg_io_dma = self.registers:alloc()
+   local reg_io_dma = self:allocRegister()
 
    -- String length
    local length = stream.w*stream.h/2
@@ -929,7 +915,7 @@ end
 function Core:ioWaitForReadData(ioCtrl)
    assert('number' == type(ioCtrl))
 
-   local reg = self.registers:alloc()
+   local reg = self:allocRegister()
    self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
@@ -941,7 +927,7 @@ end
 function Core:ioWaitForWriteData(ioCtrl)
    assert('number' == type(ioCtrl))
 
-   local reg = self.registers:alloc()
+   local reg = self:allocRegister()
    self:loopUntilStart()
 
    self:ioread(ioCtrl, reg)
@@ -978,7 +964,7 @@ function Core:getCharNonBlocking(reg, tries)
    assert('table' == type(reg) and 'register' == reg.name)
    assert('number' == type(tries))
 
-   local reg_stat = self.registers:alloc()
+   local reg_stat = self:allocRegister()
 
    self:setreg(reg, -1)
 
@@ -1038,14 +1024,14 @@ function Core:terminate()
 end
 
 function Core:resetTime()
-   local reg = self.registers:alloc()
+   local reg = self:allocRegister()
    -- set timer ctrl reg to 'restart'
    self:setreg(reg, 1)
    self:iowrite(oFlower.io_timer_ctrl, reg)
 end
 
 function Core:getTime()
-   local reg = self.registers:alloc()
+   local reg = self:allocRegister()
    -- set timer ctrl reg to ascii readout
    self:setreg(reg, 4 + 2)
    self:iowrite(oFlower.io_timer_ctrl, reg)
@@ -1718,7 +1704,7 @@ function Core:self_test()
    self:message('OpenFlower doing selftests')
 
    self:messagebody('testing reg allocation')
-   local reg_myvar = self.registers:alloc()
+   local reg_myvar = self:allocRegister()
    self:setreg(reg_myvar, 0)
 
    self:messagebody('testing I/O read')
@@ -1734,7 +1720,7 @@ function Core:self_test()
    end);
 
    self:messagebody('testing register readout (should print> abc)')
-   local reg_readout = self.registers:alloc()
+   local reg_readout = self:allocRegister()
    self:setreg(reg_readout, 0x0A636261)
    self:printReg(reg_readout)
 
@@ -1759,36 +1745,46 @@ end
 --[[ Register Allocator:
 
    Provides a simple way to administer CPU registers when they are used in
-   applications. A new allocator is created when the function is called, a
-   table of registers to administer is passed in.
+   applications. A closures is created that administers a table of registers
+   and keeps track of in use registers using a weak table.
 --]]
-function Core:RegAllocator(reg_table)
-   local reg_bank = {}
-   reg_bank._all = reg_table
-   reg_bank._inuse = setmetatable({}, {__mode="v"})
+do
+   local _all = {
+      oFlower.reg_sys_A,
+      oFlower.reg_sys_B,
+      oFlower.reg_sys_C,
+      oFlower.reg_loops,
+      oFlower.reg_A,
+      oFlower.reg_B,
+      oFlower.reg_C,
+      oFlower.reg_D,
+      oFlower.reg_E,
+      oFlower.reg_F,
+   }
 
-   function reg_bank:alloc()
+   local _inuse = setmetatable({}, {__mode="v"})
 
-      function find_reg(all, inuse)
-         for k, reg in pairs(all) do
-            if not inuse[k] then
-               inuse[k] = {
-                  name  = "register",
-                  index = reg,
-               }
-               return inuse[k]
-            end
+   local _find_reg = function()
+      for k, reg in pairs( _all ) do
+         if not _inuse[k] then
+            _inuse[k] = {
+               name  = "register",
+               index = reg,
+            }
+            return _inuse[k]
          end
-         return nil
       end
+      return nil
+   end
 
-      local reg = find_reg(reg_bank._all, reg_bank._inuse)
+   function Core:allocRegister()
+
+      local reg = _find_reg()
       if not reg then
-
          -- if inuse table full force garbage collection
          collectgarbage()
 
-         reg = find_reg(reg_bank._all, reg_bank._inuse)
+         reg = _find_reg()
          if not reg then
             error('<neuflow.Core> ERROR: Can not -alloc- reg as they are all in use')
          end
@@ -1796,8 +1792,6 @@ function Core:RegAllocator(reg_table)
 
       return reg
    end
-
-   return reg_bank
 end
 
 --[[ Loop Administrator:
