@@ -164,11 +164,12 @@ function Ethernet:printToEthernet(str)
                             arg8_3 = oFlower.type_uint32,
                             arg32_1 = math.ceil((data_size) / 4)}
    -- (2 bis) append data (+ potential padding):
-   self.core:addDataString(str)
+   local binary = {}
+   self.core:addDataString(binary, str)
    for i=1,(data_size-string.len(str)) do
-      self.core:addDataUINT8(0)
+      self.core:addDataUINT8(binary, 0)
    end
-   self.core:addDataPAD()
+   self.core:addDataPAD(binary)
 
    -- (3) initialize transfer, by specifying length
    self:ethernetStartTransfer(data_size)
@@ -269,13 +270,14 @@ function Ethernet:streamToHost(stream, tag, mode)
                                   arg8_3 = oFlower.type_uint32,
                                   arg32_1 = math.ceil((to_pad) / 4)}
          -- (2 bis) append padding:
+         local binary = {}
          for i=1,to_pad do
-            self.core:addDataUINT8(0)
+            self.core:addDataUINT8(binary, 0)
          end
          if (math.ceil((to_pad) / 4) == 1) then 
-            self.core:addDataUINT8(0)
+            self.core:addDataUINT8(binary, 0)
          end
-         self.core:addDataPAD()
+         self.core:addDataPAD(binary)
 	 --print('added', math.ceil((to_pad) / 4))
          packet_size = 64
       end
@@ -419,13 +421,14 @@ function Ethernet:streamToHost_ack(stream, tag, mode)
                                   arg8_3 = oFlower.type_uint32,
                                   arg32_1 = math.ceil((to_pad) / 4)}
          -- (2 bis) append padding:
+         local binary = {}
          for i=1,to_pad do
-            self.core:addDataUINT8(0)
+            self.core:addDataUINT8(binary, 0)
          end
          if (math.ceil((to_pad) / 4) == 1) then 
-            self.core:addDataUINT8(0)
+            self.core:addDataUINT8(binary, 0)
          end
-         self.core:addDataPAD()
+         self.core:addDataPAD(binary)
 	 --print('added', math.ceil((to_pad) / 4))
          packet_size = 64
       end

@@ -42,9 +42,6 @@ function Core:__init(args)
    memory.size_r = memory.size_b / streamer.stride_b
    oFlower.cache_size_b = args.cache_size or oFlower.cache_size_b
 
-   -- binary data array.
-   self.binary = {}
-
    -- linker
    self.linker = neuflow.Linker {
       init_offset =  self.offset_code,
@@ -136,7 +133,6 @@ end
 
 function Core:startProcess()
    if not self.processLock then
-      self.binary = {}
       self.processLock = 1
       self.linker:appendSentinel('start')
    else
@@ -254,56 +250,61 @@ function Core:addInstruction(args)
    self.linker:appendInstruction(args)
 end
 
-function Core:addDataUINT8(uint8)
-   self.binary[#self.binary+1] = uint8
+function Core:addDataUINT8(binary, uint8)
+   assert('table' == type(binary))
+   binary[#binary+1] = uint8
 end
 
-function Core:addDataUINT16(uint16)
-   self.binary[#self.binary+1] = math.floor(uint16/256^0) % 256
-   self.binary[#self.binary+1] = math.floor(uint16/256^1) % 256
+function Core:addDataUINT16(binary, uint16)
+   assert('table' == type(binary))
+   binary[#binary+1] = math.floor(uint16/256^0) % 256
+   binary[#binary+1] = math.floor(uint16/256^1) % 256
 end
 
-function Core:addDataUINT32(uint32)
-   self.binary[#self.binary+1] = math.floor(uint32/256^0) % 256
-   self.binary[#self.binary+1] = math.floor(uint32/256^1) % 256
-   self.binary[#self.binary+1] = math.floor(uint32/256^2) % 256
-   self.binary[#self.binary+1] = math.floor(uint32/256^3) % 256
+function Core:addDataUINT32(binary, uint32)
+   assert('table' == type(binary))
+   binary[#binary+1] = math.floor(uint32/256^0) % 256
+   binary[#binary+1] = math.floor(uint32/256^1) % 256
+   binary[#binary+1] = math.floor(uint32/256^2) % 256
+   binary[#binary+1] = math.floor(uint32/256^3) % 256
 end
 
-function Core:addDataString(str)
+function Core:addDataString(binary, str)
+   assert('table' == type(binary))
    for i=1,string.len(str) do
-      self:addDataUINT8(str:byte(i))
+      self:addDataUINT8(binary, str:byte(i))
    end
 end
 
-function Core:addDataPAD()
+function Core:addDataPAD(binary)
+   assert('table' == type(binary))
    -- pad the end of binary array to align with instruction size
-   local bin_padding = 8 - (#self.binary % 8)
+   local bin_padding = 8 - (#binary % 8)
    if (bin_padding ~= 8) then
       for i=1, bin_padding do
-         self.binary[#self.binary+1] = 0
+         binary[#binary+1] = 0
       end
    end
 
    local ii = 0
-   while ii < (#self.binary-1) do
+   while ii < (#binary-1) do
       self:addInstruction {
          bytes = {
-            self.binary[ii+1],
-            self.binary[ii+2],
-            self.binary[ii+3],
-            self.binary[ii+4],
-            self.binary[ii+5],
-            self.binary[ii+6],
-            self.binary[ii+7],
-            self.binary[ii+8]
+            binary[ii+1],
+            binary[ii+2],
+            binary[ii+3],
+            binary[ii+4],
+            binary[ii+5],
+            binary[ii+6],
+            binary[ii+7],
+            binary[ii+8]
          }
       }
 
       ii = ii + 8
    end
 
-   self.binary = {}
+   binary = {}
 end
 
 -- ALU operations
@@ -814,10 +815,11 @@ function Core:messagebody(str)
    }
 
    -- Then push the text data
-   self:addDataString('    ')
-   self:addDataString(str)
-   self:addDataString('\n\r')
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, '    ')
+   self:addDataString(binary, str)
+   self:addDataString(binary, '\n\r')
+   self:addDataPAD(binary)
 end
 
 function Core:message(str)
@@ -830,10 +832,11 @@ function Core:message(str)
    }
 
    -- Then push the text data
-   self:addDataString('--> ')
-   self:addDataString(str)
-   self:addDataString('\n\r')
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, '--> ')
+   self:addDataString(binary, str)
+   self:addDataString(binary, '\n\r')
+   self:addDataPAD(binary)
 end
 
 function Core:print(str)
@@ -846,9 +849,10 @@ function Core:print(str)
    }
 
    -- Then push the text data
-   self:addDataString(str)
-   self:addDataString('\n\r')
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, str)
+   self:addDataString(binary, '\n\r')
+   self:addDataPAD(binary)
 end
 
 function Core:printraw(str)
@@ -861,8 +865,9 @@ function Core:printraw(str)
    }
 
    -- Then push the text data
-   self:addDataString(str)
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, str)
+   self:addDataPAD(binary)
 end
 
 function Core:writeStringToMem(stream, str)
@@ -886,8 +891,9 @@ function Core:writeStringToMem(stream, str)
    }
 
    -- Then push the text data
-   self:addDataString(str)
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, str)
+   self:addDataPAD(binary)
 
    -- done...
    self:closePort(1)
