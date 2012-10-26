@@ -132,27 +132,11 @@ function Core:bootSequence(args)
 end
 
 function Core:startProcess()
-   if not self.processLock then
-      self.processLock = 1
-      self.linker:appendSentinel('start')
-   else
-      print(sys.COLORS.Red .. 'WARNING'
-            .. sys.COLORS.none .. ' process already started [verify nested processes]')
-      self.processLock = self.processLock + 1
-   end
+   self.linker:appendSentinel('start')
 end
 
 function Core:endProcess()
-   if self.processLock then
-      self.processLock = self.processLock - 1
-      if self.processLock == 0 then
-         self.linker:appendSentinel('end')
-         self.processLock = nil
-      end
-   else
-      print(sys.COLORS.Red .. 'WARNING'
-            .. sys.COLORS.none .. ' no process to end [verify nested processes]')
-   end
+   self.linker:appendSentinel('end')
 end
 
 function Core:loopRepeat(times, code, ...)
