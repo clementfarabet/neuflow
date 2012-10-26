@@ -308,10 +308,66 @@ function Linker:alignProcessWithPages()
    end
 end
 
+function Linker:alignSensitiveCode(walker)
+   walker = walker or {
+      current_node      = self.instruction_list.start_node,
+      sentinel_start    = nil,
+      sentinel_nesting  = 0,
+      sentinel_size     = 0,
+      bytecode_size     = 0,
+   }
+
+   if nil == walker.current_node.bytes then
+      -- sentinel
+
+      if 'start' == walker.current_node.mode then
+         if 0 == walker.sentinel_nesting then
+            walker.sentinel_start = walker.current_node
+            walker.sentinel_size  = 0
+         end
+         walker.sentinel_nesting = walker.sentinel_nesting + 1
+      end
+
+      if 'end' == walker.current_node.mode then
+         walker.sentinel_nesting = walker.sentinel_nesting - 1
+         assert(0 <= walker.sentinel_nesting)
+      end
+   else
+      -- instr
+      walker.bytecode_size = walker.bytecode_size + 1
+
+      if 0 < walker.sentinel_nesting then
+         if (1 == (walker.bytecode_size % (oFlower.page_size_b/8))) then
+            -- current node is first of new page
+
+            if walker.sentinel_start ~= walker.current_node.prev then
+               -- shift sensitive section into new page
+               assert((oFlower.page_size_b/8) > walker.sentinel_size)
+
+               local before_sensitive = walker.sentinel_start.next
+               for i = 1, walker.sentinel_size do
+                  self:insertInstruction(before_sensitive, {bytes = {0,0,0,0,0,0,0,0}})
+                  before_sensitive = before_sensitive.next
+                  walker.bytecode_size = walker.bytecode_size + 1
+               end
+            end
+         end
+
+         walker.sentinel_size = walker.sentinel_size + 1
+      end
+   end
+
+   if walker.current_node.next then
+      walker.current_node = walker.current_node.next
+      return self:alignSensitiveCode(walker)
+   end
+end
+
 function Linker:dump(info, mem)
 
    self:linkGotos()
-   self:alignProcessWithPages()
+   self:alignSensitiveCode()
+   --self:alignProcessWithPages()
    local instr_nb = self:resolveGotos()
 
    mem:adjustBytecodeSize(instr_nb*8)
