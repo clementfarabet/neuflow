@@ -79,20 +79,25 @@ function Linker:linkGotos()
          end
       end
 
-      -- if destination node is a sentinel, try linking to node
-      -- on ether side and throw an error if cannot
-      if ref_node.bytes == nil then
+      -- if destination node is a sentinel, try linking to a node in the next
+      -- direction, if cannot then in the prev direction. Throw an error if
+      -- cannot find a non sentinel node.
+      function checkNode(ref_node, reverse)
 
-         if ref_node.next then
-            ref_node = ref_node.next
-         elseif ref_node.prev then
-            ref_node = ref_node.prev
-         end
-
-         if ref_node.bytes == nil then
-            error('# ERROR <Linker:linkGotos> : could not link goto')
+         if nil ~= ref_node.bytes then
+            return ref_node
+         else
+            if ref_node.next and not reverse then
+               return checkNode(ref_node.next)
+            elseif ref_node.prev then
+               return checkNode(ref_node.prev, true)
+            else
+               error('# ERROR <Linker:linkGotos> : could not link goto')
+            end
          end
       end
+
+      ref_node = checkNode(ref_node)
 
       -- remove just processed goto tab from table
       goto_table[node] = nil
@@ -165,12 +170,10 @@ function Linker:genBytecode()
    return instruction_output
 end
 
-function Linker:addProcess()
-   self:appendSentinel()
-end
+function Linker:appendSentinel(mode)
+   assert('start' == mode or 'end' == mode or nil == mode)
 
-function Linker:appendSentinel()
-   local new_sentinel = {}
+   local new_sentinel = {mode = mode}
    local last_sentinel = self.instruction_list.end_sentinel
    local last_node = self.instruction_list.end_node
 

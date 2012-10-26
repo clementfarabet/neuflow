@@ -138,6 +138,7 @@ function Core:startProcess()
    if not self.processLock then
       self.binary = {}
       self.processLock = 1
+      self.linker:appendSentinel('start')
    else
       print(sys.COLORS.Red .. 'WARNING'
             .. sys.COLORS.none .. ' process already started [verify nested processes]')
@@ -149,7 +150,7 @@ function Core:endProcess()
    if self.processLock then
       self.processLock = self.processLock - 1
       if self.processLock == 0 then
-         self.linker:addProcess()
+         self.linker:appendSentinel('end')
          self.processLock = nil
       end
    else
