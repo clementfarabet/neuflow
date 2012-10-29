@@ -132,11 +132,9 @@ local layer = {
 -- top level compiler function
 function Compiler:processNetwork(network, inputs)
    if (self.print_times == 'detailled') then
-      self.core:startProcess()
       self.core:message('unrolling convnet...')
       self.core:resetTime()
       self.core:getTime()
-      self.core:endProcess()
    end
    local module_name = torch.typename(network)
    print('<neuflow.Compiler> processing network [type = ' .. module_name .. ']')
@@ -160,9 +158,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:resetTime()
-      self.core:endProcess()
    end
 
    local coefs
@@ -217,9 +213,7 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:getTime()
-      self.core:endProcess()
    end
 
    return outputs
@@ -241,9 +235,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:resetTime()
-      self.core:endProcess()
    end
 
    local coefs
@@ -397,9 +389,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:getTime()
-      self.core:endProcess()
    end
 
    return outputs
@@ -420,9 +410,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:resetTime()
-      self.core:endProcess()
    end
 
    local coefs
@@ -478,9 +466,7 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:getTime()
-      self.core:endProcess()
    end
 
    return outputs
@@ -506,9 +492,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:resetTime()
-      self.core:endProcess()
    end
 
    -- generate coefs for sqrt
@@ -561,9 +545,7 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:getTime()
-      self.core:endProcess()
    end
 
    return outputs
@@ -579,9 +561,7 @@ function Compiler:SpatialNormalization(sub_module, inputs)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:resetTime()
-      self.core:endProcess()
    end
 
    -- alloc one kernel for the whole layer
@@ -686,9 +666,7 @@ function Compiler:SpatialNormalization(sub_module, inputs)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:getTime()
-      self.core:endProcess()
    end
 
    -- return output maps
@@ -705,9 +683,7 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:resetTime()
-      self.core:endProcess()
    end
 
    -- alloc one kernel for the whole layer
@@ -759,9 +735,7 @@ function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:getTime()
-      self.core:endProcess()
    end
 
    -- return output maps
@@ -778,9 +752,7 @@ function Compiler:Parallel(par_module, inputs)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:resetTime()
-      self.core:endProcess()
    end
 
    -- not done yet
@@ -788,9 +760,7 @@ function Compiler:Parallel(par_module, inputs)
 
    -- timing info
    if (self.msg_level == 'timing') then
-      self.core:startProcess()
       self.core:getTime()
-      self.core:endProcess()
    end
 
    -- return output maps
@@ -895,10 +865,8 @@ function Compiler:Sequential(network, inputs)
          end
          inputs = outputs
          if (self.msg_level == 'detailled') then
-            self.core:startProcess()
             self.core:getTime()
             self.core:resetTime()
-            self.core:endProcess()
          end
       end
    end
