@@ -99,36 +99,22 @@ function Core:__init(args)
 end
 
 function Core:bootSequence(args)
-   self:startProcess()
    self:nop(64)
    self:print('booting...')
-   self:endProcess()
-
-   self:startProcess()
    self:print(banner)
-   self:endProcess()
-
-   self:startProcess()
    self:configureGrid()
-   self:endProcess()
 
-   self:startProcess()
    local ports_to_configure = {}
    for i = 1,streamer.nb_ports-1 do table.insert(ports_to_configure,i) end
    self:configureStreamer(0, 16*1024*1024, 1024, ports_to_configure)
-   self:endProcess()
 
    if ((args.selftest ~= nil) and (args.selftest == true)) then
       self:self_test()
       self:print('----------------------------------------------------------')
-      self:startProcess()
       self:print('----------------------------------------------------------')
-      self:endProcess()
    end
-   self:startProcess()
    self:message('boot sequence done... going on with user code!')
    self:print('----------------------------------------------------------')
-   self:endProcess()
 end
 
 function Core:executionTimeSensitive(code)
