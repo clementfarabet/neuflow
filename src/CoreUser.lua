@@ -31,7 +31,6 @@ function CoreUser:registerKernel(args)
 end
 
 function CoreUser:convolve(input, kernel, output, opts)
-   self:startProcess()
    if (self.msg_level ~= 'none') then
       self:message('exec.convolution.with.'..input.orig_h..'x'..input.orig_w..'.image')
    end
@@ -40,46 +39,48 @@ function CoreUser:convolve(input, kernel, output, opts)
    local mapping = (opts and opts.mapping) or nil
    local bias = (opts and opts.bias) or 'off'
 
-   -- mapping ?
-   if mapping then
-      -- config tile #1 for convolution
-      self:configTile{operation = 'CONV2D',
-                      address = 1,
-                      config = {bias = bias},
-                      inputs = {[1] = {source = 1, data = input},
-                                [2] = {source = 2, data = kernel}},
-                      outputs = {[1] = {dest = 'east', data = output}},
-                      control = 3, -- next op signal
-                      activate = true}
+   self:executionTimeSensitive(function()
+      -- mapping ?
+      if mapping then
+         -- config tile #1 for convolution
+         self:configTile{operation = 'CONV2D',
+                         address = 1,
+                         config = {bias = bias},
+                         inputs = {[1] = {source = 1, data = input},
+                                   [2] = {source = 2, data = kernel}},
+                         outputs = {[1] = {dest = 'east', data = output}},
+                         control = 3, -- next op signal
+                         activate = true}
 
-      -- config tile #1 for mapper
-      self:configTile{operation = 'MAPPING',
-                      address = 1,
-                      config = {mode = {even=coefs.even, odd=coefs.odd},
-                                segments = coefs},
-                      inputs = {[1] = {source = 'north'}},
-                      outputs = {[1] = {dest = 3}},
-                      activate = true}
-   else
-      -- config tile #1 for convolution
-      self:configTile{operation = 'CONV2D',
-                      address = 1,
-                      config = {bias = bias},
-                      inputs = {[1] = {source = 1, data = input},
-                                [2] = {source = 2, data = kernel}},
-                      outputs = {[1] = {dest = 3, data = output}},
-                      control = 3, -- next op signal
-                      activate = true}
-   end
+         -- config tile #1 for mapper
+         self:configTile{operation = 'MAPPING',
+                         address = 1,
+                         config = {mode = {even=coefs.even, odd=coefs.odd},
+                                   segments = coefs},
+                         inputs = {[1] = {source = 'north'}},
+                         outputs = {[1] = {dest = 3}},
+                         activate = true}
+      else
+         -- config tile #1 for convolution
+         self:configTile{operation = 'CONV2D',
+                         address = 1,
+                         config = {bias = bias},
+                         inputs = {[1] = {source = 1, data = input},
+                                   [2] = {source = 2, data = kernel}},
+                         outputs = {[1] = {dest = 3, data = output}},
+                         control = 3, -- next op signal
+                         activate = true}
+      end
 
-   -- prefetch data input, while loading kernel
-   self:configPort{index = 1, action = 'prefetch', data = input}
-   self:configPort{index = 2, action = 'fetch+read+sync+close', data = kernel}
-   self:registerKernel{address = 1}
+      -- prefetch data input, while loading kernel
+      self:configPort{index = 1, action = 'prefetch', data = input}
+      self:configPort{index = 2, action = 'fetch+read+sync+close', data = kernel}
+      self:registerKernel{address = 1}
 
-   -- initialize data transfers
-   self:configPort{index = 3, action = 'write', data = output}
-   self:configPort{index = 1, action = 'read'}
+      -- initialize data transfers
+      self:configPort{index = 3, action = 'write', data = output}
+      self:configPort{index = 1, action = 'read'}
+   end)
 
    -- synchronize write port, and close all
    self:configPort{index = 3, action = 'sync+close'}
@@ -90,7 +91,6 @@ function CoreUser:convolve(input, kernel, output, opts)
    if mapping then
       self:configTile{operation = 'MAPPING', address = 1, activate = false}
    end
-   self:endProcess()
 end
 
 function CoreUser:convolveWithBias(input, kernel, output)
