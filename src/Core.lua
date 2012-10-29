@@ -131,6 +131,16 @@ function Core:bootSequence(args)
    self:endProcess()
 end
 
+function Core:executionTimeSensitive(code)
+   -- start sentinel
+   self.linker:appendSentinel('start')
+
+   code()
+
+   -- end sentinel
+   self.linker:appendSentinel('end')
+end
+
 function Core:startProcess()
    self.linker:appendSentinel('start')
 end
