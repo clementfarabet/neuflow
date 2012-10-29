@@ -128,10 +128,12 @@ function Core:executionTimeSensitive(code)
 end
 
 function Core:startProcess()
+   print('WARNING: Core:startProcess depreciated. Use executionTimeSensitive instead')
    self.linker:appendSentinel('start')
 end
 
 function Core:endProcess()
+   print('WARNING: Core:endProcess depreciated. Use executionTimeSensitive instead')
    self.linker:appendSentinel('end')
 end
 
