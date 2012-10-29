@@ -42,9 +42,7 @@ end
 
 function Ethernet:dev_copyToHost(tensor, ack)
    if ack ~= 'no-ack' then
-      self.core:startProcess()
       self:printToEthernet('copy-starting')
-      self.core:endProcess()
    end
 
    for i = 1,#tensor do
@@ -62,9 +60,7 @@ function Ethernet:dev_copyFromHost(tensor)
    end
 
    -- always print a dummy flag, useful for profiling
-   self.core:startProcess()
    self:printToEthernet('copy-done')
-   self.core:endProcess()
 end
 
 function Ethernet:dev_receiveBytecode()
