@@ -46,17 +46,13 @@ function Ethernet:dev_copyToHost(tensor, ack)
    end
 
    for i = 1,#tensor do
-      self.core:startProcess()
       self:streamToHost(tensor[i], 'default', ack)
-      self.core:endProcess()
    end
 end
 
 function Ethernet:dev_copyFromHost(tensor)
    for i = 1,#tensor do
-      self.core:startProcess()
       self:streamFromHost(tensor[i], 'default')
-      self.core:endProcess()
    end
 
    -- always print a dummy flag, useful for profiling

@@ -44,23 +44,16 @@ end
 
 function DmaEthernet:dev_copyToHost(tensor)
    for i = 1, (#tensor-1) do
-      self.core:startProcess()
       self:streamToHost(tensor[i], 'default')
-
       self:streamFromHost(self.ack_stream[1], 'ack_stream')
-      self.core:endProcess()
    end
 
-   self.core:startProcess()
    self:streamToHost(tensor[#tensor], 'default')
-   self.core:endProcess()
 end
 
 function DmaEthernet:dev_copyFromHost(tensor)
    for i = 1,#tensor do
-      self.core:startProcess()
       self:streamFromHost(tensor[i], 'default')
-      self.core:endProcess()
    end
 end
 
