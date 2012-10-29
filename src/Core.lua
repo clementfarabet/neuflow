@@ -1038,10 +1038,8 @@ end
 function Core:sleep(sec)
    assert('number' == type(sec))
 
-   --self:startProcess()
    local ticks = math.floor( (sec / (self.period_ns * 1e-9)) / 8 )
    self:loopRepeat(ticks)
-   --self:endProcess()
 end
 
 -- Instuctions:
@@ -1687,7 +1685,6 @@ end
 
 -- A battery of tests
 function Core:self_test()
-   self:startProcess()
    self:message('OpenFlower doing selftests')
 
    self:messagebody('testing reg allocation')
@@ -1726,7 +1723,6 @@ function Core:self_test()
 
    self:getTime()
    self:message('all tests passed :-)')
-   self:endProcess()
 end
 
 --[[ Register Allocator:
