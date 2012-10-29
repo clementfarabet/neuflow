@@ -147,13 +147,11 @@ function Compiler:SpatialConvolution(conv_module, inputs, mapping)
    local outputs = {}
 
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       if mapping then
          self.core:message(string.format('SC+M'))
       else
          self.core:message(string.format('SC'))
       end
-      self.core:endProcess()
    end
 
    -- timing info
@@ -224,13 +222,11 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
    local current_op = 1
 
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       if mapping then
          self.core:message(string.format('SCT+M'))
       else
          self.core:message(string.format('SCT'))
       end
-      self.core:endProcess()
    end
 
    -- timing info
@@ -399,13 +395,11 @@ function Compiler:SpatialSubSampling(sub_module, inputs, mapping)
    local outputs = {}
 
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       if mapping then
          self.core:message(string.format('SS+M'))
       else
          self.core:message(string.format('SS'))
       end
-      self.core:endProcess()
    end
 
    -- timing info
@@ -480,14 +474,12 @@ function Compiler:SpatialLPPooling(sub_module, inputs, mapping)
    end
 
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       if mapping then
          self.core:message(string.format('SLP+M'))
          error('<neuflow.Compiler> ERROR: unsupported spatial LP pooling + mapping')
       else
          self.core:message(string.format('SLP'))
       end
-      self.core:endProcess()
    end
 
    -- timing info
@@ -554,9 +546,7 @@ end
 function Compiler:SpatialNormalization(sub_module, inputs)
    -- verbose
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       self.core:message(string.format('NZ'))
-      self.core:endProcess()
    end
 
    -- timing info
@@ -676,9 +666,7 @@ end
 function Compiler:SpatialSubtractiveNormalization(sub_module, inputs)
    -- verbose
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       self.core:message(string.format('SNZ'))
-      self.core:endProcess()
    end
 
    -- timing info
@@ -745,9 +733,7 @@ end
 function Compiler:Parallel(par_module, inputs)
    -- verbose
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       self.core:message(string.format('PA'))
-      self.core:endProcess()
    end
 
    -- timing info
@@ -770,9 +756,7 @@ end
 function Compiler:Sequential(network, inputs)
    -- verbose
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       self.core:message(string.format('SEQ'))
-      self.core:endProcess()
    end
 
    -- process Sequential
@@ -879,9 +863,7 @@ function Compiler:SpatialLinear(linear_module, inputs)
    local outputs = {}
 
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       self.core:message(string.format('SL'))
-      self.core:endProcess()
    end
 
    for o = 1,linear_module.fanout do
@@ -917,9 +899,7 @@ function Compiler:SpatialLinear(linear_module, inputs)
 
          -- optional time
          if (self.msg_level == 'detailled') then
-            self.core:startProcess()
             self.core:messagebody('.')
-            self.core:endProcess()
          end
       end
    end
@@ -1040,9 +1020,7 @@ function Compiler:Mapping(module, inputs, type)
    local outputs = {}
 
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       self.core:message(string.format('doing Tanh [%0d maps]', #inputs))
-      self.core:endProcess()
    end
 
    -- generate coefs for this non-linear mapping
@@ -1055,9 +1033,7 @@ function Compiler:Mapping(module, inputs, type)
 
       -- optional time
       if (self.msg_level == 'detailled') then
-         self.core:startProcess()
          self.core:messagebody('.')
-         self.core:endProcess()
       end
 
       -- for info (16 is approx here, it's hard to say what a mapping takes)
@@ -1070,9 +1046,7 @@ function Compiler:CCSub(module, inputs)
    local outputs = {}
 
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       self.core:message(string.format('doing CCSub [%0d maps]', #inputs))
-      self.core:endProcess()
    end
 
    -- 2 inputs required
@@ -1088,9 +1062,7 @@ function Compiler:CCSub(module, inputs)
 
    -- optional time
    if (self.msg_level == 'detailled') then
-      self.core:startProcess()
       self.core:messagebody('.')
-      self.core:endProcess()
    end
 
    -- for info
@@ -1102,9 +1074,7 @@ function Compiler:CCAdd(module, inputs)
    local outputs = {}
 
    if (self.msg_level ~= 'none') then
-      self.core:startProcess()
       self.core:message(string.format('doing CCSub [%0d maps]', #inputs))
-      self.core:endProcess()
    end
 
    -- 2 inputs required
@@ -1120,9 +1090,7 @@ function Compiler:CCAdd(module, inputs)
 
    -- optional time
    if (self.msg_level == 'detailled') then
-      self.core:startProcess()
       self.core:messagebody('.')
-      self.core:endProcess()
    end
 
    -- for info
