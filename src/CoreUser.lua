@@ -924,7 +924,6 @@ function CoreUser:l2pooling(inputs, kernels, outputs, sqrtCoefs)
 end
 
 function CoreUser:stdOperator(input1, input2, input3, output, op)
-   self:startProcess()
    if (self.msg_level ~= 'none') then
       self:message('exec.alu.op.'..op..'.with.'..input1.orig_h..'x'..input1.orig_w..'.images')
    end
@@ -940,33 +939,35 @@ function CoreUser:stdOperator(input1, input2, input3, output, op)
       input3_desc = {source = 3, data = input3}
    end
 
-   -- general purpose tile
-   self:configTile{operation = op,
-                   activate = true,
-                   address = 1,
-                   inputs = {[1] = input1_desc,
-                             [2] = input2_desc,
-                             [3] = input3_desc},
-                   outputs = {[1] = {dest = 4, data = output}}}
+   self:executionTimeSensitive(function()
+      -- general purpose tile
+      self:configTile{operation = op,
+                      activate = true,
+                      address = 1,
+                      inputs = {[1] = input1_desc,
+                                [2] = input2_desc,
+                                [3] = input3_desc},
+                      outputs = {[1] = {dest = 4, data = output}}}
 
-   -- initialize data transfers
-   self:configPort{index = 1, action = 'prefetch', data = input1}
-   if input2 then
-      self:configPort{index = 2, action = 'prefetch', data = input2}
-   end
-   if input3 then
-      self:configPort{index = 3, action = 'prefetch', data = input3}
-   end
-   self:configPort{index = 4, action = 'write', data = output}
+      -- initialize data transfers
+      self:configPort{index = 1, action = 'prefetch', data = input1}
+      if input2 then
+         self:configPort{index = 2, action = 'prefetch', data = input2}
+      end
+      if input3 then
+         self:configPort{index = 3, action = 'prefetch', data = input3}
+      end
+      self:configPort{index = 4, action = 'write', data = output}
 
-   -- readout
-   self:configPort{index = 1, action = 'read'}
-   if input2 then
-      self:configPort{index = 2, action = 'read'}
-   end
-   if input3 then
-      self:configPort{index = 3, action = 'read'}
-   end
+      -- readout
+      self:configPort{index = 1, action = 'read'}
+      if input2 then
+         self:configPort{index = 2, action = 'read'}
+      end
+      if input3 then
+         self:configPort{index = 3, action = 'read'}
+      end
+   end)
 
    -- synchronize write port, and close all
    self:configPort{index = 4, action = 'sync+close'}
@@ -980,7 +981,6 @@ function CoreUser:stdOperator(input1, input2, input3, output, op)
 
    -- deactivate tile
    self:configTile{operation = op, address = 1, activate = false}
-   self:endProcess()
 end
 
 function CoreUser:subtract(input1, input2, output)
