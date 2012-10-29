@@ -670,7 +670,6 @@ function CoreUser:mapping(input, output, coefs)
 end
 
 function CoreUser:copy(input, output)
-   self:startProcess()
    if (self.msg_level ~= 'none') then
       self:message('copy.'..input.orig_h..'x'..input.orig_w..'.image')
    end
@@ -689,7 +688,6 @@ function CoreUser:copy(input, output)
    -- unconnect IO router
    self:send_selectModule(blast_bus.area_tile, blast_bus.addr_mapp_0, blast_bus.subAddr_IO)
    self:send_route__all_dummys()
-   self:endProcess()
 end
 
 function CoreUser:localNormalizeMean(input, kernel, output)
