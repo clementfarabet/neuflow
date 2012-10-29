@@ -642,23 +642,24 @@ function CoreUser:subsampleWithBiasAndMap(input, kernel, output, coefs)
 end
 
 function CoreUser:mapping(input, output, coefs)
-   self:startProcess()
    if (self.msg_level ~= 'none') then
       self:message('exec.mapping.with.'..input.orig_h..'x'..input.orig_w..'.image')
    end
 
-   -- config tile #1 for mapper
-   self:configTile{operation = 'MAPPING',
-                   address = 1,
-                   config = {mode = {even=coefs.even, odd=coefs.odd},
-                             segments = coefs},
-                   inputs = {[1] = {source = 1}},
-                   outputs = {[1] = {dest = 3}},
-                   activate = true}
+   self:executionTimeSensitive(function()
+      -- config tile #1 for mapper
+      self:configTile{operation = 'MAPPING',
+                      address = 1,
+                      config = {mode = {even=coefs.even, odd=coefs.odd},
+                                segments = coefs},
+                      inputs = {[1] = {source = 1}},
+                      outputs = {[1] = {dest = 3}},
+                      activate = true}
 
-   -- initialize data transfers
-   self:configPort{index = 3, action = 'write', data = output}
-   self:configPort{index = 1, action = 'fetch+read', data = input}
+      -- initialize data transfers
+      self:configPort{index = 3, action = 'write', data = output}
+      self:configPort{index = 1, action = 'fetch+read', data = input}
+   end)
 
    -- synchronize write port, and close all
    self:configPort{index = 3, action = 'sync+close'}
@@ -666,7 +667,6 @@ function CoreUser:mapping(input, output, coefs)
 
    -- deactivate tile
    self:configTile{operation = 'MAPPING', address = 1, activate = false}
-   self:endProcess()
 end
 
 function CoreUser:copy(input, output)
