@@ -42,9 +42,6 @@ function Core:__init(args)
    memory.size_r = memory.size_b / streamer.stride_b
    oFlower.cache_size_b = args.cache_size or oFlower.cache_size_b
 
-   -- binary data array.
-   self.binary = {}
-
    -- linker
    self.linker = neuflow.Linker {
       init_offset =  self.offset_code,
@@ -102,60 +99,42 @@ function Core:__init(args)
 end
 
 function Core:bootSequence(args)
-   self:startProcess()
    self:nop(64)
    self:print('booting...')
-   self:endProcess()
-
-   self:startProcess()
    self:print(banner)
-   self:endProcess()
-
-   self:startProcess()
    self:configureGrid()
-   self:endProcess()
 
-   self:startProcess()
    local ports_to_configure = {}
    for i = 1,streamer.nb_ports-1 do table.insert(ports_to_configure,i) end
    self:configureStreamer(0, 16*1024*1024, 1024, ports_to_configure)
-   self:endProcess()
 
    if ((args.selftest ~= nil) and (args.selftest == true)) then
       self:self_test()
       self:print('----------------------------------------------------------')
-      self:startProcess()
       self:print('----------------------------------------------------------')
-      self:endProcess()
    end
-   self:startProcess()
    self:message('boot sequence done... going on with user code!')
    self:print('----------------------------------------------------------')
-   self:endProcess()
+end
+
+function Core:executionTimeSensitive(code)
+   -- start sentinel
+   self.linker:appendSentinel('start')
+
+   code()
+
+   -- end sentinel
+   self.linker:appendSentinel('end')
 end
 
 function Core:startProcess()
-   if not self.processLock then
-      self.binary = {}
-      self.processLock = 1
-   else
-      print(sys.COLORS.Red .. 'WARNING'
-            .. sys.COLORS.none .. ' process already started [verify nested processes]')
-      self.processLock = self.processLock + 1
-   end
+   print('WARNING: Core:startProcess depreciated. Use executionTimeSensitive instead')
+   self.linker:appendSentinel('start')
 end
 
 function Core:endProcess()
-   if self.processLock then
-      self.processLock = self.processLock - 1
-      if self.processLock == 0 then
-         self.linker:addProcess()
-         self.processLock = nil
-      end
-   else
-      print(sys.COLORS.Red .. 'WARNING'
-            .. sys.COLORS.none .. ' no process to end [verify nested processes]')
-   end
+   print('WARNING: Core:endProcess depreciated. Use executionTimeSensitive instead')
+   self.linker:appendSentinel('end')
 end
 
 function Core:loopRepeat(times, code, ...)
@@ -253,56 +232,61 @@ function Core:addInstruction(args)
    self.linker:appendInstruction(args)
 end
 
-function Core:addDataUINT8(uint8)
-   self.binary[#self.binary+1] = uint8
+function Core:addDataUINT8(binary, uint8)
+   assert('table' == type(binary))
+   binary[#binary+1] = uint8
 end
 
-function Core:addDataUINT16(uint16)
-   self.binary[#self.binary+1] = math.floor(uint16/256^0) % 256
-   self.binary[#self.binary+1] = math.floor(uint16/256^1) % 256
+function Core:addDataUINT16(binary, uint16)
+   assert('table' == type(binary))
+   binary[#binary+1] = math.floor(uint16/256^0) % 256
+   binary[#binary+1] = math.floor(uint16/256^1) % 256
 end
 
-function Core:addDataUINT32(uint32)
-   self.binary[#self.binary+1] = math.floor(uint32/256^0) % 256
-   self.binary[#self.binary+1] = math.floor(uint32/256^1) % 256
-   self.binary[#self.binary+1] = math.floor(uint32/256^2) % 256
-   self.binary[#self.binary+1] = math.floor(uint32/256^3) % 256
+function Core:addDataUINT32(binary, uint32)
+   assert('table' == type(binary))
+   binary[#binary+1] = math.floor(uint32/256^0) % 256
+   binary[#binary+1] = math.floor(uint32/256^1) % 256
+   binary[#binary+1] = math.floor(uint32/256^2) % 256
+   binary[#binary+1] = math.floor(uint32/256^3) % 256
 end
 
-function Core:addDataString(str)
+function Core:addDataString(binary, str)
+   assert('table' == type(binary))
    for i=1,string.len(str) do
-      self:addDataUINT8(str:byte(i))
+      self:addDataUINT8(binary, str:byte(i))
    end
 end
 
-function Core:addDataPAD()
+function Core:addDataPAD(binary)
+   assert('table' == type(binary))
    -- pad the end of binary array to align with instruction size
-   local bin_padding = 8 - (#self.binary % 8)
+   local bin_padding = 8 - (#binary % 8)
    if (bin_padding ~= 8) then
       for i=1, bin_padding do
-         self.binary[#self.binary+1] = 0
+         binary[#binary+1] = 0
       end
    end
 
    local ii = 0
-   while ii < (#self.binary-1) do
+   while ii < (#binary-1) do
       self:addInstruction {
          bytes = {
-            self.binary[ii+1],
-            self.binary[ii+2],
-            self.binary[ii+3],
-            self.binary[ii+4],
-            self.binary[ii+5],
-            self.binary[ii+6],
-            self.binary[ii+7],
-            self.binary[ii+8]
+            binary[ii+1],
+            binary[ii+2],
+            binary[ii+3],
+            binary[ii+4],
+            binary[ii+5],
+            binary[ii+6],
+            binary[ii+7],
+            binary[ii+8]
          }
       }
 
       ii = ii + 8
    end
 
-   self.binary = {}
+   binary = {}
 end
 
 -- ALU operations
@@ -813,10 +797,11 @@ function Core:messagebody(str)
    }
 
    -- Then push the text data
-   self:addDataString('    ')
-   self:addDataString(str)
-   self:addDataString('\n\r')
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, '    ')
+   self:addDataString(binary, str)
+   self:addDataString(binary, '\n\r')
+   self:addDataPAD(binary)
 end
 
 function Core:message(str)
@@ -829,10 +814,11 @@ function Core:message(str)
    }
 
    -- Then push the text data
-   self:addDataString('--> ')
-   self:addDataString(str)
-   self:addDataString('\n\r')
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, '--> ')
+   self:addDataString(binary, str)
+   self:addDataString(binary, '\n\r')
+   self:addDataPAD(binary)
 end
 
 function Core:print(str)
@@ -845,9 +831,10 @@ function Core:print(str)
    }
 
    -- Then push the text data
-   self:addDataString(str)
-   self:addDataString('\n\r')
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, str)
+   self:addDataString(binary, '\n\r')
+   self:addDataPAD(binary)
 end
 
 function Core:printraw(str)
@@ -860,8 +847,9 @@ function Core:printraw(str)
    }
 
    -- Then push the text data
-   self:addDataString(str)
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, str)
+   self:addDataPAD(binary)
 end
 
 function Core:writeStringToMem(stream, str)
@@ -885,8 +873,9 @@ function Core:writeStringToMem(stream, str)
    }
 
    -- Then push the text data
-   self:addDataString(str)
-   self:addDataPAD()
+   local binary = {}
+   self:addDataString(binary, str)
+   self:addDataPAD(binary)
 
    -- done...
    self:closePort(1)
@@ -1051,10 +1040,8 @@ end
 function Core:sleep(sec)
    assert('number' == type(sec))
 
-   --self:startProcess()
    local ticks = math.floor( (sec / (self.period_ns * 1e-9)) / 8 )
    self:loopRepeat(ticks)
-   --self:endProcess()
 end
 
 -- Instuctions:
@@ -1700,7 +1687,6 @@ end
 
 -- A battery of tests
 function Core:self_test()
-   self:startProcess()
    self:message('OpenFlower doing selftests')
 
    self:messagebody('testing reg allocation')
@@ -1739,7 +1725,6 @@ function Core:self_test()
 
    self:getTime()
    self:message('all tests passed :-)')
-   self:endProcess()
 end
 
 --[[ Register Allocator:

@@ -352,21 +352,15 @@ end
 function NeuFlow:beginLoop(tag)
    self.loopTags.tag = self.core:makeGotoTag()
    self.loopTags.tag.offset = 1
-   self.core:startProcess()
-   self.core:endProcess()
 end
 
 function NeuFlow:endLoop(tag)
-   self.core:startProcess()
    self.core:defaults()
    self.core:gotoTag(self.loopTags.tag)
-   self.core:endProcess()
 end
 
 function NeuFlow:term()
-   self.core:startProcess()
    self.core:terminate()
-   self.core:endProcess()
 end
 
 ----------------------------------------------------------------------

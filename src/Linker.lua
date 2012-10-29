@@ -79,20 +79,25 @@ function Linker:linkGotos()
          end
       end
 
-      -- if destination node is a sentinel, try linking to node
-      -- on ether side and throw an error if cannot
-      if ref_node.bytes == nil then
+      -- if destination node is a sentinel, try linking to a node in the next
+      -- direction, if cannot then in the prev direction. Throw an error if
+      -- cannot find a non sentinel node.
+      function checkNode(ref_node, reverse)
 
-         if ref_node.next then
-            ref_node = ref_node.next
-         elseif ref_node.prev then
-            ref_node = ref_node.prev
-         end
-
-         if ref_node.bytes == nil then
-            error('# ERROR <Linker:linkGotos> : could not link goto')
+         if nil ~= ref_node.bytes then
+            return ref_node
+         else
+            if ref_node.next and not reverse then
+               return checkNode(ref_node.next)
+            elseif ref_node.prev then
+               return checkNode(ref_node.prev, true)
+            else
+               error('# ERROR <Linker:linkGotos> : could not link goto')
+            end
          end
       end
+
+      ref_node = checkNode(ref_node)
 
       -- remove just processed goto tab from table
       goto_table[node] = nil
@@ -165,12 +170,10 @@ function Linker:genBytecode()
    return instruction_output
 end
 
-function Linker:addProcess()
-   self:appendSentinel()
-end
+function Linker:appendSentinel(mode)
+   assert('start' == mode or 'end' == mode or nil == mode)
 
-function Linker:appendSentinel()
-   local new_sentinel = {}
+   local new_sentinel = {mode = mode}
    local last_sentinel = self.instruction_list.end_sentinel
    local last_node = self.instruction_list.end_node
 
@@ -253,62 +256,65 @@ function Linker:removeSegment(seg_start, seg_end)
    later_node.prev = earlier_node
 end
 
-function Linker:alignProcessWithPages()
-   if self.instruction_list.end_node ~= self.instruction_list.sentinel_node then
-      self:appendSentinel()
-   end
+function Linker:alignSensitiveCode(walker)
+   walker = walker or {
+      current_node      = self.instruction_list.start_node,
+      sentinel_start    = nil,
+      sentinel_nesting  = 0,
+      sentinel_size     = 0,
+      bytecode_size     = 0,
+   }
 
-   local function countNextProcess(node, cnt)
-      cnt = cnt or 0
+   if nil == walker.current_node.bytes then
+      -- sentinel
 
-      if node == nil or node.bytes == nil then
-         return cnt
-      else
-         cnt = cnt+1
-         return countNextProcess(node.next, cnt)
+      if 'start' == walker.current_node.mode then
+         if 0 == walker.sentinel_nesting then
+            walker.sentinel_start = walker.current_node
+            walker.sentinel_size  = 0
+         end
+         walker.sentinel_nesting = walker.sentinel_nesting + 1
+      end
+
+      if 'end' == walker.current_node.mode then
+         walker.sentinel_nesting = walker.sentinel_nesting - 1
+         assert(0 <= walker.sentinel_nesting)
+      end
+   else
+      -- instr
+      walker.bytecode_size = walker.bytecode_size + 1
+
+      if 0 < walker.sentinel_nesting then
+         if (1 == (walker.bytecode_size % (oFlower.page_size_b/8))) then
+            -- current node is first of new page
+
+            if walker.sentinel_start ~= walker.current_node.prev then
+               -- shift sensitive section into new page
+               assert((oFlower.page_size_b/8) > walker.sentinel_size)
+
+               local before_sensitive = walker.sentinel_start.next
+               for i = 1, walker.sentinel_size do
+                  self:insertInstruction(before_sensitive, {bytes = {0,0,0,0,0,0,0,0}})
+                  before_sensitive = before_sensitive.next
+                  walker.bytecode_size = walker.bytecode_size + 1
+               end
+            end
+         end
+
+         walker.sentinel_size = walker.sentinel_size + 1
       end
    end
 
-   local node = self.instruction_list.start_sentinel.next_sentinel
-   local cur_page = countNextProcess(self.instruction_list.start_sentinel.next)
-
-   while node.next do
-      local next_process = countNextProcess(node.next)
-      local new_page = cur_page + next_process
-
-      if new_page > (oFlower.page_size_b/8) then
-         local old_page = node.prev
-         local diff = 0
-         if (cur_page%(oFlower.page_size_b/8) ~= 0) then
-            diff = (oFlower.page_size_b/8) - (cur_page%(oFlower.page_size_b/8))
-         end
-
-         if (diff > 0) then
-            local instr_bytes = self:newInstructionBytes{opcode = oFlower.op_goto}
-            local new_instr = {bytes = instr_bytes, goto_instr = node.next}
-
-            self:insertInstruction(old_page, new_instr)
-            old_page = old_page.next
-         end
-
-         for i = 1, (diff-1) do
-            self:insertInstruction(old_page, {bytes = {0,0,0,0,0,0,0,0}})
-            old_page = old_page.next
-         end
-
-         cur_page = next_process
-      else
-         cur_page = new_page
-      end
-
-      node = node.next_sentinel
+   if walker.current_node.next then
+      walker.current_node = walker.current_node.next
+      return self:alignSensitiveCode(walker)
    end
 end
 
 function Linker:dump(info, mem)
 
    self:linkGotos()
-   self:alignProcessWithPages()
+   self:alignSensitiveCode()
    local instr_nb = self:resolveGotos()
 
    mem:adjustBytecodeSize(instr_nb*8)
