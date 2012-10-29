@@ -123,7 +123,6 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
          local cur_i = 0
          for cyc = 1,nb_cycles do
             -- message
-            self:startProcess()
             if (self.msg_level == 'detailled') then
                self:message('conv.bank.cycle.'..cyc)
             end
@@ -164,113 +163,116 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
                self:configPort{index = 2, action = 'prefetch', data = outputs[o]}
             end
 
-            -- config all conv tiles to exec convolutions
-            for i = 1,sim_convs do
-               -- bias is active for very first conv only
-               if i == 1 and cyc == 1 then bias = 'on'
-               else bias = 'off' end
+            self:executionTimeSensitive(function()
+               -- config all conv tiles to exec convolutions
+               for i = 1,sim_convs do
 
-               if cyc > 1 and i == 1 then
-                  -- Conv i + acc output, result goes to ADD
-                  self:configTile{operation = 'CONV2D',
-                                  address = i,
-                                  config = {bias = 'off'},
-                                  inputs = {[1] = {source = 2+i, data = inputs[cur_i+i]},
-                                            [2] = {data = kernels[cur_k+i]},
-                                            [3] = {source = 2, data = outputs[o]}},
-                                  outputs = {[1] = {dest = 'south', data = outputs[o]}},
-                                  control = 3,
-                                  activate = true}
-               else
-                  -- Conv i, result goes to ADD
-                  self:configTile{operation = 'CONV2D',
-                                  address = i,
-                                  config = {bias = bias},
-                                  inputs = {[1] = {source = 2+i, data = inputs[cur_i+i]},
-                                            [2] = {data = kernels[cur_k+i]}},
-                                  outputs = {[1] = {dest = 'south', data = outputs[o]}},
-                                  control = 3,
-                                  activate = true}
-               end
+                  -- bias is active for very first conv only
+                  if i == 1 and cyc == 1 then bias = 'on'
+                  else bias = 'off' end
 
-               -- ADD takes result from conv, and adds it to other stream coming from mapper
-               if i == 1 then
-                  self:configTile{operation = 'ADD',
-                                  bypass = true,
-                                  address = i,
-                                  inputs = {[1] = {source = 'north'}},
-                                  outputs = {[1] = {dest = 'east'}}}
-               else
-                  self:configTile{operation = 'ADD',
-                                  activate = true,
-                                  address = i,
-                                  inputs = {[1] = {source = 'west'},
-                                            [2] = {source = 'north'}},
-                                  outputs = {[1] = {dest = 'east'}}}
-               end
-
-               if i < sim_convs then
-                  -- through mapper: connects ADD[i] to ADD[i+1]
-                  self:configTile{operation = 'MAPPING',
-                                  address = i,
-                                  bypass = true,
-                                  inputs = {[1] = {source = 'west'}},
-                                  outputs = {[1] = {dest = 'east'}}}
-               else
-                  if cyc == nb_cycles and coefs then
-                     -- mapper is used for the last segment
-                     self:configTile{operation = 'MAPPING',
+                  if cyc > 1 and i == 1 then
+                     -- Conv i + acc output, result goes to ADD
+                     self:configTile{operation = 'CONV2D',
                                      address = i,
-                                     config = {mode = {even=coefs.even,
-                                                       odd=coefs.odd},
-                                               segments = coefs},
-                                     inputs = {[1] = {source = 'west'}},
-                                     outputs = {[1] = {dest = 1}},
+                                     config = {bias = 'off'},
+                                     inputs = {[1] = {source = 2+i, data = inputs[cur_i+i]},
+                                               [2] = {data = kernels[cur_k+i]},
+                                               [3] = {source = 2, data = outputs[o]}},
+                                     outputs = {[1] = {dest = 'south', data = outputs[o]}},
+                                     control = 3,
                                      activate = true}
                   else
-                     -- through mapper: connects ADD[i] to output 1
+                     -- Conv i, result goes to ADD
+                     self:configTile{operation = 'CONV2D',
+                                     address = i,
+                                     config = {bias = bias},
+                                     inputs = {[1] = {source = 2+i, data = inputs[cur_i+i]},
+                                               [2] = {data = kernels[cur_k+i]}},
+                                     outputs = {[1] = {dest = 'south', data = outputs[o]}},
+                                     control = 3,
+                                     activate = true}
+                  end
+
+                  -- ADD takes result from conv, and adds it to other stream coming from mapper
+                  if i == 1 then
+                     self:configTile{operation = 'ADD',
+                                     bypass = true,
+                                     address = i,
+                                     inputs = {[1] = {source = 'north'}},
+                                     outputs = {[1] = {dest = 'east'}}}
+                  else
+                     self:configTile{operation = 'ADD',
+                                     activate = true,
+                                     address = i,
+                                     inputs = {[1] = {source = 'west'},
+                                               [2] = {source = 'north'}},
+                                     outputs = {[1] = {dest = 'east'}}}
+                  end
+
+                  if i < sim_convs then
+                     -- through mapper: connects ADD[i] to ADD[i+1]
                      self:configTile{operation = 'MAPPING',
                                      address = i,
                                      bypass = true,
                                      inputs = {[1] = {source = 'west'}},
-                                     outputs = {[1] = {dest = 1}}}
+                                     outputs = {[1] = {dest = 'east'}}}
+                  else
+                     if cyc == nb_cycles and coefs then
+                        -- mapper is used for the last segment
+                        self:configTile{operation = 'MAPPING',
+                                        address = i,
+                                        config = {mode = {even=coefs.even,
+                                                          odd=coefs.odd},
+                                                  segments = coefs},
+                                        inputs = {[1] = {source = 'west'}},
+                                        outputs = {[1] = {dest = 1}},
+                                        activate = true}
+                     else
+                        -- through mapper: connects ADD[i] to output 1
+                        self:configTile{operation = 'MAPPING',
+                                        address = i,
+                                        bypass = true,
+                                        inputs = {[1] = {source = 'west'}},
+                                        outputs = {[1] = {dest = 1}}}
+                     end
                   end
                end
-            end
 
-            -- config outputs to write result
-            self:configPort{index = 1, action = 'write', data = outputs[o]}
+               -- config outputs to write result
+               self:configPort{index = 1, action = 'write', data = outputs[o]}
 
-            -- at cycle 2 and more, reread previous result
-            if cyc > 1 then
-               self:configPort{index = 2, action = 'sync-prefetch'}
-               self:configPort{index = 2, action = 'activate'}
-            end
-
-            -- read all inputs
-            for i = 1,sim_convs do
-               self:configPort{index = 2+i, action = 'sync-prefetch'}
-            end
-
-            for i = 1,sim_convs do
-               -- the following logic might seem absurd, but it is just some
-               -- hard-coded static scheduling:
-               -- scheduling on the grid is mostly deterministic, and therefore streams
-               -- have to be aligned in time, to meet at precise time/space locations.
-               -- the delays don't have to be cycle accurate, as each operator is buffered
-               -- with 64 word deep fifos.
-               local delay = 0
-               local clock_ratio = oFlower.clock_freq / grid.clock_freq
-               local fifo_size = 64
-               if cyc > 1 and i == 2 then
-                  delay = (fifo_size/2 + 16) * clock_ratio
-               elseif i > 2 then
-                  delay = 4 * clock_ratio
+               -- at cycle 2 and more, reread previous result
+               if cyc > 1 then
+                  self:configPort{index = 2, action = 'sync-prefetch'}
+                  self:configPort{index = 2, action = 'activate'}
                end
-               for j=1,delay do self:nop() end    -- we insert nops to synchronize each stream
-               -- activate the reading
-               self:configPort{index = 2+i, action = 'activate'}
-            end
+
+               -- read all inputs
+               for i = 1,sim_convs do
+                  self:configPort{index = 2+i, action = 'sync-prefetch'}
+               end
+
+               for i = 1,sim_convs do
+                  -- the following logic might seem absurd, but it is just some
+                  -- hard-coded static scheduling:
+                  -- scheduling on the grid is mostly deterministic, and therefore streams
+                  -- have to be aligned in time, to meet at precise time/space locations.
+                  -- the delays don't have to be cycle accurate, as each operator is buffered
+                  -- with 64 word deep fifos.
+                  local delay = 0
+                  local clock_ratio = oFlower.clock_freq / grid.clock_freq
+                  local fifo_size = 64
+                  if cyc > 1 and i == 2 then
+                     delay = (fifo_size/2 + 16) * clock_ratio
+                  elseif i > 2 then
+                     delay = 4 * clock_ratio
+                  end
+                  for j=1,delay do self:nop() end    -- we insert nops to synchronize each stream
+                  -- activate the reading
+                  self:configPort{index = 2+i, action = 'activate'}
+               end
+            end)
 
             -- synchronize write port, and close all
             self:configPort{index = 1, action = 'sync+close'}
@@ -291,7 +293,6 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
                self:configTile{operation = 'MAPPING', address = i, activate = false}
                self:configTile{operation = 'ADD', address = i, activate = false}
             end
-            self:endProcess()
          end
       end
 
@@ -303,7 +304,6 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
       local cur_k = 0
       local cur_o = 0
       for cyc = 1,nb_cycles do
-         self:startProcess()
          -- message
          if (self.msg_level == 'detailled') then
             self:message('conv.bank.cycle.'..cyc)
@@ -326,46 +326,48 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
             self:configTile{operation = 'CONV2D', address = o, activate = false}
          end
 
-         -- config all conv tiles to exec convolutions
-         for o = 1,sim_convs do
-            -- Conv o, result goes to mapper
-            self:configTile{operation = 'CONV2D',
-                            address = o,
-                            config = {bias = 'on'},
-                            inputs = {[1] = {source = 1, data = inputs[1]},
-                                      [2] = {data = kernels[cur_k+o]}},
-                            outputs = {[1] = {dest = 'east', data = outputs[cur_o+o]}},
-                            control = 3,
-                            activate = true}
-
-
-            if coefs then
-               -- mapper is used for the last segment
-               self:configTile{operation = 'MAPPING',
+         self:executionTimeSensitive(function()
+            -- config all conv tiles to exec convolutions
+            for o = 1,sim_convs do
+               -- Conv o, result goes to mapper
+               self:configTile{operation = 'CONV2D',
                                address = o,
-                               config = {mode = {even=coefs.even,
-                                                 odd=coefs.odd},
-                                         segments = coefs},
-                               inputs = {[1] = {source = 'north'}},
-                               outputs = {[1] = {dest = 1+o}},
+                               config = {bias = 'on'},
+                               inputs = {[1] = {source = 1, data = inputs[1]},
+                                         [2] = {data = kernels[cur_k+o]}},
+                               outputs = {[1] = {dest = 'east', data = outputs[cur_o+o]}},
+                               control = 3,
                                activate = true}
-            else
-               -- mapper is bypassed
-               self:configTile{operation = 'MAPPING',
-                               address = o,
-                               bypass = true,
-                               inputs = {[1] = {source = 'north'}},
-                               outputs = {[1] = {dest = 1+o}}}
+
+
+               if coefs then
+                  -- mapper is used for the last segment
+                  self:configTile{operation = 'MAPPING',
+                                  address = o,
+                                  config = {mode = {even=coefs.even,
+                                                    odd=coefs.odd},
+                                            segments = coefs},
+                                  inputs = {[1] = {source = 'north'}},
+                                  outputs = {[1] = {dest = 1+o}},
+                                  activate = true}
+               else
+                  -- mapper is bypassed
+                  self:configTile{operation = 'MAPPING',
+                                  address = o,
+                                  bypass = true,
+                                  inputs = {[1] = {source = 'north'}},
+                                  outputs = {[1] = {dest = 1+o}}}
+               end
             end
-         end
 
-         -- config outputs to write results
-         for o = 1,sim_convs do
-            self:configPort{index = 1+o, action = 'write', data = outputs[cur_o+o]}
-         end
+            -- config outputs to write results
+            for o = 1,sim_convs do
+               self:configPort{index = 1+o, action = 'write', data = outputs[cur_o+o]}
+            end
 
-         -- readout single input
-         self:configPort{index = 1, action = 'fetch+read', data = inputs[1]}
+            -- readout single input
+            self:configPort{index = 1, action = 'fetch+read', data = inputs[1]}
+         end)
 
          -- synchronize write ports
          for o = 1,sim_convs do
@@ -385,7 +387,6 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
             self:configTile{operation = 'MAPPING', address = o, activate = false}
             self:configTile{operation = 'ADD', address = o, activate = false}
          end
-         self:endProcess()
       end
 
       -- one kernel per input, this is a 1 to 1 layer
@@ -398,7 +399,6 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
       local cur_o = 0
       local cur_i = 0
       for cyc = 1,nb_cycles do
-         self:startProcess()
          -- message
          if (self.msg_level == 'detailled') then
             self:message('conv.bank.cycle.'..cyc)
@@ -421,48 +421,50 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
             self:configTile{operation = 'CONV2D', address = o, activate = false}
          end
 
-         -- config all conv tiles to exec convolutions
-         for o = 1,sim_convs do
-            -- for the inputs
-            local i = o
+         self:executionTimeSensitive(function()
+            -- config all conv tiles to exec convolutions
+            for o = 1,sim_convs do
+               -- for the inputs
+               local i = o
 
-            -- Conv o, result goes to mapper
-            self:configTile{operation = 'CONV2D',
-                            address = o,
-                            config = {bias = 'on'},
-                            inputs = {[1] = {source = i, data = inputs[cur_i+i]},
-                                      [2] = {data = kernels[cur_k+o]}},
-                            outputs = {[1] = {dest = 'east', data = outputs[cur_o+o]}},
-                            control = 3,
-                            activate = true}
-
-
-            if coefs then
-               -- mapper is used for the last segment
-               self:configTile{operation = 'MAPPING',
+               -- Conv o, result goes to mapper
+               self:configTile{operation = 'CONV2D',
                                address = o,
-                               config = {mode = {even=coefs.even,
-                                                 odd=coefs.odd},
-                                         segments = coefs},
-                               inputs = {[1] = {source = 'north'}},
-                               outputs = {[1] = {dest = nconvs+o}},
+                               config = {bias = 'on'},
+                               inputs = {[1] = {source = i, data = inputs[cur_i+i]},
+                                         [2] = {data = kernels[cur_k+o]}},
+                               outputs = {[1] = {dest = 'east', data = outputs[cur_o+o]}},
+                               control = 3,
                                activate = true}
-            else
-               -- mapper is bypassed
-               self:configTile{operation = 'MAPPING',
-                               address = o,
-                               bypass = true,
-                               inputs = {[1] = {source = 'north'}},
-                               outputs = {[1] = {dest = nconvs+o}}}
-            end
-         end
 
-         -- config outputs to write results, inputs to read
-         for o = 1,sim_convs do
-            local i = o
-            self:configPort{index = nconvs+o, action = 'write', data = outputs[cur_o+o]}
-            self:configPort{index = i, action = 'fetch+read', data = inputs[cur_i+i]}
-         end
+
+               if coefs then
+                  -- mapper is used for the last segment
+                  self:configTile{operation = 'MAPPING',
+                                  address = o,
+                                  config = {mode = {even=coefs.even,
+                                                    odd=coefs.odd},
+                                            segments = coefs},
+                                  inputs = {[1] = {source = 'north'}},
+                                  outputs = {[1] = {dest = nconvs+o}},
+                                  activate = true}
+               else
+                  -- mapper is bypassed
+                  self:configTile{operation = 'MAPPING',
+                                  address = o,
+                                  bypass = true,
+                                  inputs = {[1] = {source = 'north'}},
+                                  outputs = {[1] = {dest = nconvs+o}}}
+               end
+            end
+
+            -- config outputs to write results, inputs to read
+            for o = 1,sim_convs do
+               local i = o
+               self:configPort{index = nconvs+o, action = 'write', data = outputs[cur_o+o]}
+               self:configPort{index = i, action = 'fetch+read', data = inputs[cur_i+i]}
+            end
+         end)
 
          -- synchronize write ports
          for o = 1,sim_convs do
@@ -485,8 +487,6 @@ function CoreUser:convolBank(inputs, kernels, outputs, coefs)
             self:configTile{operation = 'MAPPING', address = o, activate = false}
             self:configTile{operation = 'ADD', address = o, activate = false}
          end
-         self:endProcess()
-
       end
 
       -- unknown combination of kernels/inputs/outputs
