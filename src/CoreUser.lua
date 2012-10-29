@@ -104,11 +104,9 @@ end
 function CoreUser:convolBank(inputs, kernels, outputs, coefs)
    -- message
    if (self.msg_level ~= 'none') then
-      self:startProcess()
       self:message('exec.convolution.bank.and.mapping.on.'..
                    #inputs..'x'..inputs[1].orig_h..'x'..inputs[1].orig_w..'.inputs.and.'..
                    #outputs..'x'..outputs[1].orig_h..'x'..outputs[1].orig_w..'.outputs')
-      self:endProcess()
    end
 
    -- nb of convs
@@ -1013,9 +1011,7 @@ end
 
 function CoreUser:multiplyScalar(input, scalar, output)
    if (self.msg_level ~= 'none') then
-      self:startProcess()
       self:message('exec.scalar.multiply.with.'..input1.orig_h..'x'..input1.orig_w..'.image')
-      self:endProcess()
    end
 
    -- for now, we use the convolver grid to do that task
