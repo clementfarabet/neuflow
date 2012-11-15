@@ -34,26 +34,32 @@ nf = neuflow.init {
 -- note: any copy**Host() inserted here needs to be matched by
 -- a copy**Dev() in the EXEC section.
 --
-activeCamera = {'A','B'}
-nf.camera:config(activeCamera, 'iic', 'ON')
-nf.camera:config(activeCamera, 'scan', 'PROGRESSIVE')
+activeCamera = {'B','A'}
+toto = nf.camera:config(activeCamera, 'iic', 'ON')
+--toto = nf.camera:config(activeCamera, 'domain', 'RGB')
+--toto = nf.camera:config(activeCamera, 'definition', 'QVGA')
+toto = nf.camera:config(activeCamera, 'scan', 'PROGRESSIVE')
+toto = nf.camera:config(activeCamera, 'color', 'B&W')
+--toto = nf.camera:config(activeCamera, 'domain', 'RGB')
+--toto = nf.camera:cPROGRESSIVEonfig(activeCamera, 'grab', 'ONESHOT')
+--print('<neuflow.Camera> : reg ctrl ' .. toto)
 
+--nf.camera:stopRBCameras() -- Being sure that the Camera is stopped
+nf.camera.core:sleep(1)
 --nf.camera:startRBCameras() -- Start camera and send images to Running Buffer
 nf.camera:enableCameras(activeCamera)
 
 -- loop over the main code
 nf:beginLoop('main') do
 
-   --outputs = nf.camera:copyToHostLatestFrame() -- Get the latest complete frame from both camers
 
    -- send image from camera to memory
    nf.camera:captureOneFrame(activeCamera)
-   --nf.camera:captureOneFrame('B')
    input_dev = nf.camera:getLastFrame(activeCamera)
-   --input_dev = nf.camera:getLastFrame('B')
 
    -- pass image to host
    outputs = nf:copyToHost(input_dev)
+   --outputs = nf.camera:copyToHostLatestFrame() -- Get the latest complete frame from both camers
    --nf.camera.core:sleep(0.15)
 
 end nf:endLoop('main')
@@ -98,7 +104,7 @@ end
 torch.setdefaulttensortype('torch.FloatTensor')
 
 if not win then
-   win = qtwidget.newwindow(1280,530,'Loopback Camera Test')
+   win = qtwidget.newwindow(2000,800,'Loopback Camera Test')
 end
 
 timer = qt.QTimer()
