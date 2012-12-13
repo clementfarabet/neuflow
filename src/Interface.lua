@@ -46,13 +46,17 @@ function Ethernet:dev_copyToHost(tensor, ack)
    end
 
    for i = 1,#tensor do
-      self:streamToHost(tensor[i], 'default', ack)
+      self.core:executionTimeSensitive(function()
+         self:streamToHost(tensor[i], 'default', ack)
+      end)
    end
 end
 
 function Ethernet:dev_copyFromHost(tensor)
    for i = 1,#tensor do
-      self:streamFromHost(tensor[i], 'default')
+      self.core:executionTimeSensitive(function()
+         self:streamFromHost(tensor[i], 'default')
+      end)
    end
 
    -- always print a dummy flag, useful for profiling
