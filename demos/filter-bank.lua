@@ -21,7 +21,10 @@ require 'qtwidget'
 -- platform='xilinx_ml605' or platform='pico_m503'
 
 local platform = arg[1] or 'xilinx_ml605'
-nf = neuflow.init{platform=platform}
+nf = neuflow.init {
+   prog_name   = 'filter-bank',
+   platform    = platform
+}
 
 ----------------------------------------------------------------------
 -- ELABORATION: describe the algorithm to be run on neuFlow, and 
