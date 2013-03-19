@@ -367,7 +367,7 @@ function Compiler:SpatialConvolutionMap(conv_module, inputs, mapping)
                local kernel_mem = self.core.mem:allocEmbeddedData(kernel, bias)
 
                -- collect connections
-               table.insert(output_list, output[o])
+               table.insert(output_list, outputs[o])
                table.insert(kernel_list, kernel_mem)
 
                -- for info, update the number of ops
