@@ -1247,6 +1247,7 @@ function Core:configTile(args)
    end
    -- at this point configs is a table of configs
    for i,config in ipairs(configs) do
+   self:executionTimeSensitive(function()
       -- check for address
       if not config.address then
          error('<Core:configTile> a tile address needs to be provided')
@@ -1526,6 +1527,7 @@ function Core:configTile(args)
             self:send_route__all_dummys()
          end
       end
+   end)
    end
 end
 
