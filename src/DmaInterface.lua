@@ -44,16 +44,22 @@ end
 
 function DmaEthernet:dev_copyToHost(tensor)
    for i = 1, (#tensor-1) do
-      self:streamToHost(tensor[i], 'default')
-      self:streamFromHost(self.ack_stream[1], 'ack_stream')
+      self.nf.core:executionTimeSensitive(function()
+         self:streamToHost(tensor[i], 'default')
+         self:streamFromHost(self.ack_stream[1], 'ack_stream')
+      end)
    end
 
-   self:streamToHost(tensor[#tensor], 'default')
+   self.nf.core:executionTimeSensitive(function()
+      self:streamToHost(tensor[#tensor], 'default')
+   end)
 end
 
 function DmaEthernet:dev_copyFromHost(tensor)
    for i = 1,#tensor do
-      self:streamFromHost(tensor[i], 'default')
+      self.nf.core:executionTimeSensitive(function()
+         self:streamFromHost(tensor[i], 'default')
+      end)
    end
 end
 
