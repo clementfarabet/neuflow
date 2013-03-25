@@ -788,68 +788,76 @@ function Core:getStatus(statusToGet)
 end
 
 function Core:messagebody(str)
-   -- Printing a message is just a stream to the UART
-   self:addInstruction {
-      opcode = oFlower.op_writeStream,
-      arg8_1 = oFlower.io_uart,
-      arg8_3 = oFlower.type_uint8,
-      arg32_1 = string.len(str)+6
-   }
+   self:executionTimeSensitive(function()
+      -- Printing a message is just a stream to the UART
+      self:addInstruction {
+         opcode = oFlower.op_writeStream,
+         arg8_1 = oFlower.io_uart,
+         arg8_3 = oFlower.type_uint8,
+         arg32_1 = string.len(str)+6
+      }
 
-   -- Then push the text data
-   local binary = {}
-   self:addDataString(binary, '    ')
-   self:addDataString(binary, str)
-   self:addDataString(binary, '\n\r')
-   self:addDataPAD(binary)
+      -- Then push the text data
+      local binary = {}
+      self:addDataString(binary, '    ')
+      self:addDataString(binary, str)
+      self:addDataString(binary, '\n\r')
+      self:addDataPAD(binary)
+   end)
 end
 
 function Core:message(str)
-   -- Printing a message is just a stream to the UART
-   self:addInstruction {
-      opcode = oFlower.op_writeStream,
-      arg8_1 = oFlower.io_uart,
-      arg8_3 = oFlower.type_uint8,
-      arg32_1 = string.len(str)+6
-   }
+   self:executionTimeSensitive(function()
+      -- Printing a message is just a stream to the UART
+      self:addInstruction {
+         opcode = oFlower.op_writeStream,
+         arg8_1 = oFlower.io_uart,
+         arg8_3 = oFlower.type_uint8,
+         arg32_1 = string.len(str)+6
+      }
 
-   -- Then push the text data
-   local binary = {}
-   self:addDataString(binary, '--> ')
-   self:addDataString(binary, str)
-   self:addDataString(binary, '\n\r')
-   self:addDataPAD(binary)
+      -- Then push the text data
+      local binary = {}
+      self:addDataString(binary, '--> ')
+      self:addDataString(binary, str)
+      self:addDataString(binary, '\n\r')
+      self:addDataPAD(binary)
+   end)
 end
 
 function Core:print(str)
-   -- Printing a message is just a stream to the UART
-   self:addInstruction {
-      opcode = oFlower.op_writeStream,
-      arg8_1 = oFlower.io_uart,
-      arg8_3 = oFlower.type_uint8,
-      arg32_1 = string.len(str)+2
-   }
+   self:executionTimeSensitive(function()
+      -- Printing a message is just a stream to the UART
+      self:addInstruction {
+         opcode = oFlower.op_writeStream,
+         arg8_1 = oFlower.io_uart,
+         arg8_3 = oFlower.type_uint8,
+         arg32_1 = string.len(str)+2
+      }
 
-   -- Then push the text data
-   local binary = {}
-   self:addDataString(binary, str)
-   self:addDataString(binary, '\n\r')
-   self:addDataPAD(binary)
+      -- Then push the text data
+      local binary = {}
+      self:addDataString(binary, str)
+      self:addDataString(binary, '\n\r')
+      self:addDataPAD(binary)
+   end)
 end
 
 function Core:printraw(str)
-   -- Printing a message is just a stream to the UART
-   self:addInstruction {
-      opcode = oFlower.op_writeStream,
-      arg8_1 = oFlower.io_uart,
-      arg8_3 = oFlower.type_uint8,
-      arg32_1 = string.len(str)
-   }
+   self:executionTimeSensitive(function()
+      -- Printing a message is just a stream to the UART
+      self:addInstruction {
+         opcode = oFlower.op_writeStream,
+         arg8_1 = oFlower.io_uart,
+         arg8_3 = oFlower.type_uint8,
+         arg32_1 = string.len(str)
+      }
 
-   -- Then push the text data
-   local binary = {}
-   self:addDataString(binary, str)
-   self:addDataPAD(binary)
+      -- Then push the text data
+      local binary = {}
+      self:addDataString(binary, str)
+      self:addDataPAD(binary)
+   end)
 end
 
 function Core:writeStringToMem(stream, str)
@@ -864,18 +872,20 @@ function Core:writeStringToMem(stream, str)
       error('# ERROR <Core.writeStringToMem> : lengths dont match')
    end
 
-   -- Printing a message is just a stream to the UART
-   self:addInstruction {
-      opcode = oFlower.op_writeStream,
-      arg8_1 = oFlower.io_dma,
-      arg8_3 = oFlower.type_uint32,
-      arg32_1 = length
-   }
+   self:executionTimeSensitive(function()
+      -- Printing a message is just a stream to the UART
+      self:addInstruction {
+         opcode = oFlower.op_writeStream,
+         arg8_1 = oFlower.io_dma,
+         arg8_3 = oFlower.type_uint32,
+         arg32_1 = length
+      }
 
-   -- Then push the text data
-   local binary = {}
-   self:addDataString(binary, str)
-   self:addDataPAD(binary)
+      -- Then push the text data
+      local binary = {}
+      self:addDataString(binary, str)
+      self:addDataPAD(binary)
+   end)
 
    -- done...
    self:closePort(1)
