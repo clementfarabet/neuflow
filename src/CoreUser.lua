@@ -1009,7 +1009,7 @@ end
 
 function CoreUser:multiplyScalar(input, scalar, output)
    if (self.msg_level ~= 'none') then
-      self:message('exec.scalar.multiply.with.'..input1.orig_h..'x'..input1.orig_w..'.image')
+      self:message('exec.scalar.multiply.with.'..input.orig_h..'x'..input.orig_w..'.image')
    end
 
    -- for now, we use the convolver grid to do that task
