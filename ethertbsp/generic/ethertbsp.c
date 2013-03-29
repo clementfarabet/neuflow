@@ -361,23 +361,24 @@ int network_send_packet() {
 //  printf("\n");
   // end debugging
 
-  error = gettimeofday(&current, NULL);
-  diff_usec = current.tv_usec - last_packet.tv_usec + (current.tv_sec - last_packet.tv_sec) * 1000000;
-  if (diff_usec < ETH_PACKET_DELAY_US) {
-    delay = ETH_PACKET_DELAY_US - diff_usec - usleep_bias;
-
-    if (delay < 2)
-      delay = 2;
-
-    usleep(delay);
-  }
-  error = gettimeofday(&last_packet, NULL);
+//  error = gettimeofday(&current, NULL);
+//  diff_usec = current.tv_usec - last_packet.tv_usec + (current.tv_sec - last_packet.tv_sec) * 1000000;
+//  if (diff_usec < ETH_PACKET_DELAY_US) {
+//    delay = ETH_PACKET_DELAY_US - diff_usec - usleep_bias;
+//
+//    if (delay < 2)
+//      delay = 2;
+//
+//    usleep(delay);
+//  }
+//  error = gettimeofday(&last_packet, NULL);
 
 #ifdef _LINUX_
   bytesent = sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
 #else // not _LINUX_ but _APPLE_
   bytesent =  write(bpf, send_buffer, frame_length);
 #endif // _LINUX_
+  usleep(5);
 
   return bytesent;
 }
