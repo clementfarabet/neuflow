@@ -70,7 +70,7 @@ static int ifindex;
 int bpf = 0;
 int bpf_buf_len = 0;
 struct bpf_hdr *bpf_buf;
-char* bpf_ptr;
+char *bpf_ptr;
 int bpf_read_bytes;
 struct bpf_program my_bpf_program;
 //BPF Filter
@@ -88,12 +88,15 @@ struct bpf_insn insns[] = {
 #endif // _LINUX_
 
 // ethernet packet parameters
-static uint8_t eth_addr_remote[6] = {ETH_ADDR_REM>>40,
-                                     (ETH_ADDR_REM>>32) & 0xff,
-                                     (ETH_ADDR_REM>>24) & 0xff,
-                                     (ETH_ADDR_REM>>16) & 0xff,
-                                     (ETH_ADDR_REM>>8)  & 0xff,
-                                     (ETH_ADDR_REM)     & 0xff};
+static uint8_t eth_addr_remote[6] = {
+  (ETH_ADDR_REM>>40),
+  (ETH_ADDR_REM>>32) & 0xff,
+  (ETH_ADDR_REM>>24) & 0xff,
+  (ETH_ADDR_REM>>16) & 0xff,
+  (ETH_ADDR_REM>>8)  & 0xff,
+  (ETH_ADDR_REM)     & 0xff
+};
+
 static uint8_t eth_addr_local[6]  = {0xff,0xff,0xff,0xff,0xff,0xff};
 static uint8_t eth_type_tbsp[2]   = {ETH_TYPE>>8, ETH_TYPE & 0xff};
 const int ethertype_length        = (ETH_HLEN-(2*ETH_ALEN));
@@ -135,12 +138,12 @@ uint32_t current_recv_seq_pos = 0;
 
 
 /* this function returns the effective delay according to the desired delay in parameter */
-int calibrate_usleep (int desired_delay){
+int calibrate_usleep(int desired_delay) {
   int i;
   int loop = 1000;
   struct timeval t1, t2;
   long long t = 0;
-  for(i = 0; i < loop; i++){
+  for (i = 0; i < loop; i++) {
       gettimeofday(&t1, NULL);
       usleep(desired_delay);
       gettimeofday(&t2, NULL);
@@ -166,12 +169,12 @@ void tbsp_packet_init(struct tbsp_packet *packet, uint8_t *buffer) {
 }
 
 
-void tbsp_write_type (struct tbsp_packet *packet, enum tbsp_types_t type) {
+void tbsp_write_type(struct tbsp_packet *packet, enum tbsp_types_t type) {
   *packet->tbsp_type = (uint8_t) type;
 }
 
 
-enum tbsp_types_t tbsp_read_type (struct tbsp_packet *packet) {
+enum tbsp_types_t tbsp_read_type(struct tbsp_packet *packet) {
   int type = (int) *packet->tbsp_type;
 
   if (TBSP_RESET == (enum tbsp_types_t) type) return TBSP_RESET;
@@ -242,6 +245,7 @@ uint16_t tbsp_read_data_length(struct tbsp_packet *packet) {
 
 int network_recv_packet() {
 #ifdef _LINUX_
+
   int kk = 0;
   int ii = 0;
   int bad_packet = 0;
@@ -297,32 +301,36 @@ int network_recv_packet() {
     // end debugging
 
   } while (bad_packet);
+
 #else // not _LINUX_ but _APPLE_
+
   struct frame_t *frame;
   struct bpf_hdr *bpf_packet;
   // Check if a new read is needed (a read from a bpf device can contains several bpf packets)
-  if(bpf_ptr >= ((char*)(bpf_buf) + bpf_read_bytes))
-  {
+  if (bpf_ptr >= ((char*)(bpf_buf) + bpf_read_bytes)) {
     //New read
     memset(bpf_buf, 0, bpf_buf_len);
     bpf_read_bytes = read(bpf, bpf_buf, bpf_buf_len);
-    if(bpf_read_bytes < 0)
-    {
+
+    if (bpf_read_bytes < 0) {
       printf("Bad read %d\n", bpf_read_bytes);
       return bpf_read_bytes;
     }
-    if(bpf_read_bytes == 0)
-    {
+
+    if (bpf_read_bytes == 0) {
       printf("Null read %d\n", bpf_read_bytes);
       return bpf_read_bytes;
     }
     bpf_ptr = (char*)bpf_buf;
   }
   bpf_packet = (struct bpf_hdr*)bpf_ptr;
+
   memcpy(recv_buffer, (char*)bpf_packet + bpf_packet->bh_hdrlen, bpf_packet->bh_caplen);
   // Increment thr ptr message for the next read
   bpf_ptr += BPF_WORDALIGN(bpf_packet->bh_hdrlen + bpf_packet->bh_caplen);
+
 #endif // _LINUX_
+
   return 0;
 }
 
@@ -353,21 +361,24 @@ int network_send_packet() {
 //  printf("\n");
   // end debugging
 
-error = gettimeofday(&current, NULL);
-diff_usec = current.tv_usec - last_packet.tv_usec + (current.tv_sec - last_packet.tv_sec) * 1000000;
-if(diff_usec < ETH_PACKET_DELAY_US){
-  delay = ETH_PACKET_DELAY_US - diff_usec - usleep_bias;
-  if(delay < 2)
-    delay = 2;
-  usleep(delay);
-}
-error = gettimeofday(&last_packet, NULL);
+  error = gettimeofday(&current, NULL);
+  diff_usec = current.tv_usec - last_packet.tv_usec + (current.tv_sec - last_packet.tv_sec) * 1000000;
+  if (diff_usec < ETH_PACKET_DELAY_US) {
+    delay = ETH_PACKET_DELAY_US - diff_usec - usleep_bias;
+
+    if (delay < 2)
+      delay = 2;
+
+    usleep(delay);
+  }
+  error = gettimeofday(&last_packet, NULL);
 
 #ifdef _LINUX_
   bytesent = sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
 #else // not _LINUX_ but _APPLE_
   bytesent =  write(bpf, send_buffer, frame_length);
 #endif // _LINUX_
+
   return bytesent;
 }
 
@@ -482,11 +493,11 @@ int open_dev(void)
 }
 
 // link the device to an interface
-void assoc_dev(int bpflocal, const char* interface)
-{
+void assoc_dev(int bpflocal, const char* interface) {
+
   struct ifreq bound_if;
   strcpy(bound_if.ifr_name, interface);
-  if(ioctl(bpflocal , BIOCSETIF, &bound_if ) > 0) {
+  if (ioctl(bpflocal , BIOCSETIF, &bound_if ) > 0) {
     printf("<ethertbsp> Cannot bind bpf device to physical device %s, exiting\n", interface);
     exit(1);
   }
@@ -494,27 +505,29 @@ void assoc_dev(int bpflocal, const char* interface)
 }
 
 // Set the bpf buffer size
-int set_buf_len(int bpflocal)
-{
+int set_buf_len(int bpflocal) {
+
   int buf_len_local = 1;
   // activate immediate mode (therefore, buf_len is initially set to "1")
-  if( ioctl( bpflocal, BIOCIMMEDIATE, &buf_len_local ) == -1 ) {
+  if ( ioctl( bpflocal, BIOCIMMEDIATE, &buf_len_local ) == -1 ) {
     printf("<ethertbsp> Cannot set IMMEDIATE mode of bpf device\n");
     exit(1);
   }
+
   buf_len_local = 3*1024*1024;
   // request buffer length
-  if( ioctl( bpflocal, BIOCSBLEN, &buf_len_local  ) == -1 ) {
+  if ( ioctl( bpflocal, BIOCSBLEN, &buf_len_local  ) == -1 ) {
     printf("<ethertbsp> Cannot get bufferlength of bpf device\n");
     exit(1);
   }
 
   // request buffer length
-  if( ioctl( bpflocal, BIOCGBLEN, &buf_len_local  ) == -1 ) {
+  if ( ioctl( bpflocal, BIOCGBLEN, &buf_len_local  ) == -1 ) {
     printf("Cannot get bufferlength of bpf device\n");
     exit(1);
   }
   printf("<ethertbsp> Buffer length of bpf device: %d\n", buf_len_local);
+
   return buf_len_local;
 }
 
@@ -537,7 +550,7 @@ int network_open_socket(const char *dev) {
 
   // Allocate space for bpf packet
   bpf_buf = (struct bpf_hdr*) malloc(bpf_buf_len);
-  if (bpf_buf == 0){
+  if (bpf_buf == 0) {
       fprintf(stderr, "bpf buffer alloc failed: %s\n", strerror(errno));
       return -1;
   }
@@ -561,9 +574,7 @@ int network_open_socket(const char *dev) {
 int tbsp_send_reset() {
   int xx;
 
-  // debugging
   printf("<send reset>\n");
-  // end debugging
 
   for (xx = 0; xx < 10; xx++) {
     // send reset packet
