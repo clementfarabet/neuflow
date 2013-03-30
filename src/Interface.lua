@@ -77,7 +77,7 @@ function Ethernet:host_copyToDev(tensor)
 end
 
 function Ethernet:host_copyFromDev(tensor, handshake)
-   profiler_neuflow = self.profiler:start('on-board-processing')
+   self.profiler:start('on-board-processing')
    self.profiler:setColor('on-board-processing', 'blue')
    self:getFrame('copy-starting')
    self.profiler:lap('on-board-processing')
