@@ -48,7 +48,7 @@ function DmaEthernet:dev_copyToHost(tensor)
    for i = 1, (#tensor-1) do
       self.nf.core:executionTimeSensitive(function()
          self:streamToHost(tensor[i], 'default')
-         self:streamFromHost(self.ack_stream[1], 'ack_stream')
+         --self:streamFromHost(self.ack_stream[1], 'ack_stream')
       end)
    end
 
@@ -81,7 +81,7 @@ function DmaEthernet:host_copyFromDev(tensor)
    self.profiler:start('copy-from-dev')
    ethertbsp.receivetensor(tensor[1])
    for i = 2,tensor:size(1) do
-      ethertbsp.sendtensor(self.ack_tensor)
+      --ethertbsp.sendtensor(self.ack_tensor)
       ethertbsp.receivetensor(tensor[i])
    end
    self.profiler:lap('copy-from-dev')
