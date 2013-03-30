@@ -11,6 +11,8 @@ function DmaEthernet:__init(args)
    -- args:
    self.nf = args.nf
    self.core = args.core
+   self.profiler = self.nf.profiler
+
    self.msg_level = args.msg_level or 'none'  -- 'detailled' or 'none' or 'concise'
    self.max_packet_size = 1500 or args.max_packet_size
 
@@ -68,21 +70,27 @@ function DmaEthernet:dev_receiveBytecode()
 end
 
 function DmaEthernet:host_copyToDev(tensor)
+   self.profiler:start('copy-to-dev')
    for i = 1,tensor:size(1) do
       ethertbsp.sendtensor(tensor[i])
    end
+   self.profiler:lap('copy-to-dev')
 end
 
 function DmaEthernet:host_copyFromDev(tensor)
+   self.profiler:start('copy-from-dev')
    ethertbsp.receivetensor(tensor[1])
    for i = 2,tensor:size(1) do
       ethertbsp.sendtensor(self.ack_tensor)
       ethertbsp.receivetensor(tensor[i])
    end
+   self.profiler:lap('copy-from-dev')
 end
 
 function DmaEthernet:host_sendBytecode(bytecode)
+   self.profiler:start('load-bytecode')
    ethertbsp.loadbytecode(bytecode)
+   self.profiler:lap('load-bytecode')
 end
 
 function DmaEthernet:printToEthernet(str)
