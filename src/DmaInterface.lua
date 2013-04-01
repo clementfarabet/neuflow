@@ -47,7 +47,7 @@ end
 function DmaEthernet:dev_copyToHost(tensor)
    -- profiler ack
    self.nf.core:executionTimeSensitive(function()
-      self:streamFromHost(self.ack_stream[1], 'ack_stream')
+      self:streamToHost(self.ack_stream[1], 'ack_stream')
    end)
 
    for i = 1, (#tensor-1) do
@@ -86,7 +86,7 @@ function DmaEthernet:host_copyFromDev(tensor)
    -- profiler ack
    self.profiler:start('on-board-processing')
    self.profiler:setColor('on-board-processing', 'blue')
-   ethertbsp.sendtensor(self.ack_tensor)
+   ethertbsp.receivetensor(self.ack_tensor)
    self.profiler:lap('on-board-processing')
 
 
