@@ -375,10 +375,11 @@ int network_send_packet() {
 
 #ifdef _LINUX_
   bytesent = sendto(sockfd, send_buffer, frame_length, 0, (struct sockaddr*)&sock_address, socklen);
+  usleep(5);
 #else // not _LINUX_ but _APPLE_
   bytesent =  write(bpf, send_buffer, frame_length);
+  usleep(50);
 #endif // _LINUX_
-  usleep(5);
 
   return bytesent;
 }
