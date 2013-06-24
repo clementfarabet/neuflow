@@ -162,6 +162,18 @@ do
    oFlower.bus_b           = oFlower.bus_/8
 end
 
+----------------------------------------------------------------------
+--- General DMAs
+--
+dma = {}
+do
+   -- global DMA IOs
+   dma.nb_ios = 4
+   dma.ethernet_write_port_id = 2
+   dma.ethernet_read_port_id = 3
+   dma.camera_A_port_id = 4
+   dma.camera_B_port_id = 5
+end
 
 ----------------------------------------------------------------------
 --- Grid parameters
@@ -183,16 +195,6 @@ do
    grid.nb_alus = 4
    -- clock:
    grid.clock_freq = 200*MHz
-end
-
-
-----------------------------------------------------------------------
---- General DMAs
---
-dma = {}
-do
-   -- global DMA IOs
-   dma.nb_ios = 2
 end
 
 

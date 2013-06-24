@@ -193,6 +193,8 @@ dma = {}
 do
    -- global DMA IOs
    dma.nb_ios = 2
+   dma.ethernet_write_port_id = 2
+   dma.ethernet_read_port_id = 3
 end
 
 
