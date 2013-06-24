@@ -60,6 +60,13 @@ function NeuFlow:__init(args)
       }
    end
 
+   if self.core.platform == 'pico_m503' then
+      self.camera = neuflow.Camera {
+         msg_level = args.camera_msg_level or self.global_msg_level,
+         nf = self
+      }
+   end
+
    -- for loops: this retains a list of jump locations
    self.loopTags = {}
 
@@ -78,10 +85,6 @@ function NeuFlow:__init(args)
 
    -- bytecode has a constant size (oFlower bios)
    self.bytecodesize = bootloader.load_size
-
-   -- data ack
-   self.ack_tensor = torch.Tensor(1,1,32)
-   self.ack_stream = self:allocHeap(self.ack_tensor)
 
    -- and finally initialize hardware
    self:initialize()
