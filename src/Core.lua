@@ -1192,8 +1192,8 @@ function Core:configPort(args)
       elseif not (config.range and config.range == 'full') then
          -- N first ports are invisible to the grid
          config.index = config.index + (dma.nb_ios + oFlower.nb_dmas)
-      -- switch to 0-based
-      config.index = config.index - 1
+        -- switch to 0-based
+        config.index = config.index - 1
       end
 
       if config.verbose then
