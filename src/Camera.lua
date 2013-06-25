@@ -127,12 +127,7 @@ end
 function Camera:initCamera(cameraID, alloc_frames)
 
    self.frames[cameraID] = alloc_frames
-   print('<neuflow.Camera> : init Camera ' ..
-         cameraID .. ' : alloc_frame ' ..
-            alloc_frames.w .. 'x' ..
-            alloc_frames.h .. ' at ' ..
-            alloc_frames.x .. ' ' ..
-            alloc_frames.y)
+   print('<neuflow.Camera> : init Camera ' .. cameraID)
 
    -- puts the cameras in standby
    local reg_ctrl = self.core:allocRegister()
@@ -239,31 +234,29 @@ function Camera:enableCameras(cameraID)
    else
       lcameraID = cameraID
    end
-   local idx_A
-   local idx_B
+
    for i=1,#lcameraID do
-      local idx
-      idx = self.core.mem:allocImageData(self.size[lcameraID[i]].height,
-                                         self.size[lcameraID[i]].width*self.size[lcameraID[i]].component,
-                                         nil)
-      self:initCamera(lcameraID[i], self.core.mem.data[idx])
+      local image_tensor = torch.Tensor(self.size[lcameraID[i]].height, self.size[lcameraID[i]].width*self.size[lcameraID[i]].component)
+      local image_segment = self.core.mem:allocPersistentData(image_tensor, '2D')
+
+      self:initCamera(lcameraID[i], image_segment)
    end
    self.core:sleep(1)
-   -- local idx_A = self.core.mem:allocImageData(self.h_, self.w_, nil)
-   -- local idx_B = self.core.mem:allocImageData(self.h_, self.w_, nil)
-   -- self:initCamera('A', self.core.mem.data[idx_A])
-   -- self:initCamera('B', self.core.mem.data[idx_B])
 end
 
 function Camera:startRBCameras() -- Start camera and send images to Running Buffer
 
    print('<neuflow.Camera> : enable Camera: ' .. self.size['A'].width * self.size['A'].component .. 'x' .. self.size['A'].height)
-   local idx_A = self.core.mem:allocImageData(self.size['A'].height * self.nb_frames, self.size['A'].width * self.size['A'].component, nil)
-   local idx_B = self.core.mem:allocImageData(self.size['B'].height * self.nb_frames, self.size['B'].width * self.size['B'].component, nil)
+
+   local image_tensor_A = torch.Tensor(self.size['A'].height, self.size['A'].width*self.size['A'].component)
+   local image_segment_A = self.core.mem:allocPersistentData(image_tensor_A, '2D')
+
+   local image_tensor_B = torch.Tensor(self.size['B'].height, self.size['B'].width*self.size['B'].component)
+   local image_segment_B = self.core.mem:allocPersistentData(image_tensor_B, '2D')
 
    -- The two cameras have to be initialized in the same time if an IIC configuration occured.
-   self:initCamera('B', self.core.mem.data[idx_B])
-   self:initCamera('A', self.core.mem.data[idx_A])
+   self:initCamera('B', image_segment_B)
+   self:initCamera('A', image_segment_A)
 
    self.core:sleep(2)
 
@@ -326,6 +319,16 @@ end
 
 function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_addr_range)
 
+   function coordinateOffset(coordinate, offset)
+      return {
+         coordinate = coordinate,
+         calc = function(self)
+            return self.coordinate:calc() + offset
+         end
+      }
+   end
+
+
    local goto_ends = {}
    local reg_count = self.core:allocRegister()
 
@@ -344,7 +347,7 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
          action = 'fetch+read+sync+close',
          data   = {
             x = self.frames[cameraID].x,
-            y = self.frames[cameraID].y + ((ii-1)*self.size[cameraID].height),
+            y = coordinateOffset(self.frames[cameraID].y, ((ii-1)*self.size[cameraID].height)),
             w = self.size[cameraID].width * self.size[cameraID].component,
             h = self.size[cameraID].height
          },
@@ -366,7 +369,7 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
       action = 'fetch+read+sync+close',
       data   = {
          x = self.frames[cameraID].x,
-         y = self.frames[cameraID].y + ((self.nb_frames-1)*self.size[cameraID].height),
+         y = coordinateOffset(self.frames[cameraID].y, ((self.nb_frames-1)*self.size[cameraID].height)),
          w = self.size[cameraID].width * self.size[cameraID].component,
          h = self.size[cameraID].height
       },
