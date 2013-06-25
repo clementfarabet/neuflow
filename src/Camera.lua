@@ -135,11 +135,10 @@ function Camera:initCamera(cameraID, alloc_frames)
             alloc_frames.y)
 
    -- puts the cameras in standby
-   local reg_ctrl = self.core.alloc_ur:get()
+   local reg_ctrl = self.core:allocRegister()
    self:config(cameraID,'power','ON')
    self.core:setreg(reg_ctrl, self.reg_ctrl)
    self.core:iowrite(oFlower.io_gpios, reg_ctrl)
-   self.core.alloc_ur:free(reg_ctrl)
    --self.core:sleep(1)
    self.core:message('Camera: Init done')
 end
@@ -166,8 +165,8 @@ end
 function Camera:getLastFrame(cameraID)
    local outputs = {}
 
-   local reg_acqst = self.core.alloc_ur:get()
-   local reg_tmp = self.core.alloc_ur:get()
+   local reg_acqst = self.core:allocRegister()
+   local reg_tmp = self.core:allocRegister()
    local lcameraID
 
    local mask_status = 0x00000000
@@ -185,9 +184,6 @@ function Camera:getLastFrame(cameraID)
    self.core:compi(reg_tmp, 0x00000000, reg_tmp)
    self.core:loopUntilEndIfNonZero(reg_tmp)
 
-   self.core.alloc_ur:free(reg_acqst)
-   self.core.alloc_ur:free(reg_tmp)
-
    for i = 1,#lcameraID do
       table.insert(outputs, self.frames[lcameraID[i]])
       self.core:closePort(self.cam_param[lcameraID[i]].port_addrs)
@@ -199,9 +195,9 @@ end
 function Camera:captureOneFrame(cameraID)
    local lcameraID
 
-   local reg_ctrl = self.core.alloc_ur:get()
-   local reg_acqst = self.core.alloc_ur:get()
-   local reg_tmp = self.core.alloc_ur:get()
+   local reg_ctrl = self.core:allocRegister()
+   local reg_acqst = self.core:allocRegister()
+   local reg_tmp = self.core:allocRegister()
 
    local mask_ctrl = 0x00000000
    local mask_status = 0x00000000
@@ -234,10 +230,6 @@ function Camera:captureOneFrame(cameraID)
    mask_ctrl = self:config(cameraID, 'acquisition', 'OFF')
    self.core:setreg(reg_ctrl, mask_ctrl)
    self.core:iowrite(oFlower.io_gpios, reg_ctrl)
-
-   self.core.alloc_ur:free(reg_acqst)
-   self.core.alloc_ur:free(reg_ctrl)
-   self.core.alloc_ur:free(reg_tmp)
 end
 
 function Camera:enableCameras(cameraID)
@@ -290,19 +282,17 @@ function Camera:startRBCameras() -- Start camera and send images to Running Buff
 
    --self.core:sleep(0.1)
    -- Start cameras sending images
-   local reg_ctrl = self.core.alloc_ur:get()
+   local reg_ctrl = self.core:allocRegister()
    local mask_ctrl = self:config({'B','A'}, 'acquisition', 'ON')
 
    -- trigger acquisition
    self.core:setreg(reg_ctrl, mask_ctrl)
    self.core:iowrite(oFlower.io_gpios, reg_ctrl)
-
-   self.core.alloc_ur:free(reg_ctrl)
 end
 
 function Camera:stopRBCameras() -- Stop camera sending to Running Buffer
 
-   local reg_acqst = self.core.alloc_ur:get()
+   local reg_acqst = self.core:allocRegister()
    local mask_status = bit.bor(self.mask.status['A'], self.mask.status['B'])
    local mask_ctrl = self:config({'A','B'}, 'acquisition', 'OFF')
 
@@ -318,22 +308,18 @@ function Camera:stopRBCameras() -- Stop camera sending to Running Buffer
    -- self.core:compi(reg_acqst, 0x00000000, reg_acqst)
    -- self.core:loopUntilEndIfNonZero(reg_acqst)
 
-   self.core.alloc_ur:free(reg_acqst)
-
    -- reset ports setup
    self.core:configureStreamer(0, 16*1024*1024, 1024, {dma.camera_A_port_id, dma.camera_B_port_id})
 end
 
 function Camera:copyToHostLatestFrame() -- Get the latest complete frame
 
-   local reg_acqst = self.core.alloc_ur:get()
+   local reg_acqst = self.core:allocRegister()
    self.core:ioread(oFlower.io_gpios, reg_acqst)
 
    self:streamLatestFrameFromPort('B', reg_acqst, dma.ethernet_read_port_id, 'full')
    self.nf.ethernet:streamFromHost(self.nf.ethernet.ack_stream[1], 'ack_stream')
    self:streamLatestFrameFromPort('A', reg_acqst, dma.ethernet_read_port_id, 'full')
-
-   self.core.alloc_ur:free(reg_acqst)
 
    return torch.Tensor(2, self.size['A'].height, self.size['A'].width)
 end
@@ -341,7 +327,7 @@ end
 function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_addr_range)
 
    local goto_ends = {}
-   local reg_count = self.core.alloc_ur:get()
+   local reg_count = self.core:allocRegister()
 
    for ii = (self.nb_frames-1), 1, -1 do
       -- copy camera status into reg but masked for frame count
@@ -395,6 +381,4 @@ function Camera:streamLatestFrameFromPort(cameraID, reg_acqst, port_addr, port_a
    for i, goto_end in pairs(goto_ends) do
       goto_end.goto_tag = goto_end_tag
    end
-
-   self.core.alloc_ur:free(reg_count)
 end
