@@ -21,11 +21,10 @@ require 'qtwidget'
 -- a mem manager, the dataflow core, and the compiler
 --
 nf = neuflow.init {
-   platform='pico_m503',
-   global_msg_level = 'detailled',
-   interface_msg_level = 'detailled',
-   offset_data_1D = bootloader.entry_point_b + 6*MB,
-   offset_data_2D = bootloader.entry_point_b + 7*MB
+   prog_name           = 'loopback',
+   platform            ='pico_m503',
+   --global_msg_level    = 'detailled',
+   --interface_msg_level = 'detailled',
 }
 
 ----------------------------------------------------------------------
