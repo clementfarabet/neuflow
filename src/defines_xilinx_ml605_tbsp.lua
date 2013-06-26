@@ -19,7 +19,7 @@ blast_bus = {
    area_tile           =  2,
    area_memctrl        =  3,
    area_dma            =  4,
-   --                  
+   --
    addr_broadcast      = 0,
    addr_conv_0         = 1,
    addr_conv_1         = 2,
@@ -37,7 +37,7 @@ blast_bus = {
    addr_mem_streamer_7 = 8,
    addr_dma            = 0,
    addr_memctrl        = 0,
-   -- 
+   --
    subAddr_router      =  0,
    subAddr_operator    =  1,
    subAddr_cacher      =  2,
@@ -193,6 +193,8 @@ dma = {}
 do
    -- global DMA IOs
    dma.nb_ios = 2
+   dma.ethernet_write_port_id = 2
+   dma.ethernet_read_port_id = 3
 end
 
 
@@ -281,16 +283,16 @@ do
                                        ((streamer.mem_bandwidth_b/streamer.stream_bandwidth_b)
                                      - streamer.max_parallel_streams))
    streamer.min_timeout_wr = math.ceil(dead_cycles_wr /
-                                       ((streamer.mem_bandwidth_b/streamer.stream_bandwidth_b) 
+                                       ((streamer.mem_bandwidth_b/streamer.stream_bandwidth_b)
                                      - streamer.max_parallel_streams))
    --print('# streamer min timeouts: wr='.. streamer.min_timeout_wr
    --      .. ' and rd=' .. streamer.min_timeout_rd)
    -- for these timeouts, we compute necessary buffers to insure no one is starving
-   streamer.min_cache_rd = (math.ceil(streamer.word_b * (dead_cycles_rd 
+   streamer.min_cache_rd = (math.ceil(streamer.word_b * (dead_cycles_rd
                                                          + streamer.min_timeout_rd
                                                          *(streamer.max_parallel_streams-1))
                                    / streamer.mem_bus_b))
-   streamer.min_cache_wr = (math.ceil(streamer.word_b * (dead_cycles_wr 
+   streamer.min_cache_wr = (math.ceil(streamer.word_b * (dead_cycles_wr
                                                          + streamer.min_timeout_wr
                                                          *(streamer.max_parallel_streams-1))
                                    / streamer.mem_bus_b))
@@ -322,7 +324,7 @@ end
 --
 banner =
    '------------------------------------------------------------\r\n' ..
-   '--     _ _  __        neuFlow [v.1.0]                     --\r\n' .. 
+   '--     _ _  __        neuFlow [v.1.0]                     --\r\n' ..
    '--    ( | )/_/                                            --\r\n' ..
    '-- __( >O< )         This code runs on                    --\r\n' ..
    '-- \\_\\(_|_)       the custom openFlow CPU.                --\r\n' ..
