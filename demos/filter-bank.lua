@@ -35,8 +35,7 @@ nf = neuflow.init {
 
 -- input data
 inputsize = 400
-input = torch.Tensor(1,inputsize,inputsize)
-image.scale(image.lena()[1], input[1])
+input = image.scale(image.lena()[1], inputsize,inputsize)
 
 -- compute 16 9x9 random filters on the input,
 -- followed by a non-linear activation unit
@@ -86,7 +85,7 @@ function process()
    if camera then
       p:start('get-camera-frame')
       local frame = camera:forward()
-      image.scale(frame:narrow(1,2,1),input)
+      image.scale(input,frame:narrow(1,2,1))
       p:lap('get-camera-frame')
    end
 

@@ -40,11 +40,8 @@ nf = neuflow.init {
 -- input data
 inputsize = 400
 
---input = torch.Tensor(1,inputsize,inputsize)
---image.scale(image.lena()[1], input[1])
-
-input = torch.Tensor(3,inputsize,inputsize)
-image.scale(image.lena(), input)
+-- rescale
+input = image.scale(image.lena(), inputsize,inputsize)
 
 -- loop over the main code
 nf:beginLoop('main') do
