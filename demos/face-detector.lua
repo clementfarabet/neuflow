@@ -13,10 +13,10 @@ require 'neuflow'
 require 'qt'
 require 'qtwidget'
 require 'xlua'
-xrequire('inline',true)
-xrequire('nnx',true)
-xrequire('camera',true)
-xrequire('image',true)
+require 'inline'
+require 'nnx'
+require 'camera'
+require 'image'
 
 ----------------------------------------------------------------------
 -- ARGS: parse user arguments
